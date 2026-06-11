@@ -36,3 +36,17 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.log
+
+# Node / Frontend
+mall-web/node_modules/
+mall-web/dist/
+
+# OS.DS_Store
+Thumbs.db
