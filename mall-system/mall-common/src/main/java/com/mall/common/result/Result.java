@@ -1,7 +1,12 @@
 package com.mall.common.result;
 
+import lombok.Data;
+import lombok.experimental.Accessors;
+
 import java.io.Serializable;
 
+@Data
+@Accessors(chain = true)
 public class Result<T> implements Serializable {
     private int code;
     private String message;
@@ -9,15 +14,6 @@ public class Result<T> implements Serializable {
     private long timestamp;
 
     private Result() {}
-
-    public int getCode() { return code; }
-    public Result<T> setCode(int code) { this.code = code; return this; }
-    public String getMessage() { return message; }
-    public Result<T> setMessage(String message) { this.message = message; return this; }
-    public T getData() { return data; }
-    public Result<T> setData(T data) { this.data = data; return this; }
-    public long getTimestamp() { return timestamp; }
-    public Result<T> setTimestamp(long timestamp) { this.timestamp = timestamp; return this; }
 
     public static <T> Result<T> success(T data) {
         return new Result<T>()
