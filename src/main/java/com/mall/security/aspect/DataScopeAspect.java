@@ -29,10 +29,20 @@ public class DataScopeAspect {
     }
 
     private String buildScopeSql(LoginUser user, DataScope dataScope) {
-        // Store manager sees all, no filter
-        if (user.getPermissions().contains("*")) {
+        String alias = dataScope.tableAlias().isEmpty() ? "" : dataScope.tableAlias() + ".";
+
+        // Store manager sees all
+        if (user.getRoles().contains("store_manager")) {
             return "";
         }
+
+        // CS specialist -- only own-assigned data (orders, tickets)
+        if (user.getRoles().contains("cs_specialist")) {
+            return alias + "create_by = " + user.getUserId();
+        }
+
+        // Operations specialist -- future: department-based filtering
+        // Finance -- read-only, enforced by method-level security
         return "";
     }
 }

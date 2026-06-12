@@ -22,8 +22,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         if (user == null) {
             throw new UsernameNotFoundException("用户名或密码错误");
         }
-        List<String> permissions = menuMapper.selectPermsByUserId(user.getId());
-        return new LoginUser(user, permissions);
+        return buildLoginUser(user);
     }
 
     public LoginUser loadByUserId(Long userId) {
@@ -31,7 +30,12 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         if (user == null) {
             throw new UsernameNotFoundException("用户不存在");
         }
-        List<String> permissions = menuMapper.selectPermsByUserId(userId);
-        return new LoginUser(user, permissions);
+        return buildLoginUser(user);
+    }
+
+    private LoginUser buildLoginUser(SysUser user) {
+        List<String> roles = userMapper.selectRoleKeysByUserId(user.getId());
+        List<String> permissions = menuMapper.selectPermsByUserId(user.getId());
+        return new LoginUser(user, roles, permissions);
     }
 }

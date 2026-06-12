@@ -6,9 +6,9 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Getter
 public class LoginUser implements UserDetails {
@@ -16,21 +16,30 @@ public class LoginUser implements UserDetails {
     private final String username;
     private final String password;
     private final String realName;
+    private final List<String> roles;
     private final List<String> permissions;
 
-    public LoginUser(SysUser user, List<String> permissions) {
+    public LoginUser(SysUser user, List<String> roles, List<String> permissions) {
         this.userId = user.getId();
         this.username = user.getUsername();
         this.password = user.getPassword();
         this.realName = user.getRealName();
-        this.permissions = permissions;
+        this.roles = roles != null ? roles : List.of();
+        this.permissions = permissions != null ? permissions : List.of();
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return permissions.stream()
-                .map(SimpleGrantedAuthority::new)
-                .collect(Collectors.toList());
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        // 角色权限加 ROLE_ 前缀
+        for (String role : roles) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+        }
+        // 功能权限不加前缀
+        for (String perm : permissions) {
+            authorities.add(new SimpleGrantedAuthority(perm));
+        }
+        return authorities;
     }
 
     @Override public boolean isAccountNonExpired() { return true; }
