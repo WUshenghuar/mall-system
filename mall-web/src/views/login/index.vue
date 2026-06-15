@@ -1,11 +1,18 @@
 <template>
   <div class="login-page">
+    <!-- Decorative background -->
+    <div class="bg-pattern"></div>
+
     <div class="login-panel">
       <div class="login-brand">
-        <div class="brand-mark">CB</div>
+        <div class="brand-mark">
+          <span class="brand-letters">CB</span>
+          <div class="brand-dot"></div>
+        </div>
         <h1>跨境电商管理平台</h1>
         <p>Cross-Border E-Commerce</p>
       </div>
+
       <a-form
         class="login-form"
         :model="form"
@@ -21,6 +28,7 @@
             <template #prefix><user-outlined /></template>
           </a-input>
         </a-form-item>
+
         <a-form-item name="password" :rules="[{ required: true, message: '输入密码' }]">
           <a-input-password
             v-model:value="form.password"
@@ -30,6 +38,7 @@
             <template #prefix><lock-outlined /></template>
           </a-input-password>
         </a-form-item>
+
         <a-form-item>
           <a-button
             type="primary"
@@ -38,7 +47,7 @@
             block
             :loading="loading"
           >
-            登录
+            登录后台
           </a-button>
         </a-form-item>
       </a-form>
@@ -54,7 +63,7 @@ import { useUserStore } from '@/store/user'
 
 const router = useRouter()
 const userStore = useUserStore()
-const form = reactive({ username: '', password: '' })
+const form = reactive({ username: 'admin', password: 'admin123' })
 const loading = ref(false)
 
 async function handleLogin() {
@@ -76,18 +85,32 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--color-abyss);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Brand pattern */
+.bg-pattern {
+  position: absolute;
+  inset: 0;
   background:
-    radial-gradient(ellipse at 30% 20%, rgba(200, 150, 62, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 70% 80%, rgba(11, 25, 44, 0.04) 0%, transparent 50%),
-    var(--color-fog);
+    radial-gradient(ellipse 1200px 800px at 20% 50%, rgba(200, 150, 62, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 800px 600px at 80% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 60%),
+    radial-gradient(ellipse 600px 400px at 60% 80%, rgba(200, 150, 62, 0.04) 0%, transparent 50%);
+  pointer-events: none;
 }
 
 .login-panel {
-  width: 400px;
+  position: relative;
+  z-index: 1;
+  width: 420px;
   padding: var(--space-12) var(--space-10);
   background: var(--color-surface);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-elevated);
+  border-radius: 16px;
+  box-shadow:
+    0 4px 24px rgba(0,0,0,0.25),
+    0 0 0 1px rgba(255,255,255,0.05) inset;
 }
 
 .login-brand {
@@ -96,36 +119,57 @@ async function handleLogin() {
 }
 
 .brand-mark {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   margin: 0 auto var(--space-4);
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   background: var(--color-abyss);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(11, 25, 44, 0.2);
+}
+
+.brand-letters {
   color: var(--color-brass);
-  font-size: var(--text-xl);
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  border-radius: var(--radius-md);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.brand-dot {
+  position: absolute;
+  bottom: -3px;
+  right: -3px;
+  width: 10px;
+  height: 10px;
+  background: var(--color-brass);
+  border-radius: 50%;
+  border: 2px solid var(--color-surface);
 }
 
 .login-brand h1 {
-  font-size: var(--text-2xl);
+  font-size: 22px;
   color: var(--color-lead);
   font-weight: 600;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
 }
 
 .login-brand p {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   color: var(--color-slate-light);
-  margin-top: var(--space-1);
-  letter-spacing: 2px;
+  letter-spacing: 3px;
   text-transform: uppercase;
 }
 
 .login-form {
   margin-top: var(--space-4);
+}
+
+.login-form :deep(.ant-input-affix-wrapper),
+.login-form :deep(.ant-input-password) {
+  border-radius: var(--radius-md);
 }
 </style>

@@ -3,9 +3,9 @@
     <!-- Stat cards -->
     <a-row :gutter="24" class="stat-row">
       <a-col :xs="24" :sm="12" :lg="6" v-for="s in stats" :key="s.key">
-        <a-card class="stat-card" :bordered="false">
+        <a-card class="stat-card" :bordered="false" hoverable>
           <div class="stat-inner">
-            <div class="stat-icon" :style="{ background: s.color }">
+            <div class="stat-icon-box" :style="{ background: s.bg, color: s.fg }">
               <component :is="s.icon" />
             </div>
             <div class="stat-body">
@@ -17,23 +17,26 @@
       </a-col>
     </a-row>
 
-    <!-- Quick actions -->
-    <a-row :gutter="24" style="margin-top: var(--space-6)">
-      <a-col :span="16">
-        <a-card title="今日概览" :bordered="false">
-          <a-empty description="暂无数据" v-if="true" />
+    <!-- Charts + quick actions -->
+    <a-row :gutter="24" class="content-row">
+      <a-col :xs="24" :lg="16">
+        <a-card title="今日概览" :bordered="false" class="overview-card">
+          <template #extra>
+            <a-tag color="processing">实时</a-tag>
+          </template>
+          <a-empty description="连接后端后显示今日订单趋势" />
         </a-card>
       </a-col>
-      <a-col :span="8">
+      <a-col :xs="24" :lg="8">
         <a-card title="快捷操作" :bordered="false">
           <div class="quick-actions">
-            <a-button type="link" block @click="$router.push('/product')">
+            <a-button type="text" block @click="$router.push('/product')">
               <shopping-outlined /> 添加商品
             </a-button>
-            <a-button type="link" block @click="$router.push('/order')">
+            <a-button type="text" block @click="$router.push('/order')">
               <unordered-list-outlined /> 查看订单
             </a-button>
-            <a-button type="link" block @click="$router.push('/member')">
+            <a-button type="text" block @click="$router.push('/member')">
               <user-outlined /> 会员管理
             </a-button>
           </div>
@@ -44,16 +47,17 @@
 </template>
 
 <script setup>
+import { h } from 'vue'
 import {
   ShoppingOutlined, UnorderedListOutlined,
   UserOutlined, DollarOutlined
 } from '@ant-design/icons-vue'
 
 const stats = [
-  { key: 'product', label: '商品总数',   value: '--', icon: 'shopping-outlined',      color: 'rgba(59,130,246,0.1)' },
-  { key: 'order',   label: '今日订单',   value: '--', icon: 'unordered-list-outlined', color: 'rgba(200,150,62,0.12)' },
-  { key: 'member',  label: '会员总数',   value: '--', icon: 'user-outlined',           color: 'rgba(45,138,86,0.1)' },
-  { key: 'refund',  label: '待处理退款', value: '--', icon: 'dollar-outlined',         color: 'rgba(197,48,48,0.08)' }
+  { key: 'product', label: '商品总数',   value: '--', icon: ShoppingOutlined,     bg: '#EFF6FF', fg: '#3B82F6' },
+  { key: 'order',   label: '今日订单',   value: '--', icon: UnorderedListOutlined, bg: '#FDF6EE', fg: '#C8963E' },
+  { key: 'member',  label: '会员总数',   value: '--', icon: UserOutlined,         bg: '#EDF7F1', fg: '#2D8A56' },
+  { key: 'refund',  label: '待处理退款', value: '--', icon: DollarOutlined,       bg: '#FDF2F2', fg: '#C53030' }
 ]
 </script>
 
@@ -62,54 +66,85 @@ const stats = [
   max-width: 1200px;
 }
 
+.stat-row {
+  margin-bottom: var(--space-6);
+}
+
 .stat-card {
-  overflow: hidden;
+  border-radius: var(--radius-lg);
+  transition: transform var(--duration-fast) var(--ease-out),
+              box-shadow var(--duration-fast) var(--ease-out);
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-elevated);
 }
 
 .stat-inner {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-4);
 }
 
-.stat-icon {
-  width: 48px;
-  height: 48px;
+.stat-icon-box {
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
-  font-size: 22px;
-  color: var(--color-lead);
+  font-size: 20px;
+  flex-shrink: 0;
 }
 
 .stat-body {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .stat-label {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
   color: var(--color-slate);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
 }
 
 .stat-value {
-  font-size: var(--text-2xl);
-  font-weight: 600;
+  font-size: 26px;
+  font-weight: 700;
   color: var(--color-lead);
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+}
+
+.content-row {
+  margin-top: var(--space-6);
+}
+
+.overview-card .ant-card-body {
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .quick-actions {
   display: flex;
   flex-direction: column;
+  gap: 4px;
 }
-.quick-actions .ant-btn-link {
+.quick-actions .ant-btn-text {
   text-align: left;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
   color: var(--color-lead);
+  border-radius: var(--radius-md);
+  height: auto;
+  justify-content: flex-start;
 }
-.quick-actions .ant-btn-link:hover {
+.quick-actions .ant-btn-text:hover {
+  background: var(--color-fog);
   color: var(--color-brass);
 }
 </style>

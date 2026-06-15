@@ -53,8 +53,8 @@
   --radius-lg: 10px;
 
   /* Shadows */
-  --shadow-card: 0 1px 3px rgba(11, 25, 44, 0.06), 0 1px 2px rgba(11, 25, 44, 0.04);
-  --shadow-elevated: 0 4px 12px rgba(11, 25, 44, 0.08);
+  --shadow-card: 0 1px 3px rgba(11, 25, 44, 0.04), 0 1px 2px rgba(11, 25, 44, 0.03);
+  --shadow-elevated: 0 4px 16px rgba(11, 25, 44, 0.07), 0 0 0 1px rgba(11, 25, 44, 0.03);
 
   /* Transitions */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
