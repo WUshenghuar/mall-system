@@ -19,6 +19,59 @@ INSERT IGNORE INTO sys_user_role VALUES
 (3, 3, 3),   -- cs → 客服专员
 (4, 4, 4);   -- finance → 财务专员
 
+-- 菜单权限
+INSERT IGNORE INTO sys_menu (id, menu_name, parent_id, order_num, path, perms, menu_type, status, create_time, update_time) VALUES
+(1,  '系统管理',   0, 1, '/system',     NULL,                        'M', 1, NOW(), NOW()),
+(2,  '用户管理',   1, 1, 'user',        'system:user:list',          'C', 1, NOW(), NOW()),
+(3,  '角色管理',   1, 2, 'role',        'system:role:config',        'C', 1, NOW(), NOW()),
+(10, '商品管理',   0, 2, '/product',    NULL,                        'M', 1, NOW(), NOW()),
+(11, '分类管理',   10,1, 'category',    'product:category:config',   'C', 1, NOW(), NOW()),
+(12, 'SPU列表',    10,2, 'spu',         'product:spu:list',          'C', 1, NOW(), NOW()),
+(13, '商品添加',   10,3, NULL,          'product:spu:add',           'F', 1, NOW(), NOW()),
+(14, '商品编辑',   10,4, NULL,          'product:spu:edit',          'F', 1, NOW(), NOW()),
+(15, '商品删除',   10,5, NULL,          'product:spu:delete',        'F', 1, NOW(), NOW()),
+(16, '商品上架',   10,6, NULL,          'product:spu:publish',       'F', 1, NOW(), NOW()),
+(17, 'SKU列表',    10,7, NULL,          'product:sku:list',          'F', 1, NOW(), NOW()),
+(18, 'SKU改价',    10,8, NULL,          'product:sku:price',         'F', 1, NOW(), NOW()),
+(19, 'SKU库存',    10,9, NULL,          'product:sku:stock',         'F', 1, NOW(), NOW()),
+(20, '品牌管理',   10,10,'brand',       'product:brand:config',      'C', 1, NOW(), NOW()),
+(30, '订单管理',   0, 3, '/order',      NULL,                        'M', 1, NOW(), NOW()),
+(31, '订单列表',   30,1, 'list',        'order:list',                'C', 1, NOW(), NOW()),
+(32, '订单详情',   30,2, NULL,          'order:detail',              'F', 1, NOW(), NOW()),
+(33, '退款处理',   30,3, 'refund',      'order:refund:process',      'C', 1, NOW(), NOW()),
+(34, '退款审批',   30,4, NULL,          'order:refund:approve',      'F', 1, NOW(), NOW()),
+(40, '会员管理',   0, 4, '/member',     NULL,                        'M', 1, NOW(), NOW()),
+(41, '会员列表',   40,1, 'list',        'member:list',               'C', 1, NOW(), NOW()),
+(42, '会员详情',   40,2, NULL,          'member:detail',             'F', 1, NOW(), NOW()),
+(43, '积分调整',   40,3, NULL,          'member:points:adjust',      'F', 1, NOW(), NOW()),
+(50, '营销管理',   0, 5, '/marketing',  NULL,                        'M', 1, NOW(), NOW()),
+(51, '优惠券列表', 50,1, 'coupon',      'marketing:coupon:list',     'C', 1, NOW(), NOW()),
+(52, '优惠券操作', 50,2, NULL,          'marketing:coupon:add',      'F', 1, NOW(), NOW()),
+(53, '优惠券审核', 50,3, NULL,          'marketing:coupon:audit',    'F', 1, NOW(), NOW()),
+(54, '活动配置',   50,4, 'activity',    'marketing:activity:config', 'C', 1, NOW(), NOW()),
+(60, '财务管理',   0, 6, '/finance',    NULL,                        'M', 1, NOW(), NOW()),
+(61, '对账列表',   60,1, 'statement',   'finance:statement:list',    'C', 1, NOW(), NOW()),
+(62, '对账导出',   60,2, NULL,          'finance:statement:export',  'F', 1, NOW(), NOW()),
+(63, '对账确认',   60,3, NULL,          'finance:statement:confirm', 'F', 1, NOW(), NOW()),
+(64, '关税配置',   60,4, 'tax',         'finance:tax:config',        'C', 1, NOW(), NOW());
+
+-- 店长拥有全部权限
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+SELECT 1, id FROM sys_menu WHERE perms IS NOT NULL AND perms != '';
+
+-- 运营：商品+营销权限
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(2,10),(2,11),(2,12),(2,13),(2,14),(2,16),(2,17),(2,20),
+(2,50),(2,51),(2,52),(2,54);
+
+-- 客服：订单+退款+会员查看
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(3,30),(3,31),(3,32),(3,33),(3,40),(3,41),(3,42);
+
+-- 财务：只看对账和关税
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(4,60),(4,61),(4,62),(4,63),(4,64);
+
 -- ==================== 商品模块初始数据 ====================
 
 -- 商品分类
