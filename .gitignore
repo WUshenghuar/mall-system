@@ -53,6 +53,7 @@ mall-web/dist/
 
 # MCP / Tools
 .reasonix/
+.cursor/
 
 # OS.DS_Store
 Thumbs.db
