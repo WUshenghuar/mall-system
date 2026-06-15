@@ -18,3 +18,24 @@ INSERT IGNORE INTO sys_user_role VALUES
 (2, 2, 2),   -- ops → 运营专员
 (3, 3, 3),   -- cs → 客服专员
 (4, 4, 4);   -- finance → 财务专员
+
+-- ==================== 商品模块初始数据 ====================
+
+-- 商品分类
+INSERT IGNORE INTO pm_category VALUES
+(1,  '电子产品',     0, 1, 'LaptopOutlined',   1, 1, NOW(), NOW(), 0),
+(2,  '手机平板',     1, 2, 'MobileOutlined',   1, 1, NOW(), NOW(), 0),
+(3,  '电脑配件',     1, 2, 'DesktopOutlined',  2, 1, NOW(), NOW(), 0),
+(4,  '服饰鞋包',     0, 1, 'ShoppingOutlined', 2, 1, NOW(), NOW(), 0),
+(5,  '女装',         4, 2, 'SkinOutlined',     1, 1, NOW(), NOW(), 0),
+(6,  '男装',         4, 2, 'UserOutlined',     2, 1, NOW(), NOW(), 0),
+(7,  '家居用品',     0, 1, 'HomeOutlined',     3, 1, NOW(), NOW(), 0),
+(8,  '美妆个护',     0, 1, 'SmileOutlined',    4, 1, NOW(), NOW(), 0);
+
+-- 品牌
+INSERT IGNORE INTO pm_brand VALUES
+(1, 'Apple',     '', 'Apple Inc.',          1, 1, NOW(), NOW(), 0),
+(2, 'Samsung',   '', 'Samsung Electronics', 2, 1, NOW(), NOW(), 0),
+(3, 'Xiaomi',    '', '小米科技',              3, 1, NOW(), NOW(), 0),
+(4, 'Huawei',    '', '华为技术',              4, 1, NOW(), NOW(), 0),
+(5, 'Nike',      '', 'Nike Inc.',           5, 1, NOW(), NOW(), 0);
