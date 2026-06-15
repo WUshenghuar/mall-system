@@ -39,3 +39,24 @@ INSERT IGNORE INTO pm_brand VALUES
 (3, 'Xiaomi',    '', '小米科技',              3, 1, NOW(), NOW(), 0),
 (4, 'Huawei',    '', '华为技术',              4, 1, NOW(), NOW(), 0),
 (5, 'Nike',      '', 'Nike Inc.',           5, 1, NOW(), NOW(), 0);
+
+-- ==================== 会员模块初始数据 ====================
+
+-- 测试会员
+INSERT IGNORE INTO mm_member VALUES
+(1, 'mike@example.com',   '13900000001', '', 'Mike',   1, '', 0, 500,  1250.00, 1, NOW(), NOW(), 0),
+(2, 'anna@example.com',   '13900000002', '', 'Anna',   0, '', 1, 1200, 3200.00, 1, NOW(), NOW(), 0),
+(3, 'lucas@example.com',  '13900000003', '', 'Lucas',  1, '', 2, 3500, 8900.00, 1, NOW(), NOW(), 0);
+
+-- 会员地址
+INSERT IGNORE INTO mm_member_addr VALUES
+(1, 1, 'Mike Wang',  '13900000001', 'USA', 'CA', 'San Francisco', '123 Main St',     '94101', 1, NOW(), NOW(), 0),
+(2, 2, 'Anna Li',    '13900000002', 'UK',  '',   'London',        '456 Oxford St',   'W1D 1BS', 1, NOW(), NOW(), 0);
+
+-- 积分记录
+INSERT IGNORE INTO mm_member_points_log VALUES
+(1, 1,  500,  '新用户注册赠送', NOW()),
+(2, 1,  200,  '购买商品奖励',   NOW()),
+(3, 1,  -100, '兑换优惠券',    NOW()),
+(4, 2,  1200, '新用户注册赠送', NOW()),
+(5, 3,  3500, '新用户注册赠送', NOW());
