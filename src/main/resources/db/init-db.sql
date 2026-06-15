@@ -290,7 +290,117 @@ CREATE TABLE IF NOT EXISTS mm_member_points_log (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================================
--- 6. 初始数据
+-- 5. 营销模块
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS mk_coupon (
+    id           BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    coupon_name  VARCHAR(50)  NOT NULL,
+    coupon_type  VARCHAR(20)  COMMENT 'FULL_REDUCTION/DISCOUNT/SHIPPING',
+    threshold    DECIMAL(10,2) COMMENT '满减门槛',
+    discount     DECIMAL(10,2) COMMENT '减免金额/折扣率',
+    currency     VARCHAR(10)  DEFAULT 'USD',
+    max_issue    INT          DEFAULT 0 COMMENT '发行总量',
+    issued_count INT          DEFAULT 0 COMMENT '已发行数量',
+    per_limit    INT          DEFAULT 1 COMMENT '每人限领',
+    valid_start  DATETIME,
+    valid_end    DATETIME,
+    scope        VARCHAR(20)  COMMENT 'ALL/CATEGORY/SKU',
+    scope_ids    VARCHAR(500) COMMENT '适用范围ID(逗号分隔)',
+    status       TINYINT      DEFAULT 0 COMMENT '0草稿 1待审核 2已发布 3已结束',
+    create_time  DATETIME,
+    update_time  DATETIME,
+    deleted      TINYINT      DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS mk_coupon_issue (
+    id          BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    coupon_id   BIGINT       NOT NULL,
+    member_id   BIGINT       NOT NULL,
+    issue_time  DATETIME,
+    used_time   DATETIME,
+    status      TINYINT      DEFAULT 0 COMMENT '0未使用 1已使用 2已过期',
+    order_no    VARCHAR(32),
+    create_time DATETIME,
+    update_time DATETIME,
+    INDEX idx_coupon_member (coupon_id, member_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS mk_activity (
+    id            BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    activity_name VARCHAR(100) NOT NULL,
+    activity_type VARCHAR(20)  COMMENT 'SECKILL/DISCOUNT/FULL_REDUCTION',
+    start_time    DATETIME,
+    end_time      DATETIME,
+    status        TINYINT      DEFAULT 0 COMMENT '0未开始 1进行中 2已结束',
+    create_time   DATETIME,
+    update_time   DATETIME,
+    deleted       TINYINT      DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS mk_activity_sku (
+    id             BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    activity_id    BIGINT       NOT NULL,
+    sku_id         BIGINT       NOT NULL,
+    seckill_price  DECIMAL(10,2),
+    seckill_stock  INT          DEFAULT 0 COMMENT '秒杀库存',
+    limit_per_user INT          DEFAULT 1 COMMENT '每人限购',
+    create_time    DATETIME,
+    update_time    DATETIME,
+    INDEX idx_activity_sku (activity_id, sku_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================================
+-- 6. 财务模块
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS fn_statement (
+    id            BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    statement_no  VARCHAR(32)  NOT NULL UNIQUE,
+    period_start  DATE,
+    period_end    DATE,
+    total_amount  DECIMAL(12,2) DEFAULT 0,
+    tariff_amount DECIMAL(12,2) DEFAULT 0,
+    shipping_fee  DECIMAL(12,2) DEFAULT 0,
+    refund_amount DECIMAL(12,2) DEFAULT 0,
+    net_amount    DECIMAL(12,2) DEFAULT 0,
+    order_count   INT          DEFAULT 0,
+    status        TINYINT      DEFAULT 0 COMMENT '0待确认 1已确认',
+    create_time   DATETIME,
+    update_time   DATETIME,
+    deleted       TINYINT      DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS fn_statement_item (
+    id            BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    statement_id  BIGINT       NOT NULL,
+    order_no      VARCHAR(32),
+    total_amount  DECIMAL(10,2),
+    tariff_amount DECIMAL(10,2),
+    shipping_fee  DECIMAL(10,2),
+    refund_amount DECIMAL(10,2) DEFAULT 0,
+    pay_amount    DECIMAL(10,2),
+    order_time    DATETIME,
+    create_time   DATETIME,
+    INDEX idx_statement_id (statement_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS fn_tax_config (
+    id              BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    category_id     BIGINT,
+    origin_country  VARCHAR(50),
+    dest_country    VARCHAR(50),
+    tax_rate        DECIMAL(10,4),
+    tax_type        VARCHAR(20)  COMMENT 'DUTY/VAT/SALES_TAX',
+    effective_date  DATE,
+    expire_date     DATE,
+    create_time     DATETIME,
+    update_time     DATETIME,
+    deleted         TINYINT      DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ============================================================================
+-- 7. 初始数据
 -- ============================================================================
 
 -- 预置角色
@@ -310,6 +420,49 @@ INSERT IGNORE INTO sys_user VALUES
 -- 分配角色
 INSERT IGNORE INTO sys_user_role VALUES
 (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4);
+
+-- 菜单权限
+INSERT IGNORE INTO sys_menu (id, menu_name, parent_id, order_num, path, perms, menu_type, status, create_time, update_time) VALUES
+(1, '系统管理',0,1,'/system',NULL,'M',1,NOW(),NOW()),
+(2, '用户管理',1,1,'user','system:user:list','C',1,NOW(),NOW()),
+(3, '角色管理',1,2,'role','system:role:config','C',1,NOW(),NOW()),
+(10,'商品管理',0,2,'/product',NULL,'M',1,NOW(),NOW()),
+(11,'分类管理',10,1,'category','product:category:config','C',1,NOW(),NOW()),
+(12,'SPU列表',10,2,'spu','product:spu:list','C',1,NOW(),NOW()),
+(13,'商品添加',10,3,NULL,'product:spu:add','F',1,NOW(),NOW()),
+(14,'商品编辑',10,4,NULL,'product:spu:edit','F',1,NOW(),NOW()),
+(15,'商品删除',10,5,NULL,'product:spu:delete','F',1,NOW(),NOW()),
+(16,'商品上架',10,6,NULL,'product:spu:publish','F',1,NOW(),NOW()),
+(17,'SKU列表',10,7,NULL,'product:sku:list','F',1,NOW(),NOW()),
+(18,'SKU改价',10,8,NULL,'product:sku:price','F',1,NOW(),NOW()),
+(19,'SKU库存',10,9,NULL,'product:sku:stock','F',1,NOW(),NOW()),
+(20,'品牌管理',10,10,'brand','product:brand:config','C',1,NOW(),NOW()),
+(30,'订单管理',0,3,'/order',NULL,'M',1,NOW(),NOW()),
+(31,'订单列表',30,1,'list','order:list','C',1,NOW(),NOW()),
+(32,'订单详情',30,2,NULL,'order:detail','F',1,NOW(),NOW()),
+(33,'退款处理',30,3,'refund','order:refund:process','C',1,NOW(),NOW()),
+(34,'退款审批',30,4,NULL,'order:refund:approve','F',1,NOW(),NOW()),
+(40,'会员管理',0,4,'/member',NULL,'M',1,NOW(),NOW()),
+(41,'会员列表',40,1,'list','member:list','C',1,NOW(),NOW()),
+(42,'会员详情',40,2,NULL,'member:detail','F',1,NOW(),NOW()),
+(43,'积分调整',40,3,NULL,'member:points:adjust','F',1,NOW(),NOW()),
+(50,'营销管理',0,5,'/marketing',NULL,'M',1,NOW(),NOW()),
+(51,'优惠券列表',50,1,'coupon','marketing:coupon:list','C',1,NOW(),NOW()),
+(52,'优惠券操作',50,2,NULL,'marketing:coupon:add','F',1,NOW(),NOW()),
+(53,'优惠券审核',50,3,NULL,'marketing:coupon:audit','F',1,NOW(),NOW()),
+(54,'活动配置',50,4,'activity','marketing:activity:config','C',1,NOW(),NOW()),
+(60,'财务管理',0,6,'/finance',NULL,'M',1,NOW(),NOW()),
+(61,'对账列表',60,1,'statement','finance:statement:list','C',1,NOW(),NOW()),
+(62,'对账导出',60,2,NULL,'finance:statement:export','F',1,NOW(),NOW()),
+(63,'对账确认',60,3,NULL,'finance:statement:confirm','F',1,NOW(),NOW()),
+(64,'关税配置',60,4,'tax','finance:tax:config','C',1,NOW(),NOW());
+
+-- 店长拥有全部权限
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) SELECT 1, id FROM sys_menu WHERE perms IS NOT NULL AND perms != '';
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
+(2,10),(2,11),(2,12),(2,13),(2,14),(2,16),(2,17),(2,20),(2,50),(2,51),(2,52),(2,54),
+(3,30),(3,31),(3,32),(3,33),(3,40),(3,41),(3,42),
+(4,60),(4,61),(4,62),(4,63),(4,64);
 
 -- 商品分类
 INSERT IGNORE INTO pm_category VALUES
@@ -348,3 +501,14 @@ INSERT IGNORE INTO mm_member_points_log VALUES
 (3, 1,  -100, '兑换优惠券',    NOW()),
 (4, 2,  1200, '新用户注册赠送', NOW()),
 (5, 3,  3500, '新用户注册赠送', NOW());
+
+-- ==================== 营销模块 ====================
+
+-- 优惠券
+INSERT IGNORE INTO mk_coupon VALUES
+(1, '新用户满减券',   'FULL_REDUCTION', 50.00, 10.00, 'USD', 1000, 0, 1, '2026-01-01', '2026-12-31', 'ALL',  '',    2, NOW(), NOW(), 0),
+(2, '电子产品折扣券', 'DISCOUNT',        0.00,  0.15, 'USD', 500,  0, 1, '2026-01-01', '2026-12-31', 'CATEGORY', '1,2', 2, NOW(), NOW(), 0);
+
+-- 营销活动
+INSERT IGNORE INTO mk_activity VALUES
+(1, '618年中大促', 'SECKILL', '2026-06-18 00:00:00', '2026-06-18 23:59:59', 0, NOW(), NOW(), 0);
