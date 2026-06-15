@@ -1,11 +1,6 @@
 <template>
-  <a-card>
-    <a-result title="正在开发中">
-      <template #icon><tool-outlined /></template>
-      <template #extra><a-button type="primary">返回首页</a-button></template>
-    </a-result>
+  <a-card :bordered="false">
+    <template #title>订单管理</template>
+    <a-empty description="订单管理模块 — 请连接后端服务" />
   </a-card>
 </template>
-
-<script setup>
-</script>
