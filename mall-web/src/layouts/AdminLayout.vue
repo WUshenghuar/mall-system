@@ -197,7 +197,7 @@ function handleLogout() {
   margin-bottom: var(--space-1);
   font-size: 10px;
   font-weight: 600;
-  color: rgba(255,255,255,0.35);
+  color: rgba(255,255,255,0.80);
   text-transform: uppercase;
   letter-spacing: 1.5px;
 }
