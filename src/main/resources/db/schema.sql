@@ -283,3 +283,116 @@ CREATE TABLE IF NOT EXISTS mm_member_points_log (
     create_time DATETIME,
     INDEX idx_member_id (member_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ==================== 营销模块 ====================
+
+-- 优惠券表
+CREATE TABLE IF NOT EXISTS mk_coupon (
+    id           BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    coupon_name  VARCHAR(50)  NOT NULL,
+    coupon_type  VARCHAR(20)  COMMENT 'FULL_REDUCTION/DISCOUNT/SHIPPING',
+    threshold    DECIMAL(10,2) COMMENT '满减门槛',
+    discount     DECIMAL(10,2) COMMENT '减免金额/折扣率',
+    currency     VARCHAR(10)  DEFAULT 'USD',
+    max_issue    INT          DEFAULT 0 COMMENT '发行总量',
+    issued_count INT          DEFAULT 0 COMMENT '已发行数量',
+    per_limit    INT          DEFAULT 1 COMMENT '每人限领',
+    valid_start  DATETIME,
+    valid_end    DATETIME,
+    scope        VARCHAR(20)  COMMENT 'ALL/CATEGORY/SKU',
+    scope_ids    VARCHAR(500) COMMENT '适用范围ID(逗号分隔)',
+    status       TINYINT      DEFAULT 0 COMMENT '0草稿 1待审核 2已发布 3已结束',
+    create_time  DATETIME,
+    update_time  DATETIME,
+    deleted      TINYINT      DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 优惠券发放记录表
+CREATE TABLE IF NOT EXISTS mk_coupon_issue (
+    id          BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    coupon_id   BIGINT       NOT NULL,
+    member_id   BIGINT       NOT NULL,
+    issue_time  DATETIME,
+    used_time   DATETIME,
+    status      TINYINT      DEFAULT 0 COMMENT '0未使用 1已使用 2已过期',
+    order_no    VARCHAR(32),
+    create_time DATETIME,
+    update_time DATETIME,
+    INDEX idx_coupon_member (coupon_id, member_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 营销活动表
+CREATE TABLE IF NOT EXISTS mk_activity (
+    id            BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    activity_name VARCHAR(100) NOT NULL,
+    activity_type VARCHAR(20)  COMMENT 'SECKILL/DISCOUNT/FULL_REDUCTION',
+    start_time    DATETIME,
+    end_time      DATETIME,
+    status        TINYINT      DEFAULT 0 COMMENT '0未开始 1进行中 2已结束',
+    create_time   DATETIME,
+    update_time   DATETIME,
+    deleted       TINYINT      DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 活动关联商品表
+CREATE TABLE IF NOT EXISTS mk_activity_sku (
+    id             BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    activity_id    BIGINT       NOT NULL,
+    sku_id         BIGINT       NOT NULL,
+    seckill_price  DECIMAL(10,2),
+    seckill_stock  INT          DEFAULT 0 COMMENT '秒杀库存',
+    limit_per_user INT          DEFAULT 1 COMMENT '每人限购',
+    create_time    DATETIME,
+    update_time    DATETIME,
+    INDEX idx_activity_sku (activity_id, sku_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ==================== 财务模块 ====================
+
+-- 对账单表
+CREATE TABLE IF NOT EXISTS fn_statement (
+    id            BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    statement_no  VARCHAR(32)  NOT NULL UNIQUE,
+    period_start  DATE,
+    period_end    DATE,
+    total_amount  DECIMAL(12,2) DEFAULT 0,
+    tariff_amount DECIMAL(12,2) DEFAULT 0,
+    shipping_fee  DECIMAL(12,2) DEFAULT 0,
+    refund_amount DECIMAL(12,2) DEFAULT 0,
+    net_amount    DECIMAL(12,2) DEFAULT 0,
+    order_count   INT          DEFAULT 0,
+    status        TINYINT      DEFAULT 0 COMMENT '0待确认 1已确认',
+    create_time   DATETIME,
+    update_time   DATETIME,
+    deleted       TINYINT      DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 对账单明细表
+CREATE TABLE IF NOT EXISTS fn_statement_item (
+    id            BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    statement_id  BIGINT       NOT NULL,
+    order_no      VARCHAR(32),
+    total_amount  DECIMAL(10,2),
+    tariff_amount DECIMAL(10,2),
+    shipping_fee  DECIMAL(10,2),
+    refund_amount DECIMAL(10,2) DEFAULT 0,
+    pay_amount    DECIMAL(10,2),
+    order_time    DATETIME,
+    create_time   DATETIME,
+    INDEX idx_statement_id (statement_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 关税配置表
+CREATE TABLE IF NOT EXISTS fn_tax_config (
+    id              BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    category_id     BIGINT,
+    origin_country  VARCHAR(50),
+    dest_country    VARCHAR(50),
+    tax_rate        DECIMAL(10,4),
+    tax_type        VARCHAR(20)  COMMENT 'DUTY/VAT/SALES_TAX',
+    effective_date  DATE,
+    expire_date     DATE,
+    create_time     DATETIME,
+    update_time     DATETIME,
+    deleted         TINYINT      DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

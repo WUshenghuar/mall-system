@@ -60,3 +60,14 @@ INSERT IGNORE INTO mm_member_points_log VALUES
 (3, 1,  -100, '兑换优惠券',    NOW()),
 (4, 2,  1200, '新用户注册赠送', NOW()),
 (5, 3,  3500, '新用户注册赠送', NOW());
+
+-- ==================== 营销模块初始数据 ====================
+
+-- 优惠券
+INSERT IGNORE INTO mk_coupon VALUES
+(1, '新用户满减券',   'FULL_REDUCTION', 50.00, 10.00, 'USD', 1000, 0, 1, '2026-01-01', '2026-12-31', 'ALL',  '',    2, NOW(), NOW(), 0),
+(2, '电子产品折扣券', 'DISCOUNT',        0.00,  0.15, 'USD', 500,  0, 1, '2026-01-01', '2026-12-31', 'CATEGORY', '1,2', 2, NOW(), NOW(), 0);
+
+-- 营销活动
+INSERT IGNORE INTO mk_activity VALUES
+(1, '618年中大促', 'SECKILL', '2026-06-18 00:00:00', '2026-06-18 23:59:59', 0, NOW(), NOW(), 0);
