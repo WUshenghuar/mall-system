@@ -46,7 +46,7 @@
         <transition name="fade-slide">
           <span v-if="!collapsed" class="menu-label">运营设置</span>
         </transition>
-        <a-menu v-model:selectedKeys="selectedKeys2" mode="inline" class="sidebar-menu" @click="handleMenuClick">
+        <a-menu v-model:selectedKeys="selectedKeys" mode="inline" class="sidebar-menu" @click="handleMenuClick">
           <a-menu-item key="/marketing">
             <template #icon><gift-outlined /></template>
             <span>营销管理</span>
@@ -119,7 +119,6 @@ const route = useRoute()
 const userStore = useUserStore()
 const collapsed = ref(false)
 const selectedKeys = ref(['/dashboard'])
-const selectedKeys2 = ref([])
 
 const pageTitle = computed(() => route.meta?.title || '工作台')
 
@@ -198,7 +197,7 @@ function handleLogout() {
   margin-bottom: var(--space-1);
   font-size: 10px;
   font-weight: 600;
-  color: rgba(255,255,255,0.32);
+  color: rgba(255,255,255,0.35);
   text-transform: uppercase;
   letter-spacing: 1.5px;
 }
