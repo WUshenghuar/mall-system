@@ -198,7 +198,7 @@ function handleLogout() {
   margin-bottom: var(--space-1);
   font-size: 10px;
   font-weight: 600;
-  color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.32);
   text-transform: uppercase;
   letter-spacing: 1.5px;
 }
@@ -214,13 +214,14 @@ function handleLogout() {
   border-radius: var(--radius-md) !important;
   height: 40px !important;
   line-height: 40px !important;
-  color: rgba(255,255,255,0.55) !important;
+  color: rgba(255,255,255,0.72) !important;
+  font-weight: 400;
   transition: all var(--duration-fast) var(--ease-out);
   width: auto !important;
 }
 .sidebar-menu .ant-menu-item:hover {
-  color: rgba(255,255,255,0.9) !important;
-  background: rgba(255,255,255,0.06) !important;
+  color: rgba(255,255,255,0.95) !important;
+  background: rgba(255,255,255,0.08) !important;
 }
 .sidebar-menu .ant-menu-item.ant-menu-item-selected {
   background: var(--color-brass-soft) !important;
