@@ -29,17 +29,17 @@ import java.util.concurrent.TimeUnit;
 public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
-    private final RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired(required = false)
+    private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired(required = false)
     private OrderMessageSender messageSender;
 
     public OrderServiceImpl(OrderMapper orderMapper,
-                             OrderItemMapper orderItemMapper,
-                             RedisTemplate<String, Object> redisTemplate) {
+                             OrderItemMapper orderItemMapper) {
         this.orderMapper = orderMapper;
         this.orderItemMapper = orderItemMapper;
-        this.redisTemplate = redisTemplate;
     }
 
     private static final String STOCK_KEY = "stock:sku:";
@@ -47,44 +47,52 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public String createOrder(Long userId, Long skuId, Integer quantity, Long couponId) {
-        // 1. Redis 分布式锁 (防重复下单)
-        String lockKey = LOCK_KEY + skuId + ":" + userId;
-        String lockValue = UUID.randomUUID().toString();
-        Boolean locked = redisTemplate.opsForValue()
-                .setIfAbsent(lockKey, lockValue, 10, TimeUnit.SECONDS);
-        if (Boolean.FALSE.equals(locked)) {
-            throw new RuntimeException("操作太频繁，请稍后重试");
+        // 生成订单号
+        String orderNo = "ORD-" + System.currentTimeMillis();
+
+        // Redis 可用时：分布式锁 + 预扣库存
+        if (redisTemplate != null) {
+            String lockKey = LOCK_KEY + skuId + ":" + userId;
+            String lockValue = UUID.randomUUID().toString();
+            Boolean locked = redisTemplate.opsForValue()
+                    .setIfAbsent(lockKey, lockValue, 10, TimeUnit.SECONDS);
+            if (Boolean.FALSE.equals(locked)) {
+                throw new RuntimeException("操作太频繁，请稍后重试");
+            }
+            try {
+                Long stock = redisTemplate.opsForValue()
+                        .decrement(STOCK_KEY + skuId);
+                if (stock == null || stock < 0) {
+                    redisTemplate.opsForValue().increment(STOCK_KEY + skuId);
+                    throw new RuntimeException("库存不足");
+                }
+                sendCreateMessage(userId, skuId, quantity, couponId, orderNo);
+            } finally {
+                String val = (String) redisTemplate.opsForValue().get(lockKey);
+                if (lockValue.equals(val)) {
+                    redisTemplate.delete(lockKey);
+                }
+            }
+        } else {
+            // 无 Redis：直接同步创建
+            sendCreateMessage(userId, skuId, quantity, couponId, orderNo);
         }
-        try {
-            // 2. Redis 预扣库存
-            Long stock = redisTemplate.opsForValue()
-                    .decrement(STOCK_KEY + skuId);
-            if (stock == null || stock < 0) {
-                redisTemplate.opsForValue().increment(STOCK_KEY + skuId);
-                throw new RuntimeException("库存不足");
-            }
+        return orderNo;
+    }
 
-            // 3. 发送 MQ 消息异步处理订单（无 MQ 时同步创建）
-            Map<String, Object> msg = new HashMap<>();
-            msg.put("userId", userId);
-            msg.put("skuId", skuId);
-            msg.put("quantity", quantity);
-            msg.put("couponId", couponId);
-            msg.put("orderNo", "ORD-" + System.currentTimeMillis());
+    private void sendCreateMessage(Long userId, Long skuId, Integer quantity,
+                                    Long couponId, String orderNo) {
+        Map<String, Object> msg = new HashMap<>();
+        msg.put("userId", userId);
+        msg.put("skuId", skuId);
+        msg.put("quantity", quantity);
+        msg.put("couponId", couponId);
+        msg.put("orderNo", orderNo);
 
-            if (messageSender != null) {
-                messageSender.sendOrderCreate(msg);
-            } else {
-                // dev 模式：无 RabbitMQ 时同步创建
-                processOrderMessage(msg);
-            }
-
-            return (String) msg.get("orderNo");
-        } finally {
-            String val = (String) redisTemplate.opsForValue().get(lockKey);
-            if (lockValue.equals(val)) {
-                redisTemplate.delete(lockKey);
-            }
+        if (messageSender != null) {
+            messageSender.sendOrderCreate(msg);
+        } else {
+            processOrderMessage(msg);
         }
     }
 

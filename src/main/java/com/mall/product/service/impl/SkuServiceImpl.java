@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mall.product.entity.Sku;
 import com.mall.product.mapper.SkuMapper;
 import com.mall.product.service.SkuService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -12,10 +12,15 @@ import java.math.BigDecimal;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class SkuServiceImpl implements SkuService {
     private final SkuMapper skuMapper;
-    private final RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired(required = false)
+    private RedisTemplate<String, Object> redisTemplate;
+
+    public SkuServiceImpl(SkuMapper skuMapper) {
+        this.skuMapper = skuMapper;
+    }
 
     private static final String STOCK_KEY = "stock:sku:";
 
@@ -43,7 +48,9 @@ public class SkuServiceImpl implements SkuService {
     @Override
     public void delete(Long id) {
         skuMapper.deleteById(id);
-        redisTemplate.delete(STOCK_KEY + id);
+        if (redisTemplate != null) {
+            redisTemplate.delete(STOCK_KEY + id);
+        }
     }
 
     @Override
@@ -59,6 +66,7 @@ public class SkuServiceImpl implements SkuService {
 
     @Override
     public Integer getStock(Long skuId) {
+        if (redisTemplate == null) return 0;
         Object val = redisTemplate.opsForValue().get(STOCK_KEY + skuId);
         if (val == null) return 0;
         return Integer.parseInt(val.toString());
@@ -66,6 +74,8 @@ public class SkuServiceImpl implements SkuService {
 
     @Override
     public void updateStock(Long skuId, Integer stock) {
-        redisTemplate.opsForValue().set(STOCK_KEY + skuId, stock);
+        if (redisTemplate != null) {
+            redisTemplate.opsForValue().set(STOCK_KEY + skuId, stock);
+        }
     }
 }
