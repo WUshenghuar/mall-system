@@ -44,9 +44,15 @@ target/
 *.war
 *.log
 
-# Node / Frontend
+# Node
+node_modules/
+
+# Frontend
 mall-web/node_modules/
 mall-web/dist/
+
+# MCP / Tools
+.reasonix/
 
 # OS.DS_Store
 Thumbs.db
