@@ -10,8 +10,8 @@ import com.mall.order.mapper.OrderItemMapper;
 import com.mall.order.mapper.OrderMapper;
 import com.mall.order.mq.OrderMessageSender;
 import com.mall.order.service.OrderService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,12 +26,21 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
-    private final OrderMessageSender messageSender;
     private final RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired(required = false)
+    private OrderMessageSender messageSender;
+
+    public OrderServiceImpl(OrderMapper orderMapper,
+                             OrderItemMapper orderItemMapper,
+                             RedisTemplate<String, Object> redisTemplate) {
+        this.orderMapper = orderMapper;
+        this.orderItemMapper = orderItemMapper;
+        this.redisTemplate = redisTemplate;
+    }
 
     private static final String STOCK_KEY = "stock:sku:";
     private static final String LOCK_KEY = "lock:order:create:";
@@ -55,14 +64,20 @@ public class OrderServiceImpl implements OrderService {
                 throw new RuntimeException("库存不足");
             }
 
-            // 3. 发送 MQ 消息异步处理订单
+            // 3. 发送 MQ 消息异步处理订单（无 MQ 时同步创建）
             Map<String, Object> msg = new HashMap<>();
             msg.put("userId", userId);
             msg.put("skuId", skuId);
             msg.put("quantity", quantity);
             msg.put("couponId", couponId);
             msg.put("orderNo", "ORD-" + System.currentTimeMillis());
-            messageSender.sendOrderCreate(msg);
+
+            if (messageSender != null) {
+                messageSender.sendOrderCreate(msg);
+            } else {
+                // dev 模式：无 RabbitMQ 时同步创建
+                processOrderMessage(msg);
+            }
 
             return (String) msg.get("orderNo");
         } finally {
