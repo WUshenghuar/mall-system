@@ -3,12 +3,14 @@ package com.mall.web.controller.product;
 import com.mall.common.result.Result;
 import com.mall.search.service.ProductSearchService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/search")
 @RequiredArgsConstructor
+@ConditionalOnProperty(name = "elasticsearch.enabled", havingValue = "true")
 public class SearchController {
     private final ProductSearchService searchService;
 

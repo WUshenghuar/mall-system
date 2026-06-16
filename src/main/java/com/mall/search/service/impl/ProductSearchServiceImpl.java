@@ -9,6 +9,7 @@ import co.elastic.clients.json.JsonData;
 import com.mall.search.service.ProductSearchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ConditionalOnBean(ElasticsearchClient.class)
 public class ProductSearchServiceImpl implements ProductSearchService {
 
     private final ElasticsearchClient esClient;
