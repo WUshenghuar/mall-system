@@ -181,6 +181,8 @@ async function fetchData() {
   try {
     const res = await getSkuList(spuId)
     list.value = Array.isArray(res.data) ? res.data : []
+  } catch (e) {
+    console.error('获取SKU列表失败', e)
   } finally { loading.value = false }
 }
 

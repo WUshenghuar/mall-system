@@ -83,6 +83,69 @@
         </a-card>
       </a-col>
     </a-row>
+
+    <!-- Add SPU Modal -->
+    <a-modal
+      v-model:open="showAddModal"
+      title="添加商品"
+      :confirm-loading="saving"
+      @ok="handleAdd"
+      @cancel="resetForm"
+      destroy-on-close
+    >
+      <a-form :model="form" layout="vertical" style="margin-top: 16px">
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="商品编码" required>
+              <a-input v-model:value="form.spuCode" placeholder="如 SPU20240001" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="商品名称" required>
+              <a-input v-model:value="form.spuName" placeholder="商品名称" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="分类" required>
+              <a-tree-select
+                v-model:value="form.categoryId"
+                :tree-data="categoryTree"
+                :field-names="{ label: 'categoryName', value: 'id', children: 'children' }"
+                placeholder="选择分类"
+                tree-default-expand-all
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="品牌">
+              <a-select
+                v-model:value="form.brandId"
+                :options="brandOptions"
+                placeholder="选择品牌"
+                allow-clear
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="HS Code">
+              <a-input v-model:value="form.customsCode" placeholder="如 6109.10.00" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="原产国">
+              <a-input v-model:value="form.originCountry" placeholder="如 中国" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-form-item label="商品描述">
+          <a-textarea v-model:value="form.description" :rows="3" placeholder="商品描述（支持多语言 JSON）" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -90,7 +153,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { getCategoryTree, getSpuPage, deleteSpu, publishSpu } from '@/api/product'
+import { getCategoryTree, getSpuPage, deleteSpu, publishSpu, createSpu, getBrandList } from '@/api/product'
 
 const router = useRouter()
 
@@ -100,6 +163,18 @@ const categoryId = ref(null)
 const categoryTree = ref([])
 const dataSource = ref([])
 const showAddModal = ref(false)
+const saving = ref(false)
+const brandOptions = ref([])
+
+const form = reactive({
+  spuCode: '',
+  spuName: '',
+  categoryId: null,
+  brandId: null,
+  customsCode: '',
+  originCountry: '',
+  description: ''
+})
 
 const pagination = reactive({
   current: 1,
@@ -192,8 +267,61 @@ function viewDetail(record) {
   router.push(`/product/sku/${record.id}`)
 }
 
+async function handleAdd() {
+  if (!form.spuCode || !form.spuName || !form.categoryId) {
+    message.warning('请填写商品编码、名称和分类')
+    return
+  }
+  saving.value = true
+  try {
+    const payload = {
+      spuCode: form.spuCode.trim(),
+      spuName: form.spuName.trim(),
+      categoryId: form.categoryId
+    }
+    if (form.brandId) payload.brandId = form.brandId
+    if (form.customsCode) payload.customsCode = form.customsCode.trim()
+    if (form.originCountry) payload.originCountry = form.originCountry.trim()
+    // description 列是 MySQL JSON 类型，普通文本需包装为 JSON
+    if (form.description) {
+      const d = form.description.trim()
+      try { JSON.parse(d); payload.description = d } catch { payload.description = JSON.stringify({ zh: d }) }
+    }
+    await createSpu(payload)
+    message.success('添加成功')
+    showAddModal.value = false
+    resetForm()
+    fetchData()
+  } catch (e) {
+    console.error('添加商品失败', e)
+  } finally {
+    saving.value = false
+  }
+}
+
+function resetForm() {
+  form.spuCode = ''
+  form.spuName = ''
+  form.categoryId = null
+  form.brandId = null
+  form.customsCode = ''
+  form.originCountry = ''
+  form.description = ''
+}
+
+async function fetchBrands() {
+  try {
+    const res = await getBrandList()
+    const list = res.data?.records || res.data || []
+    brandOptions.value = list.map(b => ({ label: b.brandName || b.name, value: b.id }))
+  } catch {
+    // ignore
+  }
+}
+
 onMounted(() => {
   fetchCategories()
+  fetchBrands()
   fetchData()
 })
 </script>

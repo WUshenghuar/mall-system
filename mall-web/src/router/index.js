@@ -18,7 +18,7 @@ const routes = [
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('@/views/dashboard/index.vue'),
-        meta: { title: '工作台', perm: 'dashboard', depth: 1 }
+        meta: { title: '工作台', depth: 1 }
       },
       {
         path: 'product',
@@ -149,16 +149,17 @@ router.beforeEach((to, _from, next) => {
   // Require token for all other routes
   if (!token) return next('/login')
 
-  // Check permission requirement
+  // Check permission requirement (prefix-match against backend perms like "product:spu:list")
   const requiredPerm = to.meta.perm
   if (requiredPerm) {
     try {
       const permsRaw = localStorage.getItem('permissions')
       const permissions = permsRaw ? JSON.parse(permsRaw) : []
-      if (permissions.length > 0 && !permissions.includes(requiredPerm) && !permissions.includes('*')) {
-        return next('/dashboard')
+      if (permissions.length > 0 && !permissions.includes('*')) {
+        const hasPerm = permissions.some(p => p === requiredPerm || p.startsWith(requiredPerm + ':'))
+        if (!hasPerm) return next('/dashboard')
       }
-    } catch { /* permissions not ready yet — allow */ }
+    } catch { /* permissions not ready — allow */ }
   }
 
   next()

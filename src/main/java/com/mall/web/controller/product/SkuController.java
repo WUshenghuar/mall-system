@@ -19,7 +19,7 @@ public class SkuController {
     private final SkuService skuService;
 
     @GetMapping("/list/{spuId}")
-    @PreAuthorize("hasAuthority('product:sku:list')")
+    @PreAuthorize("hasAuthority('product:spu:list')")
     public Result<List<Sku>> list(@PathVariable Long spuId) {
         return Result.success(skuService.listBySpuId(spuId));
     }
@@ -47,21 +47,21 @@ public class SkuController {
     }
 
     @PutMapping("/price")
-    @PreAuthorize("hasAuthority('product:sku:price')")
+    @PreAuthorize("hasAuthority('product:spu:edit')")
     public Result<Void> batchPrice(@RequestBody BatchPriceReq req) {
         skuService.batchUpdatePrice(req.getSkuIds(), req.getPrice());
         return Result.success(null);
     }
 
     @PutMapping("/stock/{skuId}")
-    @PreAuthorize("hasAuthority('product:sku:stock')")
+    @PreAuthorize("hasAuthority('product:spu:edit')")
     public Result<Void> stock(@PathVariable Long skuId, @RequestParam Integer stock) {
         skuService.updateStock(skuId, stock);
         return Result.success(null);
     }
 
     @GetMapping("/stock/{skuId}")
-    @PreAuthorize("hasAuthority('product:sku:list')")
+    @PreAuthorize("hasAuthority('product:spu:list')")
     public Result<Integer> getStock(@PathVariable Long skuId) {
         return Result.success(skuService.getStock(skuId));
     }

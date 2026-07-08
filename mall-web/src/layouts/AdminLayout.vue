@@ -300,7 +300,6 @@ function handleLogout() {
   padding: 0 var(--space-5) !important;
   margin-bottom: var(--space-1);
 }
-
 /* Menu items */
 .sidebar-menu {
   background: transparent !important;
