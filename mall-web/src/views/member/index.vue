@@ -1,7 +1,12 @@
 <template>
-  <div class="member-page">
-    <a-card :bordered="false">
-      <template #extra>
+  <div class="sub-page">
+    <!-- Page head -->
+    <div class="page-head">
+      <div>
+        <h2 class="page-title">会员管理</h2>
+        <p class="page-desc">会员档案、等级与积分</p>
+      </div>
+      <div class="head-actions">
         <a-input-search
           v-model:value="keyword"
           placeholder="搜索昵称或邮箱"
@@ -9,8 +14,10 @@
           @search="fetchData"
           allow-clear
         />
-      </template>
+      </div>
+    </div>
 
+    <a-card :bordered="false">
       <a-table
         :columns="columns"
         :data-source="dataSource"

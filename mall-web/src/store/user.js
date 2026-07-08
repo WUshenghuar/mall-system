@@ -14,6 +14,7 @@ export const useUserStore = defineStore('user', {
       this.token = res.data.token
       this.permissions = res.data.permissions || []
       localStorage.setItem('token', this.token)
+      localStorage.setItem('permissions', JSON.stringify(this.permissions))
       await this.fetchUserInfo()
       return res
     },
@@ -38,6 +39,7 @@ export const useUserStore = defineStore('user', {
       this.userInfo = null
       this.permissions = []
       localStorage.removeItem('token')
+      localStorage.removeItem('permissions')
     }
   }
 })

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.mall.common.exception.BusinessException;
 import com.mall.order.entity.OrderRefund;
 import com.mall.order.mapper.RefundMapper;
 import com.mall.order.service.RefundService;
@@ -43,8 +44,8 @@ public class RefundServiceImpl implements RefundService {
     @Transactional
     public void approve(Long id, Long approverId, String comment) {
         OrderRefund refund = refundMapper.selectById(id);
-        if (refund == null) throw new RuntimeException("退款申请不存在");
-        if (refund.getRefundStatus() != 0) throw new RuntimeException("该申请已处理");
+        if (refund == null) throw new BusinessException("退款申请不存在");
+        if (refund.getRefundStatus() != 0) throw new BusinessException("该申请已处理");
         refund.setRefundStatus(1);
         refund.setApproverId(approverId);
         refund.setApproveTime(LocalDateTime.now());
@@ -56,7 +57,7 @@ public class RefundServiceImpl implements RefundService {
     @Transactional
     public void reject(Long id, Long approverId, String comment) {
         OrderRefund refund = refundMapper.selectById(id);
-        if (refund == null) throw new RuntimeException("退款申请不存在");
+        if (refund == null) throw new BusinessException("退款申请不存在");
         refund.setRefundStatus(2);
         refund.setApproverId(approverId);
         refund.setApproveTime(LocalDateTime.now());

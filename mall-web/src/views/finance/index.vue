@@ -1,5 +1,13 @@
 <template>
-  <div class="finance-page">
+  <div class="sub-page">
+    <!-- Page head -->
+    <div class="page-head">
+      <div>
+        <h2 class="page-title">对账单</h2>
+        <p class="page-desc">周期对账、确认与导出</p>
+      </div>
+    </div>
+
     <a-card :bordered="false">
       <a-table
         :columns="columns"

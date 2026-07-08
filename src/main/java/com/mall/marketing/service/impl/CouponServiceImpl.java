@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.mall.common.exception.BusinessException;
 import com.mall.marketing.entity.Coupon;
 import com.mall.marketing.mapper.CouponMapper;
 import com.mall.marketing.service.CouponService;
@@ -55,7 +56,7 @@ public class CouponServiceImpl implements CouponService {
     @Transactional
     public void submitAudit(Long id) {
         Coupon coupon = couponMapper.selectById(id);
-        if (coupon == null) throw new RuntimeException("优惠券不存在");
+        if (coupon == null) throw new BusinessException("优惠券不存在");
         coupon.setStatus(1);
         couponMapper.updateById(coupon);
     }
@@ -64,8 +65,8 @@ public class CouponServiceImpl implements CouponService {
     @Transactional
     public void audit(Long id, Integer status, String comment) {
         Coupon coupon = couponMapper.selectById(id);
-        if (coupon == null) throw new RuntimeException("优惠券不存在");
-        if (coupon.getStatus() != 1) throw new RuntimeException("该优惠券不是待审核状态");
+        if (coupon == null) throw new BusinessException("优惠券不存在");
+        if (coupon.getStatus() != 1) throw new BusinessException("该优惠券不是待审核状态");
         coupon.setStatus(status);
         couponMapper.updateById(coupon);
     }

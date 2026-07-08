@@ -24,73 +24,86 @@
 
       <!-- Navigation -->
       <div class="sidebar-nav">
-        <div class="menu-section">
-          <transition name="fade-slide">
-            <span v-if="!collapsed" class="menu-label">业务管理</span>
-          </transition>
-          <a-menu
-            v-model:selectedKeys="selectedKeys"
-            mode="inline"
-            class="sidebar-menu"
-            @click="handleMenuClick"
-          >
+        <a-menu
+          v-model:selectedKeys="selectedKeys"
+          v-model:openKeys="openKeys"
+          mode="inline"
+          theme="dark"
+          class="sidebar-menu"
+          @click="handleMenuClick"
+        >
+          <a-menu-item-group key="biz" class="menu-group">
+            <template #title>
+              <transition name="fade-slide">
+                <span v-if="!collapsed" class="menu-label">业务管理</span>
+              </transition>
+            </template>
             <a-menu-item key="/dashboard" class="menu-item-stagger">
               <template #icon>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="4" rx="1"/><rect x="14" y="10" width="7" height="11" rx="1"/><rect x="3" y="13" width="7" height="8" rx="1"/></svg>
               </template>
               <span>工作台</span>
             </a-menu-item>
-            <a-menu-item key="/product" class="menu-item-stagger">
+
+            <a-sub-menu key="product-sub">
               <template #icon>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg>
               </template>
-              <span>商品管理</span>
-            </a-menu-item>
-            <a-menu-item key="/order" class="menu-item-stagger">
+              <template #title>商品管理</template>
+              <a-menu-item key="/product/spu">SPU 列表</a-menu-item>
+              <a-menu-item key="/product/category">分类管理</a-menu-item>
+              <a-menu-item key="/product/brand">品牌管理</a-menu-item>
+            </a-sub-menu>
+
+            <a-sub-menu key="order-sub">
               <template #icon>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
               </template>
-              <span>订单管理</span>
-            </a-menu-item>
+              <template #title>订单管理</template>
+              <a-menu-item key="/order/list">订单列表</a-menu-item>
+              <a-menu-item key="/order/refund">退款处理</a-menu-item>
+            </a-sub-menu>
+
             <a-menu-item key="/member" class="menu-item-stagger">
               <template #icon>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
               </template>
               <span>会员管理</span>
             </a-menu-item>
-          </a-menu>
-        </div>
+          </a-menu-item-group>
 
-        <div class="menu-section">
-          <transition name="fade-slide">
-            <span v-if="!collapsed" class="menu-label">运营设置</span>
-          </transition>
-          <a-menu
-            v-model:selectedKeys="selectedKeys"
-            mode="inline"
-            class="sidebar-menu"
-            @click="handleMenuClick"
-          >
-            <a-menu-item key="/marketing" class="menu-item-stagger">
+          <a-menu-item-group key="ops" class="menu-group">
+            <template #title>
+              <transition name="fade-slide">
+                <span v-if="!collapsed" class="menu-label">运营设置</span>
+              </transition>
+            </template>
+            <a-sub-menu key="marketing-sub">
               <template #icon>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 12H4"/><path d="M20 12L16 16"/><path d="M20 12L16 8"/><path d="M12 19V5"/><path d="M8 3C5.5 5 4 8 4 12s1.5 7 4 9"/><path d="M16 3c2.5 2 4 5 4 9s-1.5 7-4 9"/></svg>
               </template>
-              <span>营销管理</span>
-            </a-menu-item>
-            <a-menu-item key="/finance" class="menu-item-stagger">
+              <template #title>营销管理</template>
+              <a-menu-item key="/marketing/coupon">优惠券管理</a-menu-item>
+              <a-menu-item key="/marketing/activity">活动管理</a-menu-item>
+            </a-sub-menu>
+
+            <a-sub-menu key="finance-sub">
               <template #icon>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
               </template>
-              <span>财务管理</span>
-            </a-menu-item>
+              <template #title>财务管理</template>
+              <a-menu-item key="/finance/statement">对账单</a-menu-item>
+              <a-menu-item key="/finance/tax">关税配置</a-menu-item>
+            </a-sub-menu>
+
             <a-menu-item key="/system" class="menu-item-stagger">
               <template #icon>
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
               </template>
               <span>系统设置</span>
             </a-menu-item>
-          </a-menu>
-        </div>
+          </a-menu-item-group>
+        </a-menu>
       </div>
 
       <!-- Collapse -->
@@ -160,6 +173,7 @@ const route = useRoute()
 const userStore = useUserStore()
 const collapsed = ref(false)
 const selectedKeys = ref(['/dashboard'])
+const openKeys = ref(['product-sub', 'order-sub', 'marketing-sub', 'finance-sub'])
 
 const pageTitle = computed(() => route.meta?.title || '工作台')
 const userInitial = computed(() => {
@@ -167,10 +181,26 @@ const userInitial = computed(() => {
   return name.charAt(0)
 })
 
-onMounted(() => {
-  // Keep sync with route
-  selectedKeys.value = [route.path]
-})
+// Route → menu key mappings
+const PREFIX_MAP = [
+  ['/product', 'product-sub'],
+  ['/order',   'order-sub'],
+  ['/marketing','marketing-sub'],
+  ['/finance', 'finance-sub'],
+  ['/member',   null],
+  ['/system',   null],
+  ['/dashboard', null]
+]
+
+onMounted(() => { syncSelectedKeys(route.path) })
+
+function syncSelectedKeys(path) {
+  selectedKeys.value = [path]
+  const match = PREFIX_MAP.find(([prefix]) => path.startsWith(prefix))
+  if (match && match[1]) {
+    if (!openKeys.value.includes(match[1])) openKeys.value.push(match[1])
+  }
+}
 
 function handleMenuClick({ key }) {
   router.push(key)
@@ -201,12 +231,13 @@ function handleLogout() {
   position: relative;
 }
 
-/* Subtle diagonal line pattern */
+/* Ocean-depth gradient — deeper toward bottom */
 .admin-sidebar::before {
   content: '';
   position: absolute;
   inset: 0;
   background:
+    /* Diagonal "current" lines */
     repeating-linear-gradient(
       45deg,
       transparent,
@@ -254,25 +285,20 @@ function handleLogout() {
   z-index: 1;
 }
 
-.menu-section {
-  padding: var(--space-1) 0;
-}
-
-.menu-section + .menu-section {
+/* Menu group separators */
+.sidebar-menu .ant-menu-item-group + .ant-menu-item-group {
   border-top: 1px solid rgba(255, 255, 255, 0.04);
   margin-top: var(--space-2);
   padding-top: var(--space-3);
 }
 
-.menu-label {
-  display: block;
-  padding: 0 var(--space-5);
-  margin-bottom: var(--space-1);
+.sidebar-menu .ant-menu-item-group-title {
   font-size: 10px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.45);
   text-transform: uppercase;
   letter-spacing: 1.8px;
+  padding: 0 var(--space-5) !important;
+  margin-bottom: var(--space-1);
 }
 
 /* Menu items */
@@ -281,36 +307,73 @@ function handleLogout() {
   border-right: none !important;
 }
 
-.sidebar-menu .ant-menu-item {
+/* Layout spacing — color handled by theme="dark" */
+.sidebar-menu .ant-menu-item,
+.sidebar-menu .ant-menu-submenu-title {
+  display: flex !important;
+  align-items: center !important;
   margin: 2px var(--space-2) !important;
   border-radius: var(--radius-md) !important;
   height: 40px !important;
   line-height: 40px !important;
-  color: rgba(255, 255, 255, 0.82) !important;
   font-weight: 400;
   font-size: var(--text-sm) !important;
   transition: all var(--duration-fast) var(--ease-out);
   width: auto !important;
 }
-.sidebar-menu .ant-menu-item span {
-  color: rgba(255, 255, 255, 0.82) !important;
+
+/* Icon wrapper — keep icon centered */
+.sidebar-menu .ant-menu-item .ant-menu-item-icon,
+.sidebar-menu .ant-menu-submenu-title .ant-menu-item-icon {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 0 !important;
 }
-.sidebar-menu .ant-menu-item:hover {
+
+/* Title content — flex with gap */
+.sidebar-menu .ant-menu-title-content {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Fix sub-menu title: icon + text on same line */
+.sidebar-menu .ant-menu-submenu-title {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+}
+.sidebar-menu .ant-menu-submenu-title .ant-menu-item-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  line-height: 0 !important;
+  margin-inline-end: var(--space-2) !important;
+}
+.sidebar-menu .ant-menu-submenu-title .ant-menu-title-content {
+  display: inline !important;
+  flex: 1 !important;
+  white-space: nowrap !important;
+}
+
+/* Sub-menu panel & items — :deep() penetrates Ant Design child components */
+.sidebar-menu :deep(.ant-menu-sub.ant-menu-inline) {
+  background: #0b192c !important;
+}
+.sidebar-menu :deep(.ant-menu-sub .ant-menu-item) {
+  color: rgba(255, 255, 255, 0.60) !important;
+}
+.sidebar-menu :deep(.ant-menu-sub .ant-menu-item:hover) {
+  color: rgba(255, 255, 255, 0.88) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+.sidebar-menu :deep(.ant-menu-sub .ant-menu-item.ant-menu-item-selected) {
   color: #fff !important;
-  background: rgba(255, 255, 255, 0.06) !important;
+  background: rgba(200, 150, 62, 0.18) !important;
+  box-shadow: inset 0 0 0 1px rgba(200, 150, 62, 0.15);
 }
-.sidebar-menu .ant-menu-item:hover span {
-  color: #fff !important;
-}
-.sidebar-menu .ant-menu-item.ant-menu-item-selected {
-  background: var(--color-brass-soft) !important;
-  color: var(--color-brass) !important;
-  font-weight: 500;
-}
-.sidebar-menu .ant-menu-item.ant-menu-item-selected span {
-  color: var(--color-brass) !important;
-}
-.sidebar-menu .ant-menu-item.ant-menu-item-selected::before {
+.sidebar-menu :deep(.ant-menu-sub .ant-menu-item.ant-menu-item-selected)::before {
   content: '';
   position: absolute;
   left: -4px;
@@ -321,21 +384,48 @@ function handleLogout() {
   border-radius: 0 3px 3px 0;
   box-shadow: 0 0 8px rgba(200, 150, 62, 0.3);
 }
-.sidebar-menu .ant-menu-item .anticon {
-  font-size: 17px;
+
+/* Hover — subtle white wash */
+.sidebar-menu .ant-menu-item:hover,
+.sidebar-menu .ant-menu-submenu-title:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Selected — brass accent */
+.sidebar-menu .ant-menu-item.ant-menu-item-selected {
+  background: rgba(200, 150, 62, 0.18) !important;
+  box-shadow: inset 0 0 0 1px rgba(200, 150, 62, 0.15);
+}
+/* Submenu title when open — same selected treatment */
+.sidebar-menu .ant-menu-submenu-open > .ant-menu-submenu-title {
+  background: rgba(200, 150, 62, 0.18) !important;
+  box-shadow: inset 0 0 0 1px rgba(200, 150, 62, 0.15);
+}
+.sidebar-menu .ant-menu-item.ant-menu-item-selected::before,
+.sidebar-menu .ant-menu-submenu-open > .ant-menu-submenu-title::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background: var(--color-brass);
+  border-radius: 0 3px 3px 0;
+  box-shadow: 0 0 8px rgba(200, 150, 62, 0.3);
 }
 
 /* Staggered entry animation */
 .menu-item-stagger {
   animation: menu-slide-in 0.5s var(--ease-out) both;
 }
-.menu-section:first-child .menu-item-stagger:nth-child(1) { animation-delay: 0.05s; }
-.menu-section:first-child .menu-item-stagger:nth-child(2) { animation-delay: 0.08s; }
-.menu-section:first-child .menu-item-stagger:nth-child(3) { animation-delay: 0.11s; }
-.menu-section:first-child .menu-item-stagger:nth-child(4) { animation-delay: 0.14s; }
-.menu-section:nth-child(2) .menu-item-stagger:nth-child(1) { animation-delay: 0.18s; }
-.menu-section:nth-child(2) .menu-item-stagger:nth-child(2) { animation-delay: 0.21s; }
-.menu-section:nth-child(2) .menu-item-stagger:nth-child(3) { animation-delay: 0.24s; }
+/* Stagger delays for merged single-menu layout */
+.sidebar-menu > .ant-menu-item-group:first-child .menu-item-stagger:nth-child(1) { animation-delay: 0.05s; }
+.sidebar-menu > .ant-menu-item-group:first-child .menu-item-stagger:nth-child(2) { animation-delay: 0.08s; }
+.sidebar-menu > .ant-menu-item-group:first-child .menu-item-stagger:nth-child(3) { animation-delay: 0.11s; }
+.sidebar-menu > .ant-menu-item-group:first-child .menu-item-stagger:nth-child(4) { animation-delay: 0.14s; }
+.sidebar-menu > .ant-menu-item-group:last-child .menu-item-stagger:nth-child(1) { animation-delay: 0.18s; }
+.sidebar-menu > .ant-menu-item-group:last-child .menu-item-stagger:nth-child(2) { animation-delay: 0.21s; }
+.sidebar-menu > .ant-menu-item-group:last-child .menu-item-stagger:nth-child(3) { animation-delay: 0.24s; }
 
 @keyframes menu-slide-in {
   from { opacity: 0; transform: translateX(-8px); }
@@ -499,21 +589,36 @@ function handleLogout() {
   padding: var(--space-6);
   overflow-y: auto;
   background:
-    linear-gradient(180deg, var(--color-surface) 0%, var(--color-fog) 40px);
+    /* Horizon line — thin brass line at dawn */
+    linear-gradient(180deg, rgba(200,150,62,0.10) 0px, rgba(200,150,62,0.04) 1px, transparent 2px),
+    /* Surface to fog gradient */
+    linear-gradient(180deg, var(--color-surface) 0%, var(--color-fog) 80px);
   position: relative;
 }
 
-/* Subtle dot pattern in content area corner */
+/* Subtle maritime chart dot pattern in corner */
 .admin-content::after {
   content: '';
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 300px;
-  height: 300px;
+  width: 320px;
+  height: 320px;
   background:
-    radial-gradient(circle, rgba(200, 150, 62, 0.015) 1px, transparent 1px);
-  background-size: 20px 20px;
+    radial-gradient(circle, rgba(200, 150, 62, 0.018) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+}
+
+/* Horizon glow — warm light at the top edge */
+.admin-content::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: radial-gradient(ellipse 600px 40px at 50% 0%, rgba(200,150,62,0.04) 0%, transparent 70%);
   pointer-events: none;
 }
 

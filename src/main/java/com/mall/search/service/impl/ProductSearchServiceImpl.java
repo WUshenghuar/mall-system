@@ -6,6 +6,7 @@ import co.elastic.clients.elasticsearch.core.SearchResponse;
 import co.elastic.clients.elasticsearch.core.search.Hit;
 import co.elastic.clients.elasticsearch.indices.CreateIndexResponse;
 import co.elastic.clients.json.JsonData;
+import com.mall.common.exception.BusinessException;
 import com.mall.search.service.ProductSearchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,7 +54,7 @@ public class ProductSearchServiceImpl implements ProductSearchService {
             log.info("Index created: {}", response.acknowledged());
         } catch (IOException e) {
             log.error("Failed to create index", e);
-            throw new RuntimeException(e);
+            throw new BusinessException("ES索引创建失败: " + e.getMessage());
         }
     }
 
@@ -134,7 +135,7 @@ public class ProductSearchServiceImpl implements ProductSearchService {
             return result;
         } catch (IOException e) {
             log.error("Search failed", e);
-            throw new RuntimeException(e);
+            throw new BusinessException("搜索失败: " + e.getMessage());
         }
     }
 

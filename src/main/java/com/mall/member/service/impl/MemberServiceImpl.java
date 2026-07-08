@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.mall.common.exception.BusinessException;
 import com.mall.member.entity.Member;
 import com.mall.member.entity.MemberPointsLog;
 import com.mall.member.mapper.MemberMapper;
@@ -48,7 +49,7 @@ public class MemberServiceImpl implements MemberService {
     @Transactional
     public void adjustPoints(Long id, int points, String reason) {
         Member member = memberMapper.selectById(id);
-        if (member == null) throw new RuntimeException("会员不存在");
+        if (member == null) throw new BusinessException("会员不存在");
         member.setPoints(member.getPoints() + points);
         memberMapper.updateById(member);
 

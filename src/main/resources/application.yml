@@ -38,3 +38,15 @@ jwt:
 
 elasticsearch:
   hosts: localhost:9200
+
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: mall-product
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: method

@@ -1,27 +1,45 @@
 <template>
-  <router-view />
+  <router-view v-slot="{ Component, route }">
+    <transition :name="transitionName" mode="out-in">
+      <component :is="Component" :key="route.path" />
+    </transition>
+  </router-view>
 </template>
 
 <script setup>
+import { ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+const transitionName = ref('page-fade')
+
+// Detect navigation direction for slide animation
+watch(() => router.currentRoute.value, (to, from) => {
+  if (!from || !from.meta) { transitionName.value = 'page-fade'; return }
+  const toDepth = to.meta.depth ?? 0
+  const fromDepth = from?.meta?.depth ?? 0
+  transitionName.value = toDepth >= fromDepth ? 'page-slide-left' : 'page-slide-right'
+})
 </script>
 
 <style>
 /* ============================================
    B2C Cross-Border E-Commerce — Design Tokens
-   Global Trade Command aesthetic
+   Harbor Control Tower aesthetic
    ============================================ */
 :root {
   /* ── Core palette ── */
   --color-abyss:        #0B192C;
   --color-abyss-hover:  #152238;
   --color-night:        #0D1B30;
+  --color-deep:         #0A1525;
   --color-brass:        #C8963E;
   --color-brass-hover:  #B8872E;
   --color-brass-deep:   #8B691F;
   --color-brass-soft:   rgba(200, 150, 62, 0.12);
   --color-brass-glow:   rgba(200, 150, 62, 0.25);
   --color-brass-shine:  rgba(200, 150, 62, 0.06);
-  --color-fog:          #F0F2F5;
+  --color-fog:          #EDF0F4;
   --color-fog-warm:     #F5F3EF;
   --color-surface:      #FFFFFF;
   --color-ivory:        #FAF8F5;
@@ -29,6 +47,10 @@
   --color-slate-light:  #94A3B8;
   --color-lead:         #1E293B;
   --color-ink:          rgba(255, 255, 255, 0.88);
+  /* New — ocean accents */
+  --color-teal:         #1A6B6B;
+  --color-teal-soft:    rgba(26, 107, 107, 0.06);
+  --color-horizon:      linear-gradient(180deg, rgba(200,150,62,0.12) 0%, rgba(200,150,62,0.03) 4px, transparent 8px);
 
   /* ── Functional ── */
   --color-success:      #2D8A56;
@@ -288,6 +310,217 @@ html, body, #app {
 .ant-skeleton-header .ant-skeleton-avatar {
   background: var(--color-fog) !important;
 }
+.ant-skeleton-content .ant-skeleton-title,
+.ant-skeleton-content .ant-skeleton-paragraph > li {
+  background: linear-gradient(90deg,
+    var(--color-fog) 25%,
+    var(--color-fog-warm) 37%,
+    var(--color-fog) 63%
+  ) !important;
+  background-size: 400% 100% !important;
+  animation: skeleton-shimmer 1.4s ease infinite !important;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* ════════════════════════════════════════
+   Modal Overrides — Command Center Dialogs
+   ════════════════════════════════════════ */
+.ant-modal-content {
+  border-radius: var(--radius-xl) !important;
+  overflow: hidden;
+  box-shadow: var(--shadow-glass) !important;
+}
+.ant-modal-header {
+  padding: var(--space-5) var(--space-6) !important;
+  border-bottom: 1px solid rgba(11, 25, 44, 0.06) !important;
+  background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-fog-warm) 100%) !important;
+}
+.ant-modal-title {
+  font-family: var(--font-sans);
+  font-weight: 600 !important;
+  font-size: var(--text-lg) !important;
+  color: var(--color-lead) !important;
+  letter-spacing: -0.2px;
+}
+/* Brass accent bar under modal title */
+.ant-modal-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: var(--space-6);
+  width: 32px;
+  height: 2px;
+  background: var(--color-brass);
+  border-radius: 1px;
+}
+.ant-modal-close {
+  top: var(--space-4) !important;
+  right: var(--space-5) !important;
+  color: var(--color-slate-light) !important;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+.ant-modal-close:hover {
+  color: var(--color-lead) !important;
+  background: rgba(11, 25, 44, 0.04) !important;
+  border-radius: var(--radius-sm);
+}
+.ant-modal-body {
+  padding: var(--space-6) !important;
+}
+.ant-modal-footer {
+  padding: var(--space-4) var(--space-6) !important;
+  border-top: 1px solid rgba(11, 25, 44, 0.04) !important;
+  background: var(--color-fog-warm) !important;
+}
+
+/* ════════════════════════════════════════
+   Form Overrides — Refined Field Aesthetics
+   ════════════════════════════════════════ */
+.ant-form-item-label > label {
+  font-size: var(--text-sm) !important;
+  font-weight: 500 !important;
+  color: var(--color-slate) !important;
+  letter-spacing: 0.2px;
+}
+.ant-form-item-label > label.ant-form-item-required::before {
+  color: var(--color-brass) !important;
+}
+.ant-input-number {
+  border-radius: var(--radius-md) !important;
+  border-color: rgba(11, 25, 44, 0.1) !important;
+}
+.ant-input-number:hover { border-color: var(--color-brass) !important; }
+.ant-input-number-focused {
+  border-color: var(--color-brass) !important;
+  box-shadow: 0 0 0 2px var(--color-brass-soft) !important;
+}
+.ant-input-number-prefix {
+  color: var(--color-slate-light) !important;
+}
+/* Textarea */
+.ant-input-textarea textarea {
+  border-radius: var(--radius-md) !important;
+  border-color: rgba(11, 25, 44, 0.1) !important;
+}
+.ant-input-textarea textarea:hover { border-color: var(--color-brass) !important; }
+.ant-input-textarea textarea:focus {
+  border-color: var(--color-brass) !important;
+  box-shadow: 0 0 0 2px var(--color-brass-soft) !important;
+}
+/* Switch */
+.ant-switch-checked {
+  background: var(--color-brass) !important;
+}
+/* Radio */
+.ant-radio-checked .ant-radio-inner {
+  border-color: var(--color-brass) !important;
+}
+.ant-radio-inner::after {
+  background-color: var(--color-brass) !important;
+}
+.ant-radio-input:focus + .ant-radio-inner {
+  border-color: var(--color-brass) !important;
+  box-shadow: 0 0 0 2px var(--color-brass-soft) !important;
+}
+/* Checkbox */
+.ant-checkbox-checked .ant-checkbox-inner {
+  background-color: var(--color-brass) !important;
+  border-color: var(--color-brass) !important;
+}
+.ant-checkbox-wrapper:hover .ant-checkbox-inner,
+.ant-checkbox:hover .ant-checkbox-inner {
+  border-color: var(--color-brass) !important;
+}
+.ant-checkbox-input:focus + .ant-checkbox-inner {
+  border-color: var(--color-brass) !important;
+  box-shadow: 0 0 0 2px var(--color-brass-soft) !important;
+}
+/* DatePicker */
+.ant-picker:hover { border-color: var(--color-brass) !important; }
+.ant-picker-focused {
+  border-color: var(--color-brass) !important;
+  box-shadow: 0 0 0 2px var(--color-brass-soft) !important;
+}
+.ant-picker-cell-in-view.ant-picker-cell-selected .ant-picker-cell-inner {
+  background: var(--color-brass) !important;
+}
+.ant-picker-cell-in-view.ant-picker-cell-today .ant-picker-cell-inner::before {
+  border-color: var(--color-brass) !important;
+}
+
+/* ════════════════════════════════════════
+   Tag — Design Token Variants
+   ════════════════════════════════════════ */
+.ant-tag-green  { background: rgba(45,138,86,0.1)  !important; color: var(--color-success) !important; }
+.ant-tag-blue   { background: rgba(59,130,246,0.1) !important; color: var(--color-info)    !important; }
+.ant-tag-orange { background: rgba(212,137,26,0.1) !important; color: var(--color-warning)  !important; }
+.ant-tag-red    { background: rgba(197,48,48,0.1)  !important; color: var(--color-danger)  !important; }
+.ant-tag-purple { background: rgba(124,58,237,0.1) !important; color: #7C3AED              !important; }
+.ant-tag-gold   { background: var(--color-brass-soft) !important; color: var(--color-brass-deep) !important; }
+.ant-tag-cyan   { background: var(--color-teal-soft)  !important; color: var(--color-teal)       !important; }
+
+/* ════════════════════════════════════════
+   Empty State — Nautical Calm
+   ════════════════════════════════════════ */
+.ant-empty-image {
+  opacity: 0.5;
+  filter: grayscale(0.3);
+}
+.ant-empty-description {
+  color: var(--color-slate-light) !important;
+  font-size: var(--text-sm) !important;
+  letter-spacing: 0.3px;
+}
+
+/* ════════════════════════════════════════
+   Result (error/success state)
+   ════════════════════════════════════════ */
+.ant-result-error .ant-result-icon > .anticon {
+  color: var(--color-danger) !important;
+}
+.ant-result-title {
+  font-family: var(--font-sans);
+  font-weight: 600 !important;
+  color: var(--color-lead) !important;
+}
+
+/* ════════════════════════════════════════
+   Descriptions
+   ════════════════════════════════════════ */
+.ant-descriptions-bordered .ant-descriptions-item-label {
+  background: var(--color-fog) !important;
+  font-weight: 500 !important;
+  color: var(--color-slate) !important;
+  font-size: var(--text-sm) !important;
+}
+.ant-descriptions-bordered .ant-descriptions-item-content {
+  font-size: var(--text-sm) !important;
+}
+
+/* ════════════════════════════════════════
+   Steps (order workflow)
+   ════════════════════════════════════════ */
+.ant-steps-item-finish .ant-steps-item-icon {
+  background: var(--color-brass-soft) !important;
+  border-color: var(--color-brass) !important;
+}
+.ant-steps-item-finish .ant-steps-item-icon > .ant-steps-icon {
+  color: var(--color-brass) !important;
+}
+.ant-steps-item-process .ant-steps-item-icon {
+  background: var(--color-brass) !important;
+  border-color: var(--color-brass) !important;
+}
+.ant-steps-item-finish > .ant-steps-item-container > .ant-steps-item-content > .ant-steps-item-title::after {
+  background: var(--color-brass) !important;
+}
+.ant-steps-item-process > .ant-steps-item-container > .ant-steps-item-content > .ant-steps-item-title {
+  color: var(--color-brass) !important;
+  font-weight: 500 !important;
+}
 
 /* ── Reduced motion ── */
 @media (prefers-reduced-motion: reduce) {
@@ -295,5 +528,142 @@ html, body, #app {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ════════════════════════════════════════
+   Page Transitions — Harbor Current
+   ════════════════════════════════════════ */
+
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition: opacity 0.25s var(--ease-out);
+}
+.page-fade-enter-from,
+.page-fade-leave-to {
+  opacity: 0;
+}
+
+.page-slide-left-enter-active,
+.page-slide-left-leave-active {
+  transition: all 0.3s var(--ease-out);
+}
+.page-slide-left-enter-from {
+  opacity: 0;
+  transform: translateX(20px);
+}
+.page-slide-left-leave-to {
+  opacity: 0;
+  transform: translateX(-16px);
+}
+
+.page-slide-right-enter-active,
+.page-slide-right-leave-active {
+  transition: all 0.3s var(--ease-out);
+}
+.page-slide-right-enter-from {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+.page-slide-right-leave-to {
+  opacity: 0;
+  transform: translateX(16px);
+}
+
+/* ════════════════════════════════════════
+   Shared Business Page Styles
+   Every CRUD page inherits these through
+   the .sub-page / .module-page class
+   ════════════════════════════════════════ */
+
+/* ── Base sub-page wrapper ── */
+.sub-page,
+.module-page {
+  max-width: 1400px;
+  animation: page-enter 0.4s var(--ease-out) both;
+}
+
+@keyframes page-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Page head (title + actions row) ── */
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+.page-head .page-title {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--color-lead);
+  letter-spacing: -0.2px;
+  line-height: 1.2;
+  margin: 0 0 2px;
+}
+.page-head .page-desc {
+  font-size: var(--text-sm);
+  color: var(--color-slate-light);
+  letter-spacing: 0.2px;
+  margin: 0;
+}
+.page-head .head-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* ── Section title (within cards, e.g. "商品明细") ── */
+.section-title {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-lead);
+  margin: 0 0 var(--space-3);
+  letter-spacing: -0.1px;
+}
+
+/* ── Module accent bar — add to card headers per module ── */
+.module-accent {
+  position: relative;
+}
+.module-accent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+/* ── Stat pill (small inline metric) ── */
+.stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+.stat-pill.up   { background: rgba(45,138,86,0.08);  color: var(--color-success); }
+.stat-pill.down { background: rgba(197,48,48,0.08);  color: var(--color-danger); }
+.stat-pill.info { background: rgba(59,130,246,0.08); color: var(--color-info); }
+
+/* ── Error state card ── */
+.error-state {
+  padding: var(--space-10) 0;
+  text-align: center;
+}
+
+/* ── Empty table cell hint ── */
+.cell-muted {
+  color: var(--color-slate-light);
+  font-size: var(--text-xs);
 }
 </style>

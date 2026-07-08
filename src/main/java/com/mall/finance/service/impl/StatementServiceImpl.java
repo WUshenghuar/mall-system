@@ -3,6 +3,7 @@ package com.mall.finance.service.impl;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.mall.common.exception.BusinessException;
 import com.mall.finance.entity.Statement;
 import com.mall.finance.entity.StatementExportVO;
 import com.mall.finance.entity.StatementItem;
@@ -67,7 +68,7 @@ public class StatementServiceImpl implements StatementService {
     @Transactional
     public void confirm(Long id) {
         Statement stmt = statementMapper.selectById(id);
-        if (stmt == null) throw new RuntimeException("对账单不存在");
+        if (stmt == null) throw new BusinessException("对账单不存在");
         stmt.setStatus(1);
         statementMapper.updateById(stmt);
     }

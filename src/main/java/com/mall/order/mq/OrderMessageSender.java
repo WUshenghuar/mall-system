@@ -2,13 +2,13 @@ package com.mall.order.mq;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
 @Component
-@Profile("!dev")
+@ConditionalOnBean(RabbitTemplate.class)
 @RequiredArgsConstructor
 public class OrderMessageSender {
     private final RabbitTemplate rabbitTemplate;

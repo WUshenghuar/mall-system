@@ -1,5 +1,19 @@
 <template>
-  <div class="product-page">
+  <div class="sub-page">
+    <!-- Page head -->
+    <div class="page-head">
+      <div>
+        <h2 class="page-title">商品管理</h2>
+        <p class="page-desc">管理 SPU、SKU 与多币种定价</p>
+      </div>
+      <div class="head-actions">
+        <a-button type="primary" @click="showAddModal = true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px;vertical-align:middle"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          添加商品
+        </a-button>
+      </div>
+    </div>
+
     <a-row :gutter="24">
       <!-- Category tree -->
       <a-col :span="5">
@@ -16,9 +30,6 @@
       <!-- SPU Table -->
       <a-col :span="19">
         <a-card :bordered="false">
-          <template #title>
-            <span>商品列表（SPU）</span>
-          </template>
           <template #extra>
             <a-space>
               <a-input-search
@@ -28,9 +39,6 @@
                 @search="fetchData"
                 allow-clear
               />
-              <a-button type="primary" @click="showAddModal = true">
-                <plus-outlined /> 添加商品
-              </a-button>
             </a-space>
           </template>
 
@@ -80,9 +88,11 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { PlusOutlined } from '@ant-design/icons-vue'
 import { getCategoryTree, getSpuPage, deleteSpu, publishSpu } from '@/api/product'
+
+const router = useRouter()
 
 const loading = ref(false)
 const keyword = ref('')
@@ -179,7 +189,7 @@ async function handleDelete(id) {
 }
 
 function viewDetail(record) {
-  message.info(`查看 ${record.spuName} 详情（SKU 列表开发中）`)
+  router.push(`/product/sku/${record.id}`)
 }
 
 onMounted(() => {
@@ -189,7 +199,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.product-page {
-  max-width: 1400px;
-}
+/* Module accent — product = blue */
+.product-page { max-width: 1400px; }
 </style>

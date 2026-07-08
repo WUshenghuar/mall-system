@@ -1,16 +1,23 @@
 <template>
-  <div class="order-page">
-    <a-card :bordered="false">
-      <template #extra>
+  <div class="sub-page">
+    <!-- Page head -->
+    <div class="page-head">
+      <div>
+        <h2 class="page-title">订单管理</h2>
+        <p class="page-desc">查看与处理跨境订单</p>
+      </div>
+      <div class="head-actions">
         <a-input-search
           v-model:value="keyword"
           placeholder="搜索订单号"
-          style="width: 220px"
+          style="width: 240px"
           @search="fetchData"
           allow-clear
         />
-      </template>
+      </div>
+    </div>
 
+    <a-card :bordered="false">
       <a-tabs v-model:activeKey="statusFilter" @change="onTabChange">
         <a-tab-pane key="" tab="全部" />
         <a-tab-pane key="0" tab="待支付" />
@@ -40,7 +47,7 @@
           </template>
           <template v-if="column.key === 'action'">
             <a-space size="small">
-              <a-button type="link" size="small" @click="$router.push(`/order/${record.id}`)">
+              <a-button type="link" size="small" @click="$router.push(`/order/detail/${record.id}`)">
                 详情
               </a-button>
               <a-button
@@ -149,7 +156,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.order-page {
-  max-width: 1400px;
-}
+.order-page { max-width: 1400px; }
 </style>
