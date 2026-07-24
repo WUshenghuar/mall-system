@@ -396,3 +396,131 @@ CREATE TABLE IF NOT EXISTS fn_tax_config (
     update_time     DATETIME,
     deleted         TINYINT      DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ==================== C端交易模块 ====================
+
+-- C端购物车表
+CREATE TABLE IF NOT EXISTS trade_cart (
+    id          BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    user_id     BIGINT       NOT NULL,
+    sku_id      BIGINT       NOT NULL,
+    quantity    INT          DEFAULT 1,
+    checked     TINYINT      DEFAULT 1 COMMENT '1选中 0未选中',
+    create_time DATETIME,
+    update_time DATETIME,
+    deleted     TINYINT      DEFAULT 0,
+    INDEX idx_trade_cart_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- C端收藏表
+CREATE TABLE IF NOT EXISTS member_favorite (
+    id          BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    user_id     BIGINT       NOT NULL,
+    spu_id      BIGINT       NOT NULL,
+    create_time DATETIME,
+    update_time DATETIME,
+    deleted     TINYINT      DEFAULT 0,
+    UNIQUE KEY uk_favorite_user_spu (user_id, spu_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- C端浏览历史表
+CREATE TABLE IF NOT EXISTS member_browse_history (
+    id          BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    user_id     BIGINT       NOT NULL,
+    spu_id      BIGINT       NOT NULL,
+    create_time DATETIME,
+    update_time DATETIME,
+    deleted     TINYINT      DEFAULT 0,
+    INDEX idx_browse_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- C端订单表
+CREATE TABLE IF NOT EXISTS trade_order (
+    id              BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    order_no        VARCHAR(32)  NOT NULL UNIQUE,
+    user_id         BIGINT       NOT NULL,
+    order_status    TINYINT      DEFAULT 0 COMMENT '0待支付 1待发货 2待收货 3已完成 4已取消 5退款中 6已退款',
+    total_amount    DECIMAL(10,2) DEFAULT 0,
+    discount_amount DECIMAL(10,2) DEFAULT 0,
+    freight_amount  DECIMAL(10,2) DEFAULT 0,
+    pay_amount      DECIMAL(10,2) DEFAULT 0,
+    pay_type        TINYINT      COMMENT '1支付宝 2微信',
+    pay_time        DATETIME,
+    delivery_time   DATETIME,
+    receive_time    DATETIME,
+    receiver_name   VARCHAR(50),
+    receiver_phone  VARCHAR(20),
+    receiver_address VARCHAR(200),
+    remark          VARCHAR(500),
+    source_type     TINYINT      DEFAULT 1 COMMENT '1APP 2H5 3小程序',
+    create_time     DATETIME,
+    update_time     DATETIME,
+    deleted         TINYINT      DEFAULT 0,
+    INDEX idx_trade_order_user (user_id),
+    INDEX idx_trade_order_no (order_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- C端订单明细表
+CREATE TABLE IF NOT EXISTS trade_order_item (
+    id          BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    order_id    BIGINT       NOT NULL,
+    order_no    VARCHAR(32)  NOT NULL,
+    sku_id      BIGINT,
+    sku_name    VARCHAR(200) COMMENT '商品名称（快照）',
+    sku_price   DECIMAL(10,2) COMMENT '商品单价（快照）',
+    quantity    INT          DEFAULT 1,
+    total_amount DECIMAL(10,2) COMMENT '小计',
+    sku_image   VARCHAR(255) COMMENT '商品图片（快照）',
+    create_time DATETIME,
+    update_time DATETIME,
+    deleted     TINYINT      DEFAULT 0,
+    INDEX idx_trade_item_order (order_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- C端支付表
+CREATE TABLE IF NOT EXISTS trade_pay (
+    id              BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    order_no        VARCHAR(32)  NOT NULL,
+    pay_no          VARCHAR(64)  NOT NULL COMMENT '支付流水号',
+    pay_type        TINYINT      COMMENT '1支付宝 2微信',
+    pay_amount      DECIMAL(10,2),
+    pay_status      TINYINT      DEFAULT 0 COMMENT '0待支付 1支付成功 2支付失败',
+    pay_time        DATETIME,
+    callback_time   DATETIME,
+    callback_content TEXT        COMMENT '回调内容',
+    create_time     DATETIME,
+    update_time     DATETIME,
+    deleted         TINYINT      DEFAULT 0,
+    INDEX idx_trade_pay_order (order_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- C端物流表
+CREATE TABLE IF NOT EXISTS trade_logistics (
+    id                BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    order_no          VARCHAR(32)  NOT NULL,
+    logistics_no      VARCHAR(100) COMMENT '物流单号',
+    logistics_company VARCHAR(50)  COMMENT '物流公司',
+    logistics_status  TINYINT      DEFAULT 0,
+    logistics_info    JSON         COMMENT '物流轨迹',
+    create_time       DATETIME,
+    update_time       DATETIME,
+    deleted           TINYINT      DEFAULT 0,
+    INDEX idx_trade_logistics_order (order_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- C端收货地址表
+CREATE TABLE IF NOT EXISTS member_address (
+    id              BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    user_id         BIGINT       NOT NULL,
+    receiver_name   VARCHAR(50),
+    receiver_phone  VARCHAR(20),
+    province        VARCHAR(50),
+    city            VARCHAR(50),
+    district        VARCHAR(50),
+    detail_address  VARCHAR(200),
+    is_default      TINYINT      DEFAULT 0 COMMENT '0非默认 1默认',
+    create_time     DATETIME,
+    update_time     DATETIME,
+    deleted         TINYINT      DEFAULT 0,
+    INDEX idx_address_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

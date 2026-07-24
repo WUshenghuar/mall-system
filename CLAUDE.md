@@ -4,77 +4,185 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-B2C Cross-Border E-Commerce backend management system — a modular monolith covering product (SPU/SKU), order, member, marketing/coupon, and finance modules with RBAC access control.
+B2C 跨境电商全栈系统 — 覆盖 C 端用户前台 + B 端运营后台 + AI 智能客服的完整电商全栈项目。单模块 Spring Boot 单体应用，集成 RBAC 权限控制，AI 客服 Agent 采用双层架构（Java 业务层 + Python AI 微服务层）。
 
-**Tech stack:** Java 23 + Spring Boot 3.x + Spring Security + JWT + MyBatis-Plus 3.5 + MySQL 8 + Redis 7 + RabbitMQ + Elasticsearch 8 + Vue 3 (Composition API) + Ant Design Vue + Vite
+**Tech stack:** Java 23 + Spring Boot 3.2.5 + Spring Security + JWT + MyBatis-Plus 3.5.7 + MySQL 8 + Redis 7 + RabbitMQ + Elasticsearch 8 + Vue 3 (Composition API) + Ant Design Vue 4 + Vite 5 + Python 3.11 + FastAPI + LangGraph + LangFuse
 
-> **Current state (2026-05-31):** Early implementation phase. The multi-module Maven structure under `mall-system/` is not yet created — code scaffolding is the first task. The root `pom.xml` is a placeholder; the real parent POM will live at `mall-system/pom.xml`.
+## 项目结构
+
+```
+├── pom.xml                          # 单模块 Maven 项目 (非多模块)
+├── src/main/java/com/mall/
+│   ├── common/                      # 共享基类、工具、配置
+│   │   ├── config/                  #   MinIO / Redis / Rabbit / MyBatis-Plus / OpenAPI 配置
+│   │   ├── entity/BaseEntity.java   #   公共实体基类 (id, createTime, updateTime, deleted)
+│   │   ├── exception/               #   BusinessException + GlobalExceptionHandler
+│   │   ├── result/                  #   Result<T> / ResultCode (统一响应)
+│   │   └── service/FileService.java #   MinIO 文件上传服务
+│   ├── security/                    # JWT 认证 + Spring Security + DataScope AOP
+│   │   ├── annotation/DataScope.java
+│   │   ├── aspect/DataScopeAspect.java
+│   │   ├── jwt/                     #   JwtTokenProvider, JwtAuthenticationFilter
+│   │   └── user/                    #   LoginUser, UserDetailsServiceImpl
+│   ├── system/                      # 系统管理：用户 / 角色 / 菜单
+│   ├── product/                     # 商品：SPU / SKU / 分类 / 品牌 / 库存
+│   ├── order/                       # 订单生命周期 + 退款 / 物流 / MQ
+│   ├── member/                      # 会员资料 / 地址 / 积分 / 收藏 / 浏览历史
+│   ├── marketing/                   # 优惠券 / 活动 / 秒杀
+│   ├── finance/                     # 结算单 / 税率 / EasyExcel 导出
+│   ├── search/                      # ES 商品索引 + 全文搜索
+│   ├── trade/                       # C 端交易：购物车 / 下单 / 支付 / 物流
+│   └── web/                         # 启动入口 + 所有 Controller (薄层)
+│       └── MallApplication.java
+├── src/main/resources/
+│   ├── application.yml              # 主配置 (MySQL / Redis / Rabbit / MinIO / JWT / ES / OpenAPI)
+│   ├── application-dev.yml          # Dev 配置 (排除 Redis/Rabbit 自动配置)
+│   ├── db/                          # SQL 脚本 (schema.sql / init-db.sql / data.sql)
+│   └── mapper/                      # MyBatis XML (system/SysMenuMapper.xml 等)
+├── src/main/java/com/mall/
+│   └── ai/                          # AI 集成模块（Spring Boot → Python AI 代理层）
+│       ├── controller/              #   SSE 聊天代理、知识库管理、评测接口
+│       ├── service/                 #   对话管理、知识库 CRUD、评测服务
+│       ├── entity/                  #   AiConversation / AiKnowledgeDoc / AiEval*
+│       ├── mapper/                  #   MyBatis-Plus Mapper
+│       └── dto/                     #   数据传输对象
+├── src/main/resources/
+│   └── db/                          # AI 相关 SQL (ai-schema.sql)
+├── src/test/java/                   # 单元测试 (H2 内嵌数据库)
+├── mall-web/                        # 前端 Vue 3 SPA (独立项目)
+│   └── src/
+│       ├── api/                     #   Axios API 层
+│       ├── composables/             #   组合式函数 (useCrudModal, usePagination)
+│       ├── layouts/AdminLayout.vue  #   后台布局
+│       ├── router/                  #   Vue Router
+│       ├── store/                   #   Pinia (user.js)
+│       ├── utils/                   #   request.js (拦截器), date.js
+│       └── views/                   #   页面: login / dashboard / system / product / order / member / marketing / finance / ai
+└── mall-ai-service/                 # Python AI 微服务（新增，独立项目）
+```
+
+**mall-ai-service/ (Python AI 微服务):**
+```
+├── mall-ai-service/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   ├── .env.example
+│   └── app/
+│       ├── __init__.py
+│       ├── main.py                    # FastAPI 启动入口
+│       ├── config.py                  # 配置中心
+│       ├── agent/                     # LangGraph Agent 图编排
+│       │   ├── agent.py               # Agent 有向图
+│       │   ├── tools.py               # Function Calling 工具
+│       │   └── prompts.py             # Prompt 模板
+│       ├── rag/                       # RAG 检索
+│       │   ├── retriever.py           # Hybrid Search + Rerank
+│       │   └── embedding.py           # Embedding 封装
+│       ├── api/                       # API 路由
+│       │   ├── chat.py                # SSE 聊天
+│       │   ├── knowledge.py           # 知识库管理
+│       │   └── eval.py                # 评测接口
+│       ├── models/
+│       │   └── schemas.py             # Pydantic 模型
+│       └── utils/
+│           ├── llm.py                 # LLM 客户端
+│           └── tracing.py             # LangFuse 追踪
+```
+
+**Layering within each business package:** `entity/` → `mapper/` → `service/` → (in `web`) `controller/`
 
 ## Build & Run Commands
 
 ```bash
-# Build the whole project (from mall-system/ once created)
-cd mall-system && mvn clean package
+# 构建项目 (从项目根目录)
+mvn clean package
 
-# Build skipping tests
+# 跳过测试构建
 mvn clean package -DskipTests
 
-# Run all tests
+# 运行所有测试
 mvn test
 
-# Run a single test class in a specific module
-mvn test -pl mall-product -Dtest=SpuServiceTest
+# 运行单个测试类
+mvn test -Dtest=OrderServiceImplTest
 
-# Start the application (from mall-system/ directory)
-mvn spring-boot:run -pl mall-web
+# 启动应用
+mvn spring-boot:run
 
-# Start with dev profile
-mvn spring-boot:run -pl mall-web -Dspring-boot.run.profiles=dev
+# 启动应用 (dev profile，排除 Redis/RabbitMQ)
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
-# Install Maven wrapper (if mvnw not available — .mvn/wrapper/ JAR is not yet checked in)
-mvn wrapper:wrapper
+# 前端开发服务器 (在 mall-web/ 目录下)
+cd mall-web
+npm run dev     # Vite dev server → http://localhost:5173
+npm run build   # 生产构建 → dist/
+
+# Python AI 微服务 (在 mall-ai-service/ 目录下)
+cd mall-ai-service
+pip install -r requirements.txt          # 安装依赖
+uvicorn app.main:app --reload --port 8000  # 启动 AI 服务
 ```
+
+**Maven wrapper** 已配置 (`.mvn/`)，支持 `./mvnw` 命令。
 
 ## Infrastructure Dependencies
 
-Local development requires these services (default ports):
+本地开发需要以下服务（默认端口）：
 
 | Service | Port | Purpose |
 |---|---|---|
-| MySQL 8 | 3306 | Core business data |
-| Redis 7 | 6379 | Caching, distributed locks, cart |
-| RabbitMQ 3.x | 5672/15672 | Async order processing, stock peak-clipping |
-| Elasticsearch 8 | 9200 | Product full-text search |
-| MinIO | 9000/9001 | File storage (product images, customs docs) |
+| MySQL 8 | 3306 | 核心业务数据 |
+| Redis 7 | 6379 | 缓存、分布式锁、购物车 |
+| RabbitMQ 3.x | 5672/15672 | 异步订单处理、库存削峰 |
+| Elasticsearch 8 | 9200 | 商品全文搜索 + AI 知识库向量检索 |
+| MinIO | 9000/9001 | 文件存储（商品图片、报关文档） |
 
-## Architecture
+Dev profile (`application-dev.yml`) 会排除 Redis 和 RabbitMQ 的自动配置，方便本地开发。
 
-**Module structure (Maven multi-module under `mall-system/`):**
+**AI 微服务** (`mall-ai-service/`) 为独立 Python FastAPI 服务，与 Spring Boot 通过 HTTP/SSE 通信，各自独立部署。
 
-| Module | Concern |
+## 业务模块职责
+
+| 包 | 职责 |
 |---|---|
-| `mall-common` | Shared: `BaseEntity`, `Result`/`ResultCode`, `BusinessException`, `GlobalExceptionHandler`, MyBatis-Plus config |
-| `mall-security` | JWT auth, Spring Security config, `@DataScope` annotation + AOP for row-level data permission |
-| `mall-product` | SPU/SKU, categories (tree), brands, multi-warehouse stock, multi-currency pricing, HS codes |
-| `mall-order` | Order lifecycle (create→pay→ship→sign→complete), refunds, international logistics, RabbitMQ async handling |
-| `mall-member` | Member profiles, tier system, points, international addresses |
-| `mall-marketing` | Coupons (define/issue/verify), activities, flash-sale/seckill |
-| `mall-finance` | Statements, tax config, exchange rates, Excel export |
-| `mall-search` | Elasticsearch product indexing, full-text search, scheduled sync jobs |
-| `mall-web` | Spring Boot entry point (`MallApplication`), all controllers, `application.yml`, MyBatis XML mappers |
+| `common` | `BaseEntity`, `Result`/`ResultCode`, `BusinessException`, `GlobalExceptionHandler`, 基础配置 |
+| `security` | JWT 认证、Spring Security 配置、`@DataScope` 注解 + AOP 行级数据权限 |
+| `system` | 系统管理：用户/角色/菜单 CRUD、分配角色、修改状态 |
+| `product` | SPU/SKU、分类树、品牌、多仓库库存、HS 编码 |
+| `order` | 订单生命周期(创建→支付→发货→签收→完成)、退款、物流、RabbitMQ 异步处理 |
+| `member` | 会员资料、收货地址、积分记录、收藏夹、浏览历史 |
+| `marketing` | 优惠券(定义/发放/核销)、活动、秒杀 |
+| `finance` | 结算单、税率配置、EasyExcel 导出 |
+| `search` | Elasticsearch 商品索引、全文搜索、定时同步任务 |
+| `trade` | **C 端交易中心**：购物车 CRUD、下单(库存校验+金额计算+锁库存)、支付回调、物流追踪 |
+| `web` | Spring Boot 入口、所有 Controller（B 端 + C 端）、application.yml、MyBatis XML mapper |
+| `ai` | AI 集成：SSE 聊天代理转发、知识库管理、评测接口（Java 代理层） |
 
-**Layering within each business module:** `controller/` → `service/` → `mapper/` → `entity/`
+**AI 微服务 (`mall-ai-service/`):** Python FastAPI + LangGraph Agent 编排、RAG 混合检索 (Hybrid Search + Rerank)、Function Calling 调 Spring Boot API、LLM-as-Judge 评测体系
 
-**Data permission model:** `@DataScope` annotation on controller methods + AOP aspect injects SQL filtering based on user's role (store manager sees all, ops sees own category, CS sees assigned orders, finance is read-only).
+**数据权限模型:** `@DataScope` 注解 + AOP 根据用户角色注入 SQL 过滤（店长可见全部，运营可见本分类，客服可见分配订单，财务只读）
 
-**Role hierarchy:** Store Manager (full access) → Operations (product/category/marketing, no delete/pricing) → CS (orders/logistics, no product modification) → Finance (read-only statements/export).
+**角色层级:** 店长（完全访问）→ 运营（商品/分类/营销，无删除/定价）→ 客服（订单/物流，不可改商品）→ 财务（只读结算单/导出）
 
-**Frontend** (separate `mall-web/` frontend project): Vue 3 SPA with dynamic routing by role, Pinia state, Element Plus components, Vite build.
+**前端 (`mall-web/`):** Vue 3 + Ant Design Vue 4 + Pinia + Vue Router + Axios，按角色动态路由
+
+## 测试
+
+使用 H2 内嵌数据库，测试类位于 `src/test/java/`：
+
+- `OrderServiceImplTest` — 订单服务
+- `RefundServiceImplTest` — 退款服务
+- `CouponServiceImplTest` — 优惠券服务
+- `SkuServiceImplTest` — SKU 服务
 
 ## Key Design Documents
 
-- `B2C 跨境电商后台管理系统 — 需求设计文档.md` — full requirements spec: roles, modules, DB schema, API design
-- `2026-05-28-b2c-cross-border-ecommerce-implementation.md` — phased implementation plan with task checklist
+- **`Doc/跨境电商全栈系统-项目概要文档.md`** — 项目定位 + 三大子系统 + 技术架构 + 面试亮点（面试核心参考资料）
+- **`Doc/跨境电商全栈系统-需求设计文档.md`** — 全栈需求规格：B端 + C端 + AI、角色体系、API 设计、数据库总览
+- **`Doc/跨境电商C端架构设计方案.md`** — C 端业务流程、订单状态流转、API 设计、数据库设计
+- **`Doc/AI客服Agent-跨境电商智能助手设计方案.md`** — AI 客服 Agent 架构设计：双层架构、LangGraph 工作流、RAG 检索、评测体系
+- **`Doc/跨境电商全栈系统-实现流程文档.md`** — 剩余工作实施路线图：4 个 Phase、依赖关系、每步验证标准
+- **`Doc/2026-05-28-b2c-cross-border-ecommerce-implementation.md`** — 早期实施计划（历史参考）
 
 ## CodeGraph
 
