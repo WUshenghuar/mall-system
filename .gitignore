@@ -4,13 +4,7 @@ target/
 !**/src/test/**/target/
 
 ### IntelliJ IDEA ###
-.idea/modules.xml
-.idea/jarRepositories.xml
-.idea/compiler.xml
-.idea/libraries/
-*.iws
-*.iml
-*.ipr
+.idea/
 
 ### Eclipse ###
 .apt_generated
@@ -54,6 +48,12 @@ mall-web/dist/
 # MCP / Tools
 .reasonix/
 .cursor/
+.agents/
+.claude/
+
+# Claude Code
+memory/
+skills-lock.json
 
 # OS.DS_Store
 Thumbs.db
