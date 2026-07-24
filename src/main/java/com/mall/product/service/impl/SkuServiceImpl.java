@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class SkuServiceImpl implements SkuService {
@@ -31,8 +33,18 @@ public class SkuServiceImpl implements SkuService {
 
     @Override
     public List<Sku> listBySpuId(Long spuId) {
-        return skuMapper.selectList(
+        List<Sku> skus = skuMapper.selectList(
                 Wrappers.<Sku>lambdaQuery().eq(Sku::getSpuId, spuId));
+        // 批量填充库存
+        if (!skus.isEmpty()) {
+            List<Long> skuIds = skus.stream().map(Sku::getId).toList();
+            List<SkuStock> stocks = skuStockMapper.selectList(
+                    Wrappers.<SkuStock>lambdaQuery().in(SkuStock::getSkuId, skuIds));
+            Map<Long, Integer> stockMap = stocks.stream()
+                    .collect(Collectors.toMap(SkuStock::getSkuId, SkuStock::getStock, (a, b) -> a));
+            skus.forEach(s -> s.setStock(stockMap.getOrDefault(s.getId(), 0)));
+        }
+        return skus;
     }
 
     @Override
@@ -93,6 +105,11 @@ public class SkuServiceImpl implements SkuService {
         if (skuStock != null) {
             skuStock.setStock(stock);
             skuStockMapper.updateById(skuStock);
+        } else {
+            SkuStock newStock = new SkuStock();
+            newStock.setSkuId(skuId);
+            newStock.setStock(stock);
+            skuStockMapper.insert(newStock);
         }
     }
 }

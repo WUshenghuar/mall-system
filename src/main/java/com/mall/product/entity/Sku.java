@@ -1,5 +1,6 @@
 package com.mall.product.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.mall.common.entity.BaseEntity;
 import lombok.Data;
@@ -24,4 +25,8 @@ public class Sku extends BaseEntity {
     /** JSON 图片列表 */
     private String images;
     private Integer status;
+
+    /** 库存（透传，非表字段） */
+    @TableField(exist = false)
+    private Integer stock;
 }
