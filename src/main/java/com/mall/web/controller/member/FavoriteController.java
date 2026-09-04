@@ -2,7 +2,7 @@ package com.mall.web.controller.member;
 
 import com.mall.common.result.Result;
 import com.mall.member.service.FavoriteService;
-import com.mall.security.user.LoginUser;
+import com.mall.security.user.CurrentMember;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -18,15 +18,13 @@ public class FavoriteController {
 
     @PostMapping
     public Result<Void> add(@RequestBody AddReq req, Authentication auth) {
-        LoginUser user = (LoginUser) auth.getPrincipal();
-        favoriteService.add(user.getUserId(), req.getSpuId());
+        favoriteService.add(CurrentMember.id(auth), req.getSpuId());
         return Result.success(null);
     }
 
     @DeleteMapping("/{spuId}")
     public Result<Void> delete(@PathVariable Long spuId, Authentication auth) {
-        LoginUser user = (LoginUser) auth.getPrincipal();
-        favoriteService.delete(user.getUserId(), spuId);
+        favoriteService.delete(CurrentMember.id(auth), spuId);
         return Result.success(null);
     }
 
@@ -35,14 +33,12 @@ public class FavoriteController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             Authentication auth) {
-        LoginUser user = (LoginUser) auth.getPrincipal();
-        return Result.success(favoriteService.selectPage(page, size, user.getUserId()));
+        return Result.success(favoriteService.selectPage(page, size, CurrentMember.id(auth)));
     }
 
     @GetMapping("/check/{spuId}")
     public Result<Boolean> check(@PathVariable Long spuId, Authentication auth) {
-        LoginUser user = (LoginUser) auth.getPrincipal();
-        return Result.success(favoriteService.isFavorited(user.getUserId(), spuId));
+        return Result.success(favoriteService.isFavorited(CurrentMember.id(auth), spuId));
     }
 
     @Data

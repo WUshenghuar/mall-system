@@ -4,17 +4,17 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Project Overview
 
-B2C Cross-Border E-Commerce backend management system — a modular monolith covering product (SPU/SKU), order, member, marketing/coupon, and finance modules with RBAC access control.
+B2C cross-border e-commerce full-stack system: a single-module Spring Boot backend plus a Vue 3 B-end operations console. The backend is organized by domain packages (`product`, `order`, `trade`, `member`, `marketing`, `finance`, `search`, `system`) and protected by JWT/RBAC.
 
-**Tech stack:** Java 23 + Spring Boot 3.x + Spring Security + JWT + MyBatis-Plus 3.5 + MySQL 8 + Redis 7 + RabbitMQ + Elasticsearch 8 + Vue 3 (Composition API) + Ant Design Vue + Vite
+**Tech stack:** Java 23 + Spring Boot 3.2.5 + Spring Security + JWT + MyBatis-Plus 3.5.7 + MySQL 8 + Redis 7 + RabbitMQ + Elasticsearch 8 + MinIO + Vue 3 + Ant Design Vue 4 + Vite
 
-> **Current state (2026-05-31):** Early implementation phase. The multi-module Maven structure under `mall-system/` is not yet created — code scaffolding is the first task. The root `pom.xml` is a placeholder; the real parent POM will live at `mall-system/pom.xml`.
+> **Current state (2026-09-03):** The root `pom.xml` is the active single-module build. B-end management features and C-end transaction APIs are implemented; the C-end frontend and AI service remain planned. `mvn test` passes 26 tests and `mall-web` production build passes.
 
 ## Build & Run Commands
 
 ```bash
-# Build the whole project (from mall-system/ once created)
-cd mall-system && mvn clean package
+# Build the backend from the repository root
+mvn clean package
 
 # Build skipping tests
 mvn clean package -DskipTests
@@ -22,14 +22,14 @@ mvn clean package -DskipTests
 # Run all tests
 mvn test
 
-# Run a single test class in a specific module
-mvn test -pl mall-product -Dtest=SpuServiceTest
+# Run a single test class
+mvn test -Dtest=SkuServiceImplTest
 
-# Start the application (from mall-system/ directory)
-mvn spring-boot:run -pl mall-web
+# Start the application from the repository root
+mvn spring-boot:run
 
 # Start with dev profile
-mvn spring-boot:run -pl mall-web -Dspring-boot.run.profiles=dev
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 # Install Maven wrapper (if mvnw not available — .mvn/wrapper/ JAR is not yet checked in)
 mvn wrapper:wrapper
@@ -49,32 +49,33 @@ Local development requires these services (default ports):
 
 ## Architecture
 
-**Module structure (Maven multi-module under `mall-system/`):**
+**Domain package structure inside the single Maven module:**
 
 | Module | Concern |
 |---|---|
-| `mall-common` | Shared: `BaseEntity`, `Result`/`ResultCode`, `BusinessException`, `GlobalExceptionHandler`, MyBatis-Plus config |
-| `mall-security` | JWT auth, Spring Security config, `@DataScope` annotation + AOP for row-level data permission |
-| `mall-product` | SPU/SKU, categories (tree), brands, multi-warehouse stock, multi-currency pricing, HS codes |
-| `mall-order` | Order lifecycle (create→pay→ship→sign→complete), refunds, international logistics, RabbitMQ async handling |
-| `mall-member` | Member profiles, tier system, points, international addresses |
-| `mall-marketing` | Coupons (define/issue/verify), activities, flash-sale/seckill |
-| `mall-finance` | Statements, tax config, exchange rates, Excel export |
-| `mall-search` | Elasticsearch product indexing, full-text search, scheduled sync jobs |
-| `mall-web` | Spring Boot entry point (`MallApplication`), all controllers, `application.yml`, MyBatis XML mappers |
+| `common` | Shared entities, results, exceptions, infrastructure configuration |
+| `security` | JWT auth, Spring Security config, `@DataScope` scaffold |
+| `product` | SPU/SKU, categories, brands, and stock |
+| `order` | B-end order lifecycle, refunds, logistics, RabbitMQ handling |
+| `trade` | C-end cart, order creation, payment records, and logistics APIs |
+| `member` | Member profiles, addresses, points, favorites, browse history |
+| `marketing` | Coupons, activities, and flash-sale/seckill configuration |
+| `finance` | Statements, tax config, and Excel export |
+| `search` | Elasticsearch product search and index jobs |
+| `web` | Spring Boot entry point (`MallApplication`) and all controllers |
 
 **Layering within each business module:** `controller/` → `service/` → `mapper/` → `entity/`
 
-**Data permission model:** `@DataScope` annotation on controller methods + AOP aspect injects SQL filtering based on user's role (store manager sees all, ops sees own category, CS sees assigned orders, finance is read-only).
+**Data permission model:** `@DataScope` and its AOP context exist, but the generated SQL is not yet consumed by MyBatis queries; treat row-level permissions as incomplete. Method-level `@PreAuthorize` permissions are active.
 
 **Role hierarchy:** Store Manager (full access) → Operations (product/category/marketing, no delete/pricing) → CS (orders/logistics, no product modification) → Finance (read-only statements/export).
 
-**Frontend** (separate `mall-web/` frontend project): Vue 3 SPA with dynamic routing by role, Pinia state, Element Plus components, Vite build.
+**Frontend** (separate `mall-web/` project): Vue 3 SPA with dynamic routing by role, Pinia state, Ant Design Vue components, and Vite build. It currently contains the B-end console; C-end pages are not implemented.
 
 ## Key Design Documents
 
-- `B2C 跨境电商后台管理系统 — 需求设计文档.md` — full requirements spec: roles, modules, DB schema, API design
-- `2026-05-28-b2c-cross-border-ecommerce-implementation.md` — phased implementation plan with task checklist
+- `Doc/跨境电商全栈系统-需求设计文档.md` — full requirements spec: roles, modules, DB schema, API design
+- `Doc/跨境电商全栈系统-实现流程文档.md` — phased implementation plan and current status snapshot
 
 ## CodeGraph
 

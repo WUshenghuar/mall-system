@@ -7,8 +7,8 @@ import java.util.List;
 public interface CartService {
     TradeCart addCart(Long userId, Long skuId, Integer quantity);
     List<TradeCart> getCartList(Long userId);
-    void updateCart(Long id, Integer quantity, Integer checked);
-    void deleteCart(Long id);
+    void updateCart(Long id, Long userId, Integer quantity, Integer checked);
+    void deleteCart(Long id, Long userId);
     void deleteBatch(Long userId, List<Long> ids);
     Long getCartCount(Long userId);
 }

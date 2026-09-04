@@ -1,8 +1,8 @@
 spring:
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
-      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
   datasource:
     url: jdbc:mysql://localhost:3306/mall_system?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+
+trade:
+  payment:
+    simulation-enabled: true
+    callback-enabled: false

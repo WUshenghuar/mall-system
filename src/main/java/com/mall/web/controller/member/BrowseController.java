@@ -2,7 +2,7 @@ package com.mall.web.controller.member;
 
 import com.mall.common.result.Result;
 import com.mall.member.service.BrowseHistoryService;
-import com.mall.security.user.LoginUser;
+import com.mall.security.user.CurrentMember;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +18,7 @@ public class BrowseController {
 
     @PostMapping
     public Result<Void> add(@RequestBody AddReq req, Authentication auth) {
-        LoginUser user = (LoginUser) auth.getPrincipal();
-        browseHistoryService.add(user.getUserId(), req.getSpuId());
+        browseHistoryService.add(CurrentMember.id(auth), req.getSpuId());
         return Result.success(null);
     }
 
@@ -28,8 +27,7 @@ public class BrowseController {
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             Authentication auth) {
-        LoginUser user = (LoginUser) auth.getPrincipal();
-        return Result.success(browseHistoryService.selectPage(page, size, user.getUserId()));
+        return Result.success(browseHistoryService.selectPage(page, size, CurrentMember.id(auth)));
     }
 
     @Data

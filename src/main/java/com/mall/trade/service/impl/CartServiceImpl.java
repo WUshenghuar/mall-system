@@ -47,16 +47,26 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public void updateCart(Long id, Integer quantity, Integer checked) {
+    public void updateCart(Long id, Long userId, Integer quantity, Integer checked) {
         TradeCart cart = cartMapper.selectById(id);
         if (cart == null) throw new BusinessException("购物车记录不存在");
-        if (quantity != null) cart.setQuantity(quantity);
-        if (checked != null) cart.setChecked(checked);
+        if (!userId.equals(cart.getUserId())) throw new BusinessException("无权操作该购物车记录");
+        if (quantity != null) {
+            if (quantity <= 0) throw new BusinessException("商品数量必须大于 0");
+            cart.setQuantity(quantity);
+        }
+        if (checked != null) {
+            if (checked != 0 && checked != 1) throw new BusinessException("勾选状态不合法");
+            cart.setChecked(checked);
+        }
         cartMapper.updateById(cart);
     }
 
     @Override
-    public void deleteCart(Long id) {
+    public void deleteCart(Long id, Long userId) {
+        TradeCart cart = cartMapper.selectById(id);
+        if (cart == null) throw new BusinessException("购物车记录不存在");
+        if (!userId.equals(cart.getUserId())) throw new BusinessException("无权操作该购物车记录");
         cartMapper.deleteById(id);
     }
 

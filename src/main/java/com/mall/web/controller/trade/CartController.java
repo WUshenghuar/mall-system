@@ -1,7 +1,7 @@
 package com.mall.web.controller.trade;
 
 import com.mall.common.result.Result;
-import com.mall.security.user.LoginUser;
+import com.mall.security.user.CurrentMember;
 import com.mall.trade.entity.TradeCart;
 import com.mall.trade.service.CartService;
 import jakarta.validation.constraints.Min;
@@ -22,39 +22,35 @@ public class CartController {
 
     @PostMapping
     public Result<TradeCart> add(@RequestBody AddReq req, Authentication auth) {
-        LoginUser user = (LoginUser) auth.getPrincipal();
-        return Result.success(cartService.addCart(user.getUserId(), req.getSkuId(), req.getQuantity()));
+        return Result.success(cartService.addCart(CurrentMember.id(auth), req.getSkuId(), req.getQuantity()));
     }
 
     @GetMapping
     public Result<List<TradeCart>> list(Authentication auth) {
-        LoginUser user = (LoginUser) auth.getPrincipal();
-        return Result.success(cartService.getCartList(user.getUserId()));
+        return Result.success(cartService.getCartList(CurrentMember.id(auth)));
     }
 
     @PutMapping("/{id}")
-    public Result<Void> update(@PathVariable Long id, @RequestBody UpdateReq req) {
-        cartService.updateCart(id, req.getQuantity(), req.getChecked());
+    public Result<Void> update(@PathVariable Long id, @RequestBody UpdateReq req, Authentication auth) {
+        cartService.updateCart(id, CurrentMember.id(auth), req.getQuantity(), req.getChecked());
         return Result.success(null);
     }
 
     @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id) {
-        cartService.deleteCart(id);
+    public Result<Void> delete(@PathVariable Long id, Authentication auth) {
+        cartService.deleteCart(id, CurrentMember.id(auth));
         return Result.success(null);
     }
 
     @DeleteMapping("/batch")
     public Result<Void> deleteBatch(@RequestBody BatchDeleteReq req, Authentication auth) {
-        LoginUser user = (LoginUser) auth.getPrincipal();
-        cartService.deleteBatch(user.getUserId(), req.getIds());
+        cartService.deleteBatch(CurrentMember.id(auth), req.getIds());
         return Result.success(null);
     }
 
     @GetMapping("/count")
     public Result<Long> count(Authentication auth) {
-        LoginUser user = (LoginUser) auth.getPrincipal();
-        return Result.success(cartService.getCartCount(user.getUserId()));
+        return Result.success(cartService.getCartCount(CurrentMember.id(auth)));
     }
 
     @Data

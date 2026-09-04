@@ -23,10 +23,19 @@ public class JwtTokenProvider {
     }
 
     public String generateToken(Long userId, String username) {
+        return generateToken(userId, username, "STAFF");
+    }
+
+    public String generateMemberToken(Long memberId, String phone) {
+        return generateToken(memberId, phone, "MEMBER");
+    }
+
+    private String generateToken(Long userId, String username, String principalType) {
         Date now = new Date();
         return Jwts.builder()
                 .subject(username)
                 .claim("userId", userId)
+                .claim("principalType", principalType)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + expiration))
                 .signWith(key)
@@ -52,5 +61,10 @@ public class JwtTokenProvider {
 
     public Long getUserIdFromToken(String token) {
         return parseToken(token).get("userId", Long.class);
+    }
+
+    public String getPrincipalType(String token) {
+        String type = parseToken(token).get("principalType", String.class);
+        return type == null ? "STAFF" : type;
     }
 }

@@ -1,7 +1,9 @@
 package com.mall.security.jwt;
 
 import com.mall.security.user.LoginUser;
+import com.mall.security.user.MemberPrincipal;
 import com.mall.security.user.UserDetailsServiceImpl;
+import com.mall.member.service.MemberAuthService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,6 +22,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserDetailsServiceImpl userDetailsService;
+    private final MemberAuthService memberAuthService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -29,9 +32,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = extractToken(request);
         if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
             Long userId = jwtTokenProvider.getUserIdFromToken(token);
-            LoginUser loginUser = userDetailsService.loadByUserId(userId);
+            var principal = "MEMBER".equals(jwtTokenProvider.getPrincipalType(token))
+                    ? memberAuthService.loadPrincipal(userId) : userDetailsService.loadByUserId(userId);
             UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(loginUser, null, loginUser.getAuthorities());
+                    new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
             SecurityContextHolder.getContext().setAuthentication(auth);
         }
         filterChain.doFilter(request, response);

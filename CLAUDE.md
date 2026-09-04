@@ -8,6 +8,8 @@ B2C 跨境电商全栈系统 — 覆盖 C 端用户前台 + B 端运营后台 + 
 
 **Tech stack:** Java 23 + Spring Boot 3.2.5 + Spring Security + JWT + MyBatis-Plus 3.5.7 + MySQL 8 + Redis 7 + RabbitMQ + Elasticsearch 8 + Vue 3 (Composition API) + Ant Design Vue 4 + Vite 5 + Python 3.11 + FastAPI + LangGraph + LangFuse
 
+> **Current status (2026-09-03):** The B-end operations console and C-end transaction APIs are implemented. The C-end user-facing frontend and AI implementation are not yet present; `mall-ai-service/` currently contains only package initializers. `mvn test` passes 26 tests and the `mall-web` production build passes. Known business gaps are tracked in `Doc/跨境电商全栈系统-实现流程文档.md`.
+
 ## 项目结构
 
 ```
@@ -57,11 +59,13 @@ B2C 跨境电商全栈系统 — 覆盖 C 端用户前台 + B 端运营后台 + 
 │       ├── router/                  #   Vue Router
 │       ├── store/                   #   Pinia (user.js)
 │       ├── utils/                   #   request.js (拦截器), date.js
-│       └── views/                   #   页面: login / dashboard / system / product / order / member / marketing / finance / ai
+│       └── views/                   #   页面: login / dashboard / system / product / order / member / marketing / finance
 └── mall-ai-service/                 # Python AI 微服务（新增，独立项目）
 ```
 
-**mall-ai-service/ (Python AI 微服务):**
+> `com.mall.ai` 和下方 Python 文件树是 AI 阶段的规划目标；当前仓库尚未创建对应 Java 实现，`mall-ai-service/` 仅有 `app/` 下的空包初始化文件。
+
+**mall-ai-service/ (Python AI 微服务规划目标):**
 ```
 ├── mall-ai-service/
 │   ├── Dockerfile
