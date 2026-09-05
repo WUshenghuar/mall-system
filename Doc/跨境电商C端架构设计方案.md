@@ -3,6 +3,23 @@
 > 在现有B端后台管理系统基础上，补充C端用户前台功能
 > 实现完整的电商业务闭环：用户浏览 → 购物车 → 下单 → 支付 → 物流 → 售后
 
+> **方案状态（2026-09-05）：** 本文保留早期多模块/微服务设计，属于目标架构，不是当前目录结构。当前实际架构为根目录单 Maven 模块；B 端前端为 `mall-web`，C 端前端为 `mall-storefront`，B/C API 均由 Spring Boot 根模块提供。请以《当前实现基线与文档口径》阅读当前代码，以《B端与C端功能差距审计》阅读未实现范围。
+
+## 当前落地架构修订
+
+```text
+Spring Boot 单模块
+├── product / order / trade / member / marketing / finance
+├── search / security / system
+└── web（统一入口与 Controller）
+
+mall-web/          B 端 Vue 3 + Ant Design Vue
+mall-storefront/   C 端 Vue 3 + Vant H5
+mall-ai-service/   Python 包骨架，待实现
+```
+
+当前 C 端已落地会员认证、商品目录、购物车、结算、订单、模拟支付、物流、收藏和足迹基础能力；多语言、多币种、真实支付、售后和 AI 仍是后续范围。下方原始模块拆分和 `/api/logistics/*` 等路径仅作历史设计参考。
+
 ---
 
 ## 一、整体架构设计

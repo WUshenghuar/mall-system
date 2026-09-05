@@ -8,7 +8,7 @@ B2C 跨境电商全栈系统 — 覆盖 C 端用户前台 + B 端运营后台 + 
 
 **Tech stack:** Java 23 + Spring Boot 3.2.5 + Spring Security + JWT + MyBatis-Plus 3.5.7 + MySQL 8 + Redis 7 + RabbitMQ + Elasticsearch 8 + Vue 3 (Composition API) + Ant Design Vue 4 + Vite 5 + Python 3.11 + FastAPI + LangGraph + LangFuse
 
-> **Current status (2026-09-03):** The B-end operations console and C-end transaction APIs are implemented. The C-end user-facing frontend and AI implementation are not yet present; `mall-ai-service/` currently contains only package initializers. `mvn test` passes 26 tests and the `mall-web` production build passes. Known business gaps are tracked in `Doc/跨境电商全栈系统-实现流程文档.md`.
+> **Current status (2026-09-05):** The B-end operations console and C-end transaction MVP are implemented. The C-end frontend is `mall-storefront/` (Vue 3 + Vant); AI implementation remains pending and `mall-ai-service/` currently contains only package initializers. Runtime architecture, ports, startup and current gaps are tracked in `Doc/当前实现基线与文档口径.md` and `Doc/B端与C端功能差距审计.md`.
 
 ## 项目结构
 
@@ -152,7 +152,7 @@ Dev profile (`application-dev.yml`) 会排除 Redis 和 RabbitMQ 的自动配置
 | `common` | `BaseEntity`, `Result`/`ResultCode`, `BusinessException`, `GlobalExceptionHandler`, 基础配置 |
 | `security` | JWT 认证、Spring Security 配置、`@DataScope` 注解 + AOP 行级数据权限 |
 | `system` | 系统管理：用户/角色/菜单 CRUD、分配角色、修改状态 |
-| `product` | SPU/SKU、分类树、品牌、多仓库库存、HS 编码 |
+| `product` | SPU/SKU、分类树、品牌、基础库存与 HS 编码 |
 | `order` | 订单生命周期(创建→支付→发货→签收→完成)、退款、物流、RabbitMQ 异步处理 |
 | `member` | 会员资料、收货地址、积分记录、收藏夹、浏览历史 |
 | `marketing` | 优惠券(定义/发放/核销)、活动、秒杀 |
@@ -181,11 +181,15 @@ Dev profile (`application-dev.yml`) 会排除 Redis 和 RabbitMQ 的自动配置
 
 ## Key Design Documents
 
+- **`Doc/当前实现基线与文档口径.md`** — 当前代码、目录、端口、启动方式和文档权威顺序（优先阅读）
+- **`Doc/B端与C端功能差距审计.md`** — 当前实现与完整 B/C 端需求的差距及 P0/P1/P2 排期
+- **`Doc/C端交易闭环实施说明.md`** — C 端购买闭环 MVP 的接口、边界和运行方式
 - **`Doc/跨境电商全栈系统-项目概要文档.md`** — 项目定位 + 三大子系统 + 技术架构 + 面试亮点（面试核心参考资料）
 - **`Doc/跨境电商全栈系统-需求设计文档.md`** — 全栈需求规格：B端 + C端 + AI、角色体系、API 设计、数据库总览
 - **`Doc/跨境电商C端架构设计方案.md`** — C 端业务流程、订单状态流转、API 设计、数据库设计
 - **`Doc/AI客服Agent-跨境电商智能助手设计方案.md`** — AI 客服 Agent 架构设计：双层架构、LangGraph 工作流、RAG 检索、评测体系
 - **`Doc/跨境电商全栈系统-实现流程文档.md`** — 剩余工作实施路线图：4 个 Phase、依赖关系、每步验证标准
+- **`Doc/AI客服Agent-跨境电商智能助手实施方案.md`** — AI 后续实施阶段、验收、可靠性和安全边界
 - **`Doc/2026-05-28-b2c-cross-border-ecommerce-implementation.md`** — 早期实施计划（历史参考）
 
 ## CodeGraph

@@ -64,7 +64,7 @@
               <span>18:00</span>
               <span>24:00</span>
             </div>
-            <p class="chart-empty-hint">订单趋势数据将在此展示</p>
+            <p v-if="!hasOrders" class="chart-empty-hint">今日暂无交易订单</p>
           </div>
         </div>
       </div>
@@ -112,7 +112,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useUserStore } from '@/store/user'
 import { getDashboardStats } from '@/api/dashboard'
 
@@ -136,11 +136,8 @@ const stats = ref([
     icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>' }
 ])
 
-const barHeights = Array.from({ length: 24 }, (_, i) => {
-  // Seeded pseudo-random — stable across re-renders
-  const seed = Math.sin(i * 1.7 + 3.1) * 10000
-  return Math.floor((seed - Math.floor(seed)) * 35) + 18
-})
+const barHeights = ref(Array(24).fill(4))
+const hasOrders = computed(() => barHeights.value.some(height => height > 4))
 
 onMounted(async () => {
   try {
@@ -150,6 +147,9 @@ onMounted(async () => {
     stats.value[1].value = d.todayOrders ?? 0
     stats.value[2].value = d.memberCount ?? 0
     stats.value[3].value = d.pendingRefund ?? 0
+    const counts = d.hourlyOrderCounts || []
+    const max = Math.max(...counts, 0)
+    barHeights.value = Array.from({ length: 24 }, (_, hour) => max ? 14 + Math.round(((counts[hour] || 0) / max) * 78) : 4)
   } catch {
     // keep placeholder values on error
   }

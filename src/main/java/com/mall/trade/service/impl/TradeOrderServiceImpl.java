@@ -28,6 +28,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -195,6 +196,15 @@ public class TradeOrderServiceImpl implements TradeOrderService {
         if (orderStatus != null) qw.eq(TradeOrder::getOrderStatus, orderStatus);
         qw.orderByDesc(TradeOrder::getCreateTime);
         return orderMapper.selectPage(new Page<>(page, size), qw);
+    }
+
+    @Override
+    public IPage<TradeOrder> selectAdminPage(Integer page, Integer size, Integer orderStatus, String keyword) {
+        LambdaQueryWrapper<TradeOrder> qw = Wrappers.lambdaQuery(TradeOrder.class)
+                .eq(orderStatus != null, TradeOrder::getOrderStatus, orderStatus)
+                .like(StringUtils.hasText(keyword), TradeOrder::getOrderNo, keyword)
+                .orderByDesc(TradeOrder::getCreateTime);
+        return orderMapper.selectPage(new Page<>(page, Math.min(Math.max(size, 1), 100)), qw);
     }
 
     @Override

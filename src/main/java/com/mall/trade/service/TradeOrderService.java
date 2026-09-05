@@ -6,6 +6,7 @@ import com.mall.trade.entity.TradeOrder;
 public interface TradeOrderService {
     TradeOrder createOrder(Long userId, Long addressId, Long couponId, String remark, String itemsJson);
     IPage<TradeOrder> selectPage(Integer page, Integer size, Long userId, Integer orderStatus);
+    IPage<TradeOrder> selectAdminPage(Integer page, Integer size, Integer orderStatus, String keyword);
     TradeOrder getByOrderNo(String orderNo);
     TradeOrder getOwnedByOrderNo(String orderNo, Long userId);
     void cancelOrder(String orderNo, Long userId);

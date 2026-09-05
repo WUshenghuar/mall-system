@@ -8,7 +8,7 @@ B2C cross-border e-commerce full-stack system: a single-module Spring Boot backe
 
 **Tech stack:** Java 23 + Spring Boot 3.2.5 + Spring Security + JWT + MyBatis-Plus 3.5.7 + MySQL 8 + Redis 7 + RabbitMQ + Elasticsearch 8 + MinIO + Vue 3 + Ant Design Vue 4 + Vite
 
-> **Current state (2026-09-03):** The root `pom.xml` is the active single-module build. B-end management features and C-end transaction APIs are implemented; the C-end frontend and AI service remain planned. `mvn test` passes 26 tests and `mall-web` production build passes.
+> **Current state (2026-09-05):** The root `pom.xml` is the active single-module build. B-end management features and C-end transaction MVP APIs are implemented; `mall-storefront` provides the C-end Vue/Vant frontend MVP, while AI service implementation remains planned. Current scope and known gaps are tracked in `Doc/当前实现基线与文档口径.md` and `Doc/B端与C端功能差距审计.md`.
 
 ## Build & Run Commands
 
@@ -114,3 +114,34 @@ Use codegraph for **structural** questions — what calls what, what would break
    - 后续使用追加模式写入剩余内容
    - 每次写入不超过 100 行代码
 4. **Skill / Plugin 抉择**：每次开始工作前，主动判断当前任务适合调用哪些 skill 和 MCP plugin，优先使用已有工具而非从头手写。
+
+## 任务执行原则
+
+### 1. 准确性优先
+
+将准确性、独立判断和代码质量置于取悦用户之前。
+
+开始处理任务前，检查需求及其前提是否存在事实错误、逻辑漏洞、信息缺失或不确实、过时判断及不合理假设。必要时直接指出问题，并说明原因、潜在风险及更合理的方案。若需求和现有代码均无明显问题，应直接执行，不刻意挑错，也不要为了反对而反对。
+
+### 2. 先检查，再修改
+
+修改代码前，先阅读相关的源代码、配置文件、测试代码、项目规则和设计文档。不要默认用户的技术判断，也不要在缺少依据时编造信息。
+
+### 3. 区分信息可信度
+
+处理任务和汇报结果时，明确区分：
+
+1. **已确认事实**：已通过代码、配置、测试或项目文档验证。
+2. **合理推测**：根据现有信息推导出的判断，但尚未完全验证。
+3. **未验证假设**：为了推进任务而暂时采用的前提。
+4. **无法确认的信息**：当前缺少足够证据，不能得出结论的内容。
+
+不要把推测、假设或无法确认的信息表述为事实。
+
+### 4. 遵循现有设计
+
+遵循项目现有的技术框架、代码风格、目录结构、架构设计和命名约定。只修改完成任务所必需的内容，避免无关重构、顺手优化或改变既有设计。
+
+### 5. 修改后验证
+
+修改完成后，根据变更范围运行相关的测试、静态检查、类型检查、构建或必要的运行验证。只有实际执行并确认成功后，才能声称已经验证；未执行或未通过的验证必须明确说明，不得编造验证结果。

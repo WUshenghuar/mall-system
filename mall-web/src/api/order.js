@@ -4,6 +4,14 @@ export function getOrderPage(params) {
   return request.get('/order/page', { params })
 }
 
+export function getTradeOrderPage(params) {
+  return request.get('/order/trade/page', { params })
+}
+
+export function shipTradeOrder(orderNo, data) {
+  return request.post(`/order/trade/${orderNo}/ship`, data)
+}
+
 export function getOrderDetail(id) {
   return request.get(`/order/${id}`)
 }

@@ -2,9 +2,10 @@ package com.mall.web.controller.system;
 
 import com.mall.common.result.Result;
 import com.mall.member.mapper.MemberMapper;
-import com.mall.order.mapper.OrderMapper;
 import com.mall.order.mapper.RefundMapper;
 import com.mall.product.mapper.SpuMapper;
+import com.mall.trade.entity.TradeOrder;
+import com.mall.trade.mapper.TradeOrderMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -12,7 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -20,7 +23,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DashboardController {
     private final SpuMapper spuMapper;
-    private final OrderMapper orderMapper;
+    private final TradeOrderMapper tradeOrderMapper;
     private final MemberMapper memberMapper;
     private final RefundMapper refundMapper;
 
@@ -29,9 +32,9 @@ public class DashboardController {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
 
         long productCount = spuMapper.selectCount(null);
-        long orderCount = orderMapper.selectCount(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.mall.order.entity.Order>()
-                        .ge(com.mall.order.entity.Order::getCreateTime, todayStart));
+        long orderCount = tradeOrderMapper.selectCount(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<TradeOrder>()
+                        .ge(TradeOrder::getCreateTime, todayStart));
         long memberCount = memberMapper.selectCount(null);
         long pendingRefund = refundMapper.selectCount(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.mall.order.entity.OrderRefund>()
@@ -42,6 +45,13 @@ public class DashboardController {
         data.put("todayOrders", orderCount);
         data.put("memberCount", memberCount);
         data.put("pendingRefund", pendingRefund);
+        List<Long> hourlyOrderCounts = new ArrayList<>();
+        for (int hour = 0; hour < 24; hour++) hourlyOrderCounts.add(0L);
+        for (Map<String, Object> row : tradeOrderMapper.countByHourSince(todayStart)) {
+            int hour = ((Number) row.get("hour")).intValue();
+            hourlyOrderCounts.set(hour, ((Number) row.get("count")).longValue());
+        }
+        data.put("hourlyOrderCounts", hourlyOrderCounts);
         return Result.success(data);
     }
 }

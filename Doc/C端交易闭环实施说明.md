@@ -1,6 +1,6 @@
 # C 端交易闭环实施说明
 
-## 当前进度（2026-09-04）
+## 当前进度（2026-09-05）
 
 本轮 C 端购买闭环已完成并推送至 `origin/master`，提交为 `216410e feat: 完成C端交易闭环`。后端全量测试与 C 端生产构建均已通过。
 
@@ -11,6 +11,7 @@
 - Redis 批量 Lua 预占与数据库条件更新协同，确保取消、超时与支付失败路径均能释放库存。
 - 为交易事件配置事务后发布、持久化队列、死信队列以及 RabbitMQ 发布确认参数。
 - 交付 `mall-storefront` 移动 H5：商品、账户、地址、购物车、结算模拟支付、订单取消/确认收货/物流、收藏与足迹入口。
+- 修复开发种子数据的 UTF-8 导入链路，清理重复/乱码分类并增加可重复执行的审计、重置和导入脚本。
 
 下一轮优先事项：真实支付渠道验签和金额核验、事务 outbox 与投递重试、服务端结算快照令牌、ES 索引修复、移动端实机多视口验收，随后再开展 AI 客服。
 
@@ -43,10 +44,12 @@
 
 1. 复制 `.env.example` 为 `.env`，替换所有 `[REDACTED_SECRET]` 占位符。
 2. 执行 `docker compose up -d` 启动 MySQL、Redis、RabbitMQ、Elasticsearch、MinIO。
-3. 启动后端后，Flyway 会执行 `V1__c_trade_closure.sql`。
+3. 启动后端后，Flyway 会执行当前未应用的 `V1__c_trade_closure.sql`、`V2__seed_default_admin.sql` 和 `V3__remove_corrupted_dev_categories.sql`。
 4. 在 `mall-storefront` 执行 `npm install` 与 `npm run dev`，默认访问 `http://localhost:5174`。
 
 `application.yml` 会自动导入项目根目录 `.env`，因此启动后端时直接执行 `mvn spring-boot:run` 即可；无需再手动将 `.env` 逐项导入 PowerShell 环境变量。
+
+当前 Docker 宿主机端口为 MySQL `3306`、Redis `16379`（容器内仍为 `6379`）；开发数据导入必须执行 `scripts/import_dev_seed.ps1`，不要使用 PowerShell 文本管道直接传给 `mysql`。
 
 ## 首期边界
 
