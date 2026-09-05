@@ -42,7 +42,7 @@ Local development requires these services (default ports):
 | Service | Port | Purpose |
 |---|---|---|
 | MySQL 8 | 3306 | Core business data |
-| Redis 7 | 6379 | Caching, distributed locks, cart |
+| Redis 7 | 16379 (宿主机) / 6379 (容器) | Caching, distributed locks, cart |
 | RabbitMQ 3.x | 5672/15672 | Async order processing, stock peak-clipping |
 | Elasticsearch 8 | 9200 | Product full-text search |
 | MinIO | 9000/9001 | File storage (product images, customs docs) |

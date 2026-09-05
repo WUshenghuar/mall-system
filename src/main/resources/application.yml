@@ -2,6 +2,9 @@ server:
   port: 8080
 
 spring:
+  config:
+    # Docker Compose 与 Spring Boot 共用根目录 .env；文件不存在时仍可正常启动。
+    import: optional:file:.env[.properties]
   flyway:
     baseline-on-migrate: true
     baseline-version: 0
@@ -15,7 +18,7 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      port: ${REDIS_PORT:16379}
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}

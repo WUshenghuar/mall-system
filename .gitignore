@@ -38,6 +38,9 @@ target/
 *.war
 *.log
 
+# Local runtime secrets
+.env
+
 # Node
 node_modules/
 
@@ -57,3 +60,4 @@ skills-lock.json
 
 # OS.DS_Store
 Thumbs.db
+.gstack/
