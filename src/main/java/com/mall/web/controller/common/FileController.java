@@ -2,6 +2,7 @@ package com.mall.web.controller.common;
 
 import com.mall.common.result.Result;
 import com.mall.common.service.FileService;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -10,6 +11,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
+@ConditionalOnBean(FileService.class)
 @RequestMapping("/api/file")
 @RequiredArgsConstructor
 public class FileController {
