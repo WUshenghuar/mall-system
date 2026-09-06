@@ -34,5 +34,5 @@ onMounted(load)
 </script>
 
 <style scoped>
-.page-loading { display: block; margin: 48px auto; }.detail-card { margin-bottom: 12px; }.detail-card h3 { margin: 0 0 12px; }.detail-card p { display: flex; justify-content: space-between; gap: 12px; }.detail-card .note { display: block; line-height: 1.6; }.amount-row { display: flex; justify-content: space-between; align-items: center; margin: 18px 0; }.amount-row strong { font-size: 24px; color: var(--color-ocean, #0c5d75); }.order-actions { display: flex; gap: 12px; }.order-actions .van-button { flex: 1; min-height: 44px; }
+.order-detail-page { padding-bottom: 88px; }.page-loading { display: block; margin: 48px auto; }.detail-card { margin-bottom: 12px; }.detail-card h3 { margin: 0 0 12px; }.detail-card p { display: flex; justify-content: space-between; gap: 12px; }.detail-card .note { display: block; line-height: 1.6; }.amount-row { display: flex; justify-content: space-between; align-items: center; margin: 18px 0; }.amount-row strong { font-size: 24px; color: var(--color-ocean, #0c5d75); }.order-actions { display: flex; gap: 12px; }.order-actions .van-button { flex: 1; min-height: 44px; }
 </style>
