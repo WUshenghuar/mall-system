@@ -25,8 +25,8 @@
           </template>
           <template v-if="column.key === 'amount'">${{ record.refundAmount }}</template>
           <template v-if="column.key === 'comment'">
-            <span v-if="record.refundStatus === 2 && record.rejectReason" class="reject-reason">
-              {{ record.rejectReason }}
+            <span v-if="record.approveComment" :class="{ 'reject-reason': record.refundStatus === 2 }">
+              {{ record.approveComment }}
             </span>
             <span v-else>--</span>
           </template>
@@ -74,7 +74,7 @@ const columns = [
   { title: '订单号', dataIndex: 'orderNo' },
   { title: '退款金额', key: 'amount', width: 120 },
   { title: '原因', dataIndex: 'refundReason', ellipsis: true },
-  { title: '驳回理由', key: 'comment', width: 180, ellipsis: true },
+  { title: '处理备注', key: 'comment', width: 180, ellipsis: true },
   { title: '状态', key: 'status', width: 80 },
   { title: '操作', key: 'action', width: 150 }
 ]
@@ -85,7 +85,7 @@ async function fetchData() {
     const res = await getRefundPage({
       page: pagination.value.current,
       size: pagination.value.pageSize,
-      refundStatus: statusFilter.value || undefined
+      status: statusFilter.value || undefined
     })
     list.value = res.data?.records || []
     pagination.value.total = res.data?.total || 0
