@@ -24,13 +24,15 @@
 import { reactive, ref, onMounted } from 'vue'
 import { showConfirmDialog, showToast } from 'vant'
 import { memberApi } from '../api'
+import { useRoute, useRouter } from 'vue-router'
 const phone = ref(''), password = ref(''), nickName = ref(''), authMode = ref('login'), submitting = ref(false)
+const route = useRoute(), router = useRouter()
 const logged = ref(!!localStorage.getItem('member-token')), profile = ref(null), addresses = ref([]), favorites = ref([]), history = ref([])
 const address = reactive({ receiverName: '', receiverPhone: '', province: '', city: '', district: '', detailAddress: '' })
 const editingAddressId = ref(null), showAddressForm = ref(false), savingAddress = ref(false)
 function validCredentials(requireNickName = false) { if (!/^1\d{10}$/.test(phone.value)) { showToast('请输入正确的 11 位手机号'); return false } if (!password.value) { showToast('请输入密码'); return false } if (requireNickName && !nickName.value.trim()) { showToast('请输入昵称'); return false } return true }
 async function load() { if (!logged.value) return; try { profile.value = (await memberApi.profile()).data; addresses.value = (await memberApi.addresses()).data || []; favorites.value = (await memberApi.favorites()).data.records || []; history.value = (await memberApi.browseHistory()).data.records || [] } catch (e) { showToast(e) } }
-async function login() { if (!validCredentials()) return; submitting.value = true; try { const r = await memberApi.login({ phone: phone.value, password: password.value }); localStorage.setItem('member-token', r.data.token); logged.value = true; load() } catch (e) { showToast(e) } finally { submitting.value = false } }
+async function login() { if (!validCredentials()) return; submitting.value = true; try { const r = await memberApi.login({ phone: phone.value, password: password.value }); localStorage.setItem('member-token', r.data.token); logged.value = true; await load(); router.replace(typeof route.query.redirect === 'string' ? route.query.redirect : '/') } catch (e) { showToast(e) } finally { submitting.value = false } }
 async function register() { if (!validCredentials(true)) return; submitting.value = true; try { await memberApi.register({ phone: phone.value, password: password.value, nickName: nickName.value.trim() }); authMode.value = 'login'; password.value = ''; showToast('注册成功，请登录') } catch (e) { showToast(e) } finally { submitting.value = false } }
 function resetAddress() { Object.keys(address).forEach(k => address[k] = '') }
 function validAddress() { const labels = { receiverName: '收货人', receiverPhone: '联系电话', province: '省份', city: '城市', district: '区县', detailAddress: '详细地址' }; const missing = Object.entries(labels).find(([key]) => !address[key].trim()); if (missing) { showToast(`请输入${missing[1]}`); return false } return true }

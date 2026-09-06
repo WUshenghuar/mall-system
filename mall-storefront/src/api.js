@@ -6,7 +6,13 @@ request.interceptors.request.use(config => {
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
-request.interceptors.response.use(response => response.data, error => Promise.reject(error.response?.data?.message || '网络请求失败'))
+request.interceptors.response.use(response => response.data, error => {
+  if ([401, 403].includes(error.response?.status)) {
+    localStorage.removeItem('member-token')
+    return Promise.reject('登录状态失效，请重新登录')
+  }
+  return Promise.reject(error.response?.data?.message || error.message || '网络请求失败')
+})
 
 export const storeApi = {
   products: params => request.get('/store/products', { params }),
