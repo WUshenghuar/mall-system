@@ -46,6 +46,8 @@ export const tradeApi = {
   cancelOrder: orderNo => request.post(`/trade/order/${orderNo}/cancel`),
   confirmOrder: orderNo => request.post(`/trade/order/${orderNo}/confirm`),
   logistics: orderNo => request.get(`/trade/logistics/${orderNo}`),
+  refunds: params => request.get('/trade/refund', { params }),
+  applyRefund: data => request.post('/trade/refund', data),
   pay: data => request.post('/trade/pay/create', data),
   simulate: payNo => request.post(`/trade/pay/${payNo}/simulate-success`)
 }

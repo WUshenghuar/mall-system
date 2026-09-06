@@ -20,7 +20,8 @@
           <template v-if="column.key === 'status'">
             <a-tag v-if="record.refundStatus === 0" color="orange">待审批</a-tag>
             <a-tag v-else-if="record.refundStatus === 1" color="green">已通过</a-tag>
-            <a-tag v-else color="default">已驳回</a-tag>
+            <a-tag v-else-if="record.refundStatus === 2" color="default">已驳回</a-tag>
+            <a-tag v-else color="purple">已退款</a-tag>
           </template>
           <template v-if="column.key === 'amount'">${{ record.refundAmount }}</template>
           <template v-if="column.key === 'comment'">
@@ -34,6 +35,7 @@
               <a-button size="small" type="primary" @click="handleApprove(record.id)">通过</a-button>
               <a-button size="small" danger @click="openReject(record.id)">驳回</a-button>
             </a-space>
+            <a-button v-else-if="record.refundStatus === 1" size="small" type="primary" @click="handleComplete(record.id)">确认退款</a-button>
             <span v-else>--</span>
           </template>
         </template>
@@ -56,7 +58,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { getRefundPage, approveRefund, rejectRefund } from '@/api/order'
+import { getRefundPage, approveRefund, rejectRefund, completeRefund } from '@/api/order'
 
 const loading = ref(false)
 const list = ref([])
@@ -97,6 +99,7 @@ async function handleApprove(id) {
   message.success('已通过')
   fetchData()
 }
+async function handleComplete(id) { try { await completeRefund(id, '已完成退款'); message.success('退款已完成'); fetchData() } catch { /* ignore */ } }
 
 function openReject(id) {
   rejectId.value = id

@@ -30,7 +30,7 @@ export function cancelOrder(id) {
 
 // 退款
 export function getRefundPage(params) {
-  return request.get('/order/refund/page', { params })
+  return request.get('/order/trade/refund', { params })
 }
 
 export function getRefundDetail(id) {
@@ -42,9 +42,10 @@ export function applyRefund(data) {
 }
 
 export function approveRefund(id, comment) {
-  return request.put(`/order/refund/${id}/approve`, null, { params: { comment } })
+  return request.post(`/order/trade/refund/${id}/approve`, { comment })
 }
 
 export function rejectRefund(id, comment) {
-  return request.put(`/order/refund/${id}/reject`, null, { params: { comment } })
+  return request.post(`/order/trade/refund/${id}/reject`, { comment })
 }
+export function completeRefund(id, comment) { return request.post(`/order/trade/refund/${id}/complete`, { comment }) }
