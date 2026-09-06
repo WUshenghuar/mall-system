@@ -5,6 +5,7 @@ import CheckoutView from './views/CheckoutView.vue'
 import OrdersView from './views/OrdersView.vue'
 import OrderDetailView from './views/OrderDetailView.vue'
 import RefundView from './views/RefundView.vue'
+import ActivityView from './views/ActivityView.vue'
 import AccountView from './views/AccountView.vue'
 
 const router = createRouter({ history: createWebHistory(), routes: [
@@ -12,6 +13,7 @@ const router = createRouter({ history: createWebHistory(), routes: [
   { path: '/checkout', component: CheckoutView, meta: { requiresMember: true } }, { path: '/orders', component: OrdersView, meta: { requiresMember: true } },
   { path: '/orders/:orderNo', component: OrderDetailView, meta: { requiresMember: true } },
   { path: '/refunds', component: RefundView, meta: { requiresMember: true } },
+  { path: '/activity', component: ActivityView, meta: { requiresMember: true } },
   { path: '/account', component: AccountView }
 ] })
 
