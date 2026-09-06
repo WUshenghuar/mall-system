@@ -17,6 +17,12 @@ request.interceptors.request.use(config => {
 request.interceptors.response.use(
   response => {
     const res = response.data
+    if (res.code === 401) {
+      localStorage.removeItem('token')
+      message.error(res.message || '登录状态已失效，请重新登录')
+      window.location.href = '/login'
+      return Promise.reject(new Error(res.message))
+    }
     if (res.code !== 200) {
       message.error(res.message || '请求失败')
       return Promise.reject(new Error(res.message))
@@ -24,11 +30,13 @@ request.interceptors.response.use(
     return res
   },
   error => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status
+    const serverMessage = error.response?.data?.message
+    if (status === 401) {
       localStorage.removeItem('token')
       window.location.href = '/login'
     }
-    message.error(error.message || '网络错误')
+    message.error(serverMessage || (status === 401 ? '登录状态已失效，请重新登录' : error.message || '网络错误'))
     return Promise.reject(error)
   }
 )
