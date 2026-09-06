@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 const outputDir = join(process.cwd(), 'screenshots', 'mobile-acceptance')
 const widths = [320, 375, 390, 430]
-const routes = [['catalog', '/'], ['cart', '/cart'], ['checkout', '/checkout'], ['orders', '/orders'], ['account', '/account']]
+const routes = [['catalog', '/'], ['cart', '/cart'], ['checkout', '/checkout'], ['orders', '/orders'], ['order-detail', '/orders/CBEC202609060000000001238899'], ['account', '/account']]
 const root = 'http://127.0.0.1:5174'
 const api = data => ({ code: 200, data })
 const mock = url => {
@@ -16,6 +16,8 @@ const mock = url => {
   if (path === '/api/member/favorite/list') return api({ records: [{ id: 1 }] })
   if (path === '/api/member/browse/list') return api({ records: [{ id: 1 }, { id: 2 }] })
   if (path === '/api/trade/order/list') return api({ records: [{ orderNo: 'CBEC202609060000000001238899', payAmount: 'CNY 398.00', orderStatus: 2, createTime: '2026-09-06 09:20:00' }] })
+  if (path === '/api/trade/order/CBEC202609060000000001238899') return api({ orderNo: 'CBEC202609060000000001238899', orderStatus: 2, payAmount: 'CNY 398.00', totalAmount: 'CNY 398.00', discountAmount: '0.00', freightAmount: '0.00', receiverName: '张晓明', receiverPhone: '13800138000', receiverAddress: '吉林省四平市铁东区解放路 1008 室', createTime: '2026-09-06 09:20:00' })
+  if (path === '/api/trade/logistics/CBEC202609060000000001238899') return api({ logisticsCompany: '国际快递', logisticsNo: 'INTL20260906001' })
   if (path === '/api/trade/settle/check') return api({ payAmount: 'CNY 398.00' })
   return api({})
 }
