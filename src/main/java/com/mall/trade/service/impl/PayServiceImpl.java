@@ -10,10 +10,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.KeyFactory;
+import java.security.Signature;
+import java.security.spec.X509EncodedKeySpec;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +30,8 @@ public class PayServiceImpl implements PayService {
     private final TradeOrderService tradeOrderService;
     @Value("${trade.payment.simulation-enabled:false}")
     private boolean simulationEnabled;
+    @Value("${trade.payment.alipay.public-key:}")
+    private String alipayPublicKey;
 
     private String generatePayNo() {
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
@@ -76,15 +85,24 @@ public class PayServiceImpl implements PayService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void handleAlipayNotify(Map<String, String> params) {
+    public boolean handleAlipayNotify(Map<String, String> params) {
         String orderNo = params.get("out_trade_no");
         String tradeStatus = params.get("trade_status");
-        if ("TRADE_SUCCESS".equals(tradeStatus)) {
-            TradePay pay = findLatestPay(orderNo);
-            if (pay != null) {
-                completePayment(pay, params.toString());
-            }
+        if (!"TRADE_SUCCESS".equals(tradeStatus) || !hasValidAlipaySignature(params) || orderNo == null || orderNo.isBlank()) {
+            return false;
         }
+        TradePay pay = findLatestPay(orderNo);
+        var order = tradeOrderService.getByOrderNo(orderNo);
+        BigDecimal callbackAmount = parseAmount(params.get("total_amount"));
+        if (pay == null || order == null || !orderNo.equals(pay.getOrderNo()) || !orderNo.equals(order.getOrderNo()) || pay.getPayType() == null
+                || pay.getPayType() != 1 || callbackAmount == null || !sameAmount(callbackAmount, pay.getPayAmount())
+                || !sameAmount(callbackAmount, order.getPayAmount())) {
+            return false;
+        }
+        if (pay.getPayStatus() != null && pay.getPayStatus() == 1) {
+            return true;
+        }
+        return completePayment(pay, params.toString());
     }
 
     @Override
@@ -92,10 +110,48 @@ public class PayServiceImpl implements PayService {
         // 微信回调处理逻辑
     }
 
-    private void completePayment(TradePay pay, String callbackContent) {
-        if (pay.getPayStatus() != 0) return;
-        if (tradeOrderService.markPaid(pay.getOrderNo(), pay.getPayType())) {
-            payMapper.markSuccess(pay.getId(), callbackContent);
+    private boolean completePayment(TradePay pay, String callbackContent) {
+        if (payMapper.markSuccess(pay.getId(), callbackContent) != 1) {
+            return false;
         }
+        if (!tradeOrderService.markPaid(pay.getOrderNo(), pay.getPayType())) {
+            throw new com.mall.common.exception.BusinessException("订单支付状态异常");
+        }
+        return true;
+    }
+
+    private boolean hasValidAlipaySignature(Map<String, String> params) {
+        String signature = params.get("sign");
+        if (!"RSA2".equals(params.get("sign_type")) || signature == null || signature.isBlank()
+                || alipayPublicKey == null || alipayPublicKey.isBlank()) return false;
+        try {
+            String publicKey = alipayPublicKey.replaceAll("-----BEGIN (.*)-----|-----END (.*)-----|\\s", "");
+            var key = KeyFactory.getInstance("RSA").generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(publicKey)));
+            Signature verifier = Signature.getInstance("SHA256withRSA");
+            verifier.initVerify(key);
+            verifier.update(signingContent(params).getBytes(StandardCharsets.UTF_8));
+            return verifier.verify(Base64.getDecoder().decode(signature));
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private String signingContent(Map<String, String> params) {
+        return new TreeMap<>(params).entrySet().stream()
+                .filter(entry -> !"sign".equals(entry.getKey()) && !"sign_type".equals(entry.getKey()))
+                .map(entry -> entry.getKey() + "=" + entry.getValue())
+                .collect(Collectors.joining("&"));
+    }
+
+    private BigDecimal parseAmount(String amount) {
+        try {
+            return amount == null ? null : new BigDecimal(amount);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private boolean sameAmount(BigDecimal left, BigDecimal right) {
+        return left != null && right != null && left.compareTo(right) == 0;
     }
 }

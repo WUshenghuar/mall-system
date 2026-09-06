@@ -53,6 +53,14 @@ minio:
   secret-key: ${MINIO_ROOT_PASSWORD:minioadmin}
   bucket: mall-product
 
+trade:
+  payment:
+    # 模拟支付只能由 application-dev.yml 覆盖开启。
+    simulation-enabled: false
+    callback-enabled: false
+    alipay:
+      public-key: ${ALIPAY_PUBLIC_KEY:}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

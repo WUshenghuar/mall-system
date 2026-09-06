@@ -41,14 +41,12 @@ public class PayController {
     @PostMapping("/notify/alipay")
     public String alipayNotify(@RequestParam Map<String, String> params) {
         if (!callbackEnabled) return "failure";
-        payService.handleAlipayNotify(params);
-        return "success";
+        return payService.handleAlipayNotify(params) ? "success" : "failure";
     }
 
     @PostMapping("/notify/wechat")
     public String wechatNotify(@RequestParam Map<String, String> params) {
-        payService.handleWechatNotify(params);
-        return "success";
+        return "failure";
     }
 
     @Data
