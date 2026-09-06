@@ -4,6 +4,7 @@ import com.mall.common.result.Result;
 import com.mall.security.user.CurrentMember;
 import com.mall.trade.entity.TradeOrder;
 import com.mall.trade.service.TradeOrderService;
+import com.mall.trade.service.SettlementSnapshotService;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -16,11 +17,13 @@ import org.springframework.web.bind.annotation.*;
 public class TradeOrderController {
 
     private final TradeOrderService tradeOrderService;
+    private final SettlementSnapshotService settlementSnapshotService;
 
     @PostMapping
     public Result<TradeOrder> create(@RequestBody CreateReq req, Authentication auth) {
-        return Result.success(tradeOrderService.createOrder(
-                CurrentMember.id(auth), req.getAddressId(), req.getCouponId(), req.getRemark(), req.getItems()));
+        Long userId = CurrentMember.id(auth);
+        SettlementSnapshotService.Snapshot snapshot = settlementSnapshotService.consume(req.getSnapshotToken(), userId);
+        return Result.success(tradeOrderService.createOrder(userId, snapshot.addressId(), null, req.getRemark(), snapshot.itemsJson()));
     }
 
     @GetMapping("/list")
@@ -51,9 +54,7 @@ public class TradeOrderController {
 
     @Data
     public static class CreateReq {
-        @NotNull private Long addressId;
-        private Long couponId;
         private String remark;
-        @NotNull private String items;
+        @NotNull private String snapshotToken;
     }
 }
