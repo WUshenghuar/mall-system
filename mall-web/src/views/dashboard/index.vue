@@ -47,22 +47,19 @@
       <div class="grid-panel panel-chart">
         <div class="panel-header">
           <h3 class="panel-title">今日概览</h3>
-          <div class="panel-badges">
+          <div class="panel-badges" aria-label="订单统计时间范围">
+            <a-button size="small" :type="range === 'today' ? 'primary' : 'default'" @click="changeRange('today')">今日</a-button>
+            <a-button size="small" :type="range === '24h' ? 'primary' : 'default'" @click="changeRange('24h')">过去 24 小时</a-button>
             <span class="badge badge-live">实时</span>
-            <span class="badge badge-sub">过去 24 小时</span>
           </div>
         </div>
         <div class="panel-body">
           <div class="chart-placeholder">
             <div class="chart-bars">
-              <div v-for="i in 24" :key="i" class="chart-bar" :style="{ height: barHeights[i-1] + '%', animationDelay: (i * 0.04) + 's' }"></div>
+              <div v-for="(height, index) in barHeights" :key="chartLabels[index]" class="chart-bar" :title="`${chartLabels[index]}：${hourlyCounts[index]} 单`" :style="{ height: height + '%', animationDelay: ((index + 1) * 0.04) + 's' }"></div>
             </div>
             <div class="chart-label-row">
-              <span>00:00</span>
-              <span>06:00</span>
-              <span>12:00</span>
-              <span>18:00</span>
-              <span>24:00</span>
+              <span>{{ displayLabel(0) }}</span><span>{{ displayLabel(6) }}</span><span>{{ displayLabel(12) }}</span><span>{{ displayLabel(18) }}</span><span>{{ displayLabel(23) }}</span>
             </div>
             <p v-if="!hasOrders" class="chart-empty-hint">今日暂无交易订单</p>
           </div>
@@ -112,7 +109,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useUserStore } from '@/store/user'
 import { getDashboardStats } from '@/api/dashboard'
 
@@ -137,23 +134,36 @@ const stats = ref([
 ])
 
 const barHeights = ref(Array(24).fill(4))
+const hourlyCounts = ref(Array(24).fill(0))
+const chartLabels = ref(Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`))
+const range = ref('today')
+let refreshTimer
 const hasOrders = computed(() => barHeights.value.some(height => height > 4))
 
-onMounted(async () => {
+function displayLabel(index) { return chartLabels.value[index]?.slice(-2) + ':00' }
+async function fetchStats() {
   try {
-    const res = await getDashboardStats()
+    const res = await getDashboardStats(range.value)
     const d = res.data
     stats.value[0].value = d.productCount ?? 0
     stats.value[1].value = d.todayOrders ?? 0
     stats.value[2].value = d.memberCount ?? 0
     stats.value[3].value = d.pendingRefund ?? 0
-    const counts = d.hourlyOrderCounts || []
+    const counts = d.hourlyOrderCounts || Array(24).fill(0)
+    hourlyCounts.value = counts
+    chartLabels.value = d.hourLabels || chartLabels.value
     const max = Math.max(...counts, 0)
     barHeights.value = Array.from({ length: 24 }, (_, hour) => max ? 14 + Math.round(((counts[hour] || 0) / max) * 78) : 4)
   } catch {
-    // keep placeholder values on error
+    // 保留已展示的数据，等待下一次轮询恢复。
   }
+}
+function changeRange(nextRange) { if (range.value !== nextRange) { range.value = nextRange; fetchStats() } }
+onMounted(() => {
+  fetchStats()
+  refreshTimer = window.setInterval(fetchStats, 30000)
 })
+onUnmounted(() => window.clearInterval(refreshTimer))
 </script>
 
 <style scoped>

@@ -27,12 +27,12 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'type'">
-            <a-tag v-if="record.couponType === 0" color="blue">满减券</a-tag>
-            <a-tag v-else-if="record.couponType === 1" color="purple">折扣券</a-tag>
-            <a-tag v-else>直减券</a-tag>
+            <a-tag v-if="record.couponType === 'FULL_REDUCTION'" color="blue">满减券</a-tag>
+            <a-tag v-else-if="record.couponType === 'DISCOUNT'" color="purple">折扣券</a-tag>
+            <a-tag v-else color="cyan">运费券</a-tag>
           </template>
           <template v-if="column.key === 'discount'">
-            <span v-if="record.couponType === 1">{{ record.discount }}折</span>
+            <span v-if="record.couponType === 'DISCOUNT'">{{ record.discount }}折</span>
             <span v-else>-${{ record.discount }}</span>
           </template>
           <template v-if="column.key === 'status'">
@@ -93,7 +93,7 @@
             </a-form-item>
           </a-col>
           <a-col :span="8">
-            <a-form-item :label="form.couponType === 1 ? '折扣 (折)' : '减免 ($)'" required>
+            <a-form-item :label="form.couponType === 'DISCOUNT' ? '折扣 (折)' : '减免金额'" required>
               <a-input-number v-model:value="form.discount" :min="0" :precision="2" style="width:100%" />
             </a-form-item>
           </a-col>
@@ -110,8 +110,8 @@
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="有效期至">
-              <a-date-picker v-model:value="form.expireDate" style="width:100%" />
+            <a-form-item label="有效期" required>
+              <a-range-picker v-model:value="form.validRange" show-time format="YYYY-MM-DD HH:mm" style="width:100%" />
             </a-form-item>
           </a-col>
         </a-row>
@@ -122,6 +122,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
 import { getCouponPage, createCoupon, updateCoupon, deleteCoupon, submitAudit, auditCoupon } from '@/api/marketing'
 
@@ -132,25 +133,25 @@ const modalOpen = ref(false)
 const editingId = ref(null)
 
 const typeOptions = [
-  { label: '满减券', value: 0 },
-  { label: '折扣券', value: 1 },
-  { label: '直减券', value: 2 }
+  { label: '满减券', value: 'FULL_REDUCTION' },
+  { label: '折扣券', value: 'DISCOUNT' },
+  { label: '运费券', value: 'SHIPPING' }
 ]
 const scopeOptions = [
-  { label: '全平台', value: 0 },
-  { label: '指定分类', value: 1 },
-  { label: '指定商品', value: 2 }
+  { label: '全平台', value: 'ALL' },
+  { label: '指定分类', value: 'CATEGORY' },
+  { label: '指定商品', value: 'SKU' }
 ]
 
 const form = reactive({
   couponName: '',
-  couponType: 0,
-  scope: 0,
+  couponType: 'FULL_REDUCTION',
+  scope: 'ALL',
   threshold: null,
   discount: null,
   maxIssue: 100,
   perLimit: 1,
-  expireDate: null
+  validRange: [dayjs(), dayjs().add(30, 'day')]
 })
 
 const pagination = reactive({
@@ -188,13 +189,13 @@ function onTableChange(pag) {
 
 function resetForm() {
   form.couponName = ''
-  form.couponType = 0
-  form.scope = 0
+  form.couponType = 'FULL_REDUCTION'
+  form.scope = 'ALL'
   form.threshold = null
   form.discount = null
   form.maxIssue = 100
   form.perLimit = 1
-  form.expireDate = null
+  form.validRange = [dayjs(), dayjs().add(30, 'day')]
   editingId.value = null
 }
 
@@ -206,24 +207,25 @@ function openAdd() {
 function openEdit(r) {
   editingId.value = r.id
   form.couponName = r.couponName || ''
-  form.couponType = r.couponType ?? 0
-  form.scope = r.scope ?? 0
+  form.couponType = r.couponType || 'FULL_REDUCTION'
+  form.scope = r.scope || 'ALL'
   form.threshold = r.threshold ?? null
   form.discount = r.discount ?? null
   form.maxIssue = r.maxIssue ?? 100
   form.perLimit = r.perLimit ?? 1
-  form.expireDate = r.expireDate || null
+  form.validRange = r.validStart && r.validEnd ? [dayjs(r.validStart), dayjs(r.validEnd)] : [dayjs(), dayjs().add(30, 'day')]
   modalOpen.value = true
 }
 
 async function handleSave() {
-  if (!form.couponName || form.threshold == null || form.discount == null) {
-    message.warning('请填写优惠券名称、门槛和减免')
+  if (!form.couponName || form.threshold == null || form.discount == null || form.validRange.length !== 2) {
+    message.warning('请填写优惠券名称、门槛、减免和有效期')
     return
   }
   saving.value = true
   try {
-    const payload = { ...form, expireDate: form.expireDate || undefined }
+    const payload = { ...form, validStart: form.validRange[0].format('YYYY-MM-DDTHH:mm:ss'), validEnd: form.validRange[1].format('YYYY-MM-DDTHH:mm:ss') }
+    delete payload.validRange
     if (editingId.value) {
       await updateCoupon(editingId.value, payload)
       message.success('已更新')

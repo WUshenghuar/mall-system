@@ -11,4 +11,4 @@ async function enrich(items) { return Promise.all(items.map(async item => { try 
 onMounted(async () => { try { const [fav, hist] = await Promise.all([memberApi.favorites({ page: 1, size: 30 }), memberApi.browseHistory({ page: 1, size: 30 })]); favorites.value = await enrich(fav.data?.records || []); history.value = await enrich(hist.data?.records || []) } catch (e) { showToast(e) } })
 const ActivityList = defineComponent({ props: ['items', 'empty'], setup(props) { return () => props.items?.length ? h('div', { class: 'activity-list' }, props.items.map(item => h('div', { class: 'card activity-card', key: item.id }, [h('b', item.title), h('p', { class: 'note' }, item.createTime || '')]))) : h(Empty, { description: props.empty }) } })
 </script>
-<style scoped>.activity-page{padding-bottom:88px}.activity-list{padding-top:12px}.activity-card{margin-bottom:12px}.activity-card p{margin:8px 0 0}</style>
+<style scoped>.activity-page{padding-bottom:88px}.activity-list{padding-top:12px}.activity-card{margin-bottom:12px}.activity-card p{margin:8px 0 0}@media (min-width:1025px){.activity-page{padding-bottom:24px;max-width:760px;margin:0 auto}}</style>

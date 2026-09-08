@@ -6,10 +6,10 @@ export default defineConfig({
   plugins: [vue()],
   server: {
     // Windows 已保留 2970–3069，避免 3000 触发 EACCES。
-    port: 5173,
+    port: 18103,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:18100',
         changeOrigin: true
       }
     }
@@ -17,6 +17,17 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src')
+    }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-vue': ['vue', 'vue-router', 'pinia'],
+          'vendor-ui': ['ant-design-vue', '@ant-design/icons-vue'],
+          'vendor-http': ['axios', 'nprogress']
+        }
+      }
     }
   }
 })

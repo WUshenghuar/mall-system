@@ -3,8 +3,8 @@ import { join } from 'node:path'
 
 const outputDir = join(process.cwd(), 'screenshots', 'mobile-acceptance')
 const widths = [320, 375, 390, 430]
-const routes = [['catalog', '/'], ['cart', '/cart'], ['checkout', '/checkout'], ['orders', '/orders'], ['order-detail', '/orders/CBEC202609060000000001238899'], ['account', '/account']]
-const root = 'http://127.0.0.1:5174'
+const routes = [['catalog', '/'], ['promotions', '/promotions'], ['cart', '/cart'], ['checkout', '/checkout'], ['orders', '/orders'], ['order-detail', '/orders/CBEC202609060000000001238899'], ['account', '/account']]
+const root = 'http://127.0.0.1:18102'
 const api = data => ({ code: 200, data })
 const mock = url => {
   const path = new URL(url).pathname
@@ -15,6 +15,9 @@ const mock = url => {
   if (path === '/api/member/address') return api([{ id: 3, receiverName: '张晓明', receiverPhone: '13800138000', isDefault: 1, province: '吉林省', city: '四平市', district: '铁东区', detailAddress: '解放路跨境电商服务中心 1008 室' }])
   if (path === '/api/member/favorite/list') return api({ records: [{ id: 1 }] })
   if (path === '/api/member/browse/list') return api({ records: [{ id: 1 }, { id: 2 }] })
+  if (path === '/api/store/member/coupons') return api([{ issueId: 1, couponName: '新客欢迎券', couponType: 'FULL_REDUCTION', threshold: '199.00', discount: '30.00', validEnd: '2026-10-01 23:59:59', status: 0 }])
+  if (path === '/api/store/coupons') return api([{ id: 1, couponName: '新客欢迎券', couponType: 'FULL_REDUCTION', threshold: '199.00', discount: '30.00', validEnd: '2026-10-01 23:59:59' }])
+  if (path === '/api/store/activities') return api([{ id: 1, activityName: '秋季全球好物周', activityType: 'DISCOUNT', endTime: '2026-10-01 23:59:59' }])
   if (path === '/api/trade/order/list') return api({ records: [{ orderNo: 'CBEC202609060000000001238899', payAmount: 'CNY 398.00', orderStatus: 2, createTime: '2026-09-06 09:20:00' }] })
   if (path === '/api/trade/order/CBEC202609060000000001238899') return api({ orderNo: 'CBEC202609060000000001238899', orderStatus: 2, payAmount: 'CNY 398.00', totalAmount: 'CNY 398.00', discountAmount: '0.00', freightAmount: '0.00', receiverName: '张晓明', receiverPhone: '13800138000', receiverAddress: '吉林省四平市铁东区解放路 1008 室', createTime: '2026-09-06 09:20:00' })
   if (path === '/api/trade/logistics/CBEC202609060000000001238899') return api({ logisticsCompany: '国际快递', logisticsNo: 'INTL20260906001' })

@@ -6,7 +6,9 @@ import com.mall.product.entity.SkuStock;
 import com.mall.product.mapper.SkuMapper;
 import com.mall.product.mapper.SkuStockMapper;
 import com.mall.product.service.SkuService;
+import com.mall.search.service.ProductSearchService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -19,14 +21,17 @@ import java.util.stream.Collectors;
 public class SkuServiceImpl implements SkuService {
     private final SkuMapper skuMapper;
     private final SkuStockMapper skuStockMapper;
+    private final ObjectProvider<ProductSearchService> productSearchServiceProvider;
 
     @Autowired(required = false)
     private RedisTemplate<String, Object> redisTemplate;
 
     public SkuServiceImpl(SkuMapper skuMapper,
-                           SkuStockMapper skuStockMapper) {
+                           SkuStockMapper skuStockMapper,
+                           ObjectProvider<ProductSearchService> productSearchServiceProvider) {
         this.skuMapper = skuMapper;
         this.skuStockMapper = skuStockMapper;
+        this.productSearchServiceProvider = productSearchServiceProvider;
     }
 
     private static final String STOCK_KEY = "stock:sku:";
@@ -55,30 +60,38 @@ public class SkuServiceImpl implements SkuService {
     @Override
     public void save(Sku sku) {
         skuMapper.insert(sku);
+        reindex(sku.getSpuId());
     }
 
     @Override
     public void update(Sku sku) {
+        Sku storedSku = skuMapper.selectById(sku.getId());
         skuMapper.updateById(sku);
+        reindex(storedSku != null ? storedSku.getSpuId() : sku.getSpuId());
     }
 
     @Override
     public void delete(Long id) {
+        Sku sku = skuMapper.selectById(id);
         skuMapper.deleteById(id);
         if (redisTemplate != null) {
             redisTemplate.delete(STOCK_KEY + id);
         }
+        reindex(sku == null ? null : sku.getSpuId());
     }
 
     @Override
     public void batchUpdatePrice(List<Long> skuIds, BigDecimal price) {
+        java.util.Set<Long> spuIds = new java.util.HashSet<>();
         for (Long id : skuIds) {
             Sku sku = skuMapper.selectById(id);
             if (sku != null) {
                 sku.setPrice(price);
                 skuMapper.updateById(sku);
+                spuIds.add(sku.getSpuId());
             }
         }
+        spuIds.forEach(this::reindex);
     }
 
     @Override
@@ -110,6 +123,12 @@ public class SkuServiceImpl implements SkuService {
             newStock.setSkuId(skuId);
             newStock.setStock(stock);
             skuStockMapper.insert(newStock);
+        }
+    }
+
+    private void reindex(Long spuId) {
+        if (spuId != null) {
+            productSearchServiceProvider.ifAvailable(service -> service.indexProduct(spuId));
         }
     }
 }

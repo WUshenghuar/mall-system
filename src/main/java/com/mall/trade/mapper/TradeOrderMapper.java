@@ -11,8 +11,8 @@ import java.util.List;
 import java.util.Map;
 
 public interface TradeOrderMapper extends BaseMapper<TradeOrder> {
-    @Select("SELECT HOUR(create_time) AS hour, COUNT(*) AS count FROM trade_order "
-            + "WHERE create_time >= #{start} GROUP BY HOUR(create_time)")
+    @Select("SELECT DATE_FORMAT(create_time, '%Y-%m-%d %H') AS hourKey, COUNT(*) AS count FROM trade_order "
+            + "WHERE create_time >= #{start} GROUP BY DATE_FORMAT(create_time, '%Y-%m-%d %H')")
     List<Map<String, Object>> countByHourSince(@Param("start") LocalDateTime start);
     @Update("UPDATE trade_order SET order_status = #{targetStatus}, update_time = NOW() "
             + "WHERE order_no = #{orderNo} AND user_id = #{userId} AND order_status = #{expectedStatus}")

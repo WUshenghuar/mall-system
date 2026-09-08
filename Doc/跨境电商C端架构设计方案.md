@@ -14,7 +14,7 @@ Spring Boot 单模块
 └── web（统一入口与 Controller）
 
 mall-web/          B 端 Vue 3 + Ant Design Vue
-mall-storefront/   C 端 Vue 3 + Vant H5
+mall-storefront/   C 端 Vue 3 + Vant，移动优先响应式（手机单列 + 桌面 ≥1025px 自适应）
 mall-ai-service/   Python 包骨架，待实现
 ```
 

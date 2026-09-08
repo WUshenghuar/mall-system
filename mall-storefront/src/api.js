@@ -6,7 +6,14 @@ request.interceptors.request.use(config => {
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
-request.interceptors.response.use(response => response.data, error => {
+request.interceptors.response.use(response => {
+  const body = response.data
+  if (typeof body?.code === 'number' && body.code !== 200) {
+    if ([401, 403].includes(body.code)) localStorage.removeItem('member-token')
+    return Promise.reject(body.message || '请求处理失败')
+  }
+  return body
+}, error => {
   if ([401, 403].includes(error.response?.status)) {
     localStorage.removeItem('member-token')
     return Promise.reject('登录状态失效，请重新登录')
@@ -18,6 +25,35 @@ export const storeApi = {
   products: params => request.get('/store/products', { params }),
   detail: id => request.get(`/store/products/${id}`),
   categories: () => request.get('/store/categories')
+}
+export const marketingApi = {
+  coupons: () => request.get('/store/coupons'),
+  claimCoupon: couponId => request.post(`/store/coupons/${couponId}/claim`),
+  memberCoupons: () => request.get('/store/member/coupons'),
+  activities: () => request.get('/store/activities')
+}
+export const aiApi = {
+  async streamChat(payload, onEvent) {
+    const token = localStorage.getItem('member-token')
+    const response = await fetch('/api/ai/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(payload)
+    })
+    if (!response.ok || !response.body) throw new Error('客服服务暂不可用')
+    const reader = response.body.getReader(), decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done })
+      const frames = buffer.split(/\r?\n\r?\n/)
+      buffer = frames.pop() || ''
+      for (const frame of frames) {
+        const data = frame.split(/\r?\n/).find(line => line.startsWith('data:'))?.slice(5).trim()
+        if (data) onEvent(JSON.parse(data))
+      }
+      if (done) break
+    }
+  }
 }
 export const memberApi = {
   login: data => request.post('/member/auth/login', data),

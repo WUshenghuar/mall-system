@@ -56,7 +56,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { message } from 'ant-design-vue'
 import { getRefundPage, approveRefund, rejectRefund, completeRefund } from '@/api/order'
 
@@ -69,6 +69,7 @@ const rejectOpen = ref(false)
 const rejecting = ref(false)
 const rejectId = ref(null)
 const rejectReason = ref('')
+let refreshTimer
 
 const columns = [
   { title: '订单号', dataIndex: 'orderNo' },
@@ -121,7 +122,8 @@ async function handleRejectConfirm() {
   } catch { /* ignore */ } finally { rejecting.value = false }
 }
 
-onMounted(fetchData)
+onMounted(() => { fetchData(); refreshTimer = window.setInterval(fetchData, 15000) })
+onUnmounted(() => window.clearInterval(refreshTimer))
 </script>
 
 <style scoped>

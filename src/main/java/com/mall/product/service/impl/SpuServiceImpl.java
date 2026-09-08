@@ -8,7 +8,9 @@ import com.mall.common.exception.BusinessException;
 import com.mall.product.entity.Spu;
 import com.mall.product.mapper.SpuMapper;
 import com.mall.product.service.SpuService;
+import com.mall.search.service.ProductSearchService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -16,6 +18,7 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class SpuServiceImpl implements SpuService {
     private final SpuMapper spuMapper;
+    private final ObjectProvider<ProductSearchService> productSearchServiceProvider;
 
     @Override
     public IPage<Spu> selectPage(Integer page, Integer size, Long categoryId,
@@ -36,16 +39,19 @@ public class SpuServiceImpl implements SpuService {
     @Override
     public void save(Spu spu) {
         spuMapper.insert(spu);
+        reindex(spu.getId());
     }
 
     @Override
     public void update(Spu spu) {
         spuMapper.updateById(spu);
+        reindex(spu.getId());
     }
 
     @Override
     public void delete(Long id) {
         spuMapper.deleteById(id);
+        productSearchServiceProvider.ifAvailable(service -> service.deleteProduct(id));
     }
 
     @Override
@@ -56,5 +62,10 @@ public class SpuServiceImpl implements SpuService {
         }
         spu.setStatus(status);
         spuMapper.updateById(spu);
+        reindex(id);
+    }
+
+    private void reindex(Long spuId) {
+        productSearchServiceProvider.ifAvailable(service -> service.indexProduct(spuId));
     }
 }

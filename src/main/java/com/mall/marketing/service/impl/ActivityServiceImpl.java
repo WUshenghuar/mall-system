@@ -10,6 +10,9 @@ import com.mall.marketing.service.ActivityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ActivityServiceImpl implements ActivityService {
@@ -42,5 +45,13 @@ public class ActivityServiceImpl implements ActivityService {
     @Override
     public void delete(Long id) {
         activityMapper.deleteById(id);
+    }
+
+    @Override
+    public List<Activity> selectActive() {
+        LocalDateTime now = LocalDateTime.now();
+        return activityMapper.selectList(Wrappers.<Activity>lambdaQuery()
+                .le(Activity::getStartTime, now).ge(Activity::getEndTime, now)
+                .ne(Activity::getStatus, 2).orderByAsc(Activity::getEndTime));
     }
 }

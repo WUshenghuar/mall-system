@@ -5,6 +5,7 @@ import java.util.Map;
 public interface ProductSearchService {
     void createIndex();
     void indexProduct(Map<String, Object> product);
+    void indexProduct(Long spuId);
     void deleteProduct(Long spuId);
     Map<String, Object> search(String keyword, Long categoryId,
                                 Double minPrice, Double maxPrice,

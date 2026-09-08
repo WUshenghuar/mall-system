@@ -2,6 +2,9 @@ package com.mall.marketing.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.mall.marketing.entity.Coupon;
+import com.mall.marketing.entity.MemberCouponVO;
+
+import java.util.List;
 
 public interface CouponService {
     IPage<Coupon> selectPage(Integer page, Integer size, Integer status, String keyword);
@@ -13,4 +16,7 @@ public interface CouponService {
     void submitAudit(Long id);
     /** 审核（店长） */
     void audit(Long id, Integer status, String comment);
+    List<Coupon> listAvailable();
+    void claim(Long couponId, Long memberId);
+    List<MemberCouponVO> listMemberCoupons(Long memberId);
 }

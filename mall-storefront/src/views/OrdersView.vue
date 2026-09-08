@@ -17,6 +17,6 @@
   </section>
 </template>
 <script setup>
-import{ref,onMounted}from'vue';import{showToast}from'vant';import{tradeApi}from'../api';import{useRouter}from'vue-router'
-const orders=ref([]),loading=ref(false),router=useRouter();const labels=['待支付','待发货','待收货','已完成','已取消'];const label=s=>labels[s]||'处理中';async function load(){loading.value=true;try{orders.value=(await tradeApi.orders()).data.records||[]}catch(e){showToast(e)}finally{loading.value=false}}async function confirm(orderNo){try{await tradeApi.confirmOrder(orderNo);load()}catch(e){showToast(e)}}async function cancel(orderNo){try{await tradeApi.cancelOrder(orderNo);load()}catch(e){showToast(e)}}function detail(orderNo){router.push(`/orders/${orderNo}`)}function track(orderNo){detail(orderNo)}onMounted(load)
+import{ref,onMounted,onUnmounted}from'vue';import{showToast}from'vant';import{tradeApi}from'../api';import{useRouter}from'vue-router'
+const orders=ref([]),loading=ref(false),router=useRouter();const labels=['待支付','待发货','待收货','已完成','已取消','退款处理中','已退款'];const label=s=>labels[s]||'处理中';let refreshTimer;async function load(){loading.value=true;try{orders.value=(await tradeApi.orders()).data.records||[]}catch(e){showToast(e)}finally{loading.value=false}}async function confirm(orderNo){try{await tradeApi.confirmOrder(orderNo);load()}catch(e){showToast(e)}}async function cancel(orderNo){try{await tradeApi.cancelOrder(orderNo);load()}catch(e){showToast(e)}}function detail(orderNo){router.push(`/orders/${orderNo}`)}function track(orderNo){detail(orderNo)}onMounted(()=>{load();refreshTimer=window.setInterval(load,30000)});onUnmounted(()=>window.clearInterval(refreshTimer))
 </script>

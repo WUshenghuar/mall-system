@@ -6,16 +6,19 @@
   </section>
 </template>
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { tradeApi } from '../api'
 const route = useRoute(), router = useRouter(), orderNo = ref(route.query.orderNo || ''), reason = ref(''), refunds = ref([]), loading = ref(false), submitting = ref(false)
+let refreshTimer
 const labels = ['待审核', '审核通过', '已驳回', '已退款']; const label = status => labels[status] || '处理中'; const tagType = status => ['warning', 'primary', 'danger', 'success'][status] || 'default'
 async function load() { loading.value = true; try { refunds.value = (await tradeApi.refunds({ page: 1, size: 20 })).data.records || [] } catch (e) { showToast(e) } finally { loading.value = false } }
 async function apply() { submitting.value = true; try { await tradeApi.applyRefund({ orderNo: orderNo.value, reason: reason.value.trim() }); showToast('退款申请已提交'); reason.value = ''; orderNo.value = ''; await load() } catch (e) { showToast(e) } finally { submitting.value = false } }
-onMounted(load)
+onMounted(() => { load(); refreshTimer = window.setInterval(load, 15000) })
+onUnmounted(() => window.clearInterval(refreshTimer))
 </script>
 <style scoped>
 .refund-page { padding-bottom: 88px; }.refund-form, .refund-card { margin-bottom: 12px; }.refund-form h2, .section-title { margin: 4px 0 12px; }.refund-card { display: grid; grid-template-columns: 1fr auto; gap: 8px; }.refund-card .money, .refund-card .note:last-child { grid-column: 1 / -1; margin: 0; }.page-loading { display: block; margin: 32px auto; }
+@media (min-width: 1025px){ .refund-page { padding-bottom: 24px; } }
 </style>

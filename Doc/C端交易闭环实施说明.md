@@ -10,10 +10,10 @@
 - 增加会员认证、C 端目录服务、结算复核、订单/库存状态机、超时取消任务及后台发货。
 - Redis 批量 Lua 预占与数据库条件更新协同，确保取消、超时与支付失败路径均能释放库存。
 - 为交易事件配置事务后发布、持久化队列、死信队列以及 RabbitMQ 发布确认参数。
-- 交付 `mall-storefront` 移动 H5：商品、账户、地址、购物车、结算模拟支付、订单取消/确认收货/物流、收藏与足迹入口。
+- 交付 `mall-storefront` 响应式交易前台：商品、账户、地址、购物车、结算模拟支付、订单取消/确认收货/物流、收藏与足迹入口。前台为移动优先自适应布局，移动端保留单列 + 底部导航，桌面（≥1025px）自动切换顶栏导航与商品多列网格；开发期可用 `mock-server.mjs`（监听 18100）在无后端时本地预览。
 - 修复开发种子数据的 UTF-8 导入链路，清理重复/乱码分类并增加可重复执行的审计、重置和导入脚本。
 
-下一轮优先事项：真实支付渠道验签和金额核验、事务 outbox 与投递重试、服务端结算快照令牌、ES 索引修复、移动端实机多视口验收，随后再开展 AI 客服。
+下一轮优先事项：真实支付渠道验签和金额核验、事务 outbox 与投递重试、服务端结算快照令牌、ES 索引修复、移动真机多视口回归与桌面端 681–1024px 中间视口细节，随后再开展 AI 客服。
 
 ## 已落地能力
 
@@ -45,7 +45,7 @@
 1. 复制 `.env.example` 为 `.env`，替换所有 `[REDACTED_SECRET]` 占位符。
 2. 执行 `docker compose up -d` 启动 MySQL、Redis、RabbitMQ、Elasticsearch、MinIO。
 3. 启动后端后，Flyway 会执行当前未应用的 `V1__c_trade_closure.sql`、`V2__seed_default_admin.sql` 和 `V3__remove_corrupted_dev_categories.sql`。
-4. 在 `mall-storefront` 执行 `npm install` 与 `npm run dev`，默认访问 `http://localhost:5174`。
+4. 在 `mall-storefront` 执行 `npm install` 与 `npm run dev`，默认访问 `http://localhost:18102`（5174 属于当前 Windows 的系统保留端口段）。
 
 `application.yml` 会自动导入项目根目录 `.env`，因此启动后端时直接执行 `mvn spring-boot:run` 即可；无需再手动将 `.env` 逐项导入 PowerShell 环境变量。
 

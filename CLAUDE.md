@@ -8,7 +8,7 @@ B2C 跨境电商全栈系统 — 覆盖 C 端用户前台 + B 端运营后台 + 
 
 **Tech stack:** Java 23 + Spring Boot 3.2.5 + Spring Security + JWT + MyBatis-Plus 3.5.7 + MySQL 8 + Redis 7 + RabbitMQ + Elasticsearch 8 + Vue 3 (Composition API) + Ant Design Vue 4 + Vite 5 + Python 3.11 + FastAPI + LangGraph + LangFuse
 
-> **Current status (2026-09-05):** The B-end operations console and C-end transaction MVP are implemented. The C-end frontend is `mall-storefront/` (Vue 3 + Vant); AI implementation remains pending and `mall-ai-service/` currently contains only package initializers. Runtime architecture, ports, startup and current gaps are tracked in `Doc/当前实现基线与文档口径.md` and `Doc/B端与C端功能差距审计.md`.
+> **Current status (2026-09-07):** The B-end operations console, C-end transaction MVP and AI customer-service dialogue baseline are implemented. The C-end frontend is `mall-storefront/` (Vue 3 + Vant), a mobile-first **responsive** storefront — single-column + bottom nav under 680px, desktop layout (top nav + product grid) at ≥1025px via CSS media queries; `mall-storefront/mock-server.mjs` serves mock APIs on :18100 for backend-free preview. Runtime architecture, ports, startup and current gaps are tracked in `Doc/当前实现基线与文档口径.md` and `Doc/B端与C端功能差距审计.md`.
 
 ## 项目结构
 
@@ -118,7 +118,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=dev
 
 # 前端开发服务器 (在 mall-web/ 目录下)
 cd mall-web
-npm run dev     # Vite dev server → http://localhost:5173
+npm run dev     # Vite dev server → http://localhost:18103
 npm run build   # 生产构建 → dist/
 
 # Python AI 微服务 (在 mall-ai-service/ 目录下)
@@ -137,7 +137,7 @@ uvicorn app.main:app --reload --port 8000  # 启动 AI 服务
 |---|---|---|
 | MySQL 8 | 3306 | 核心业务数据 |
 | Redis 7 | 6379 | 缓存、分布式锁、购物车 |
-| RabbitMQ 3.x | 5672/15672 | 异步订单处理、库存削峰 |
+| RabbitMQ 3.x | 18110/18111（宿主机）/ 5672/15672（容器） | 异步订单处理、库存削峰 |
 | Elasticsearch 8 | 9200 | 商品全文搜索 + AI 知识库向量检索 |
 | MinIO | 9000/9001 | 文件存储（商品图片、报关文档） |
 
