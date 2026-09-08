@@ -47,7 +47,10 @@ public class TradeRefundServiceImpl implements TradeRefundService {
 
     @Override public IPage<TradeRefund> selectAdminPage(Integer page, Integer size, Integer status) {
         return refundMapper.selectPage(new Page<>(page, Math.min(Math.max(size, 1), 100)),
-                Wrappers.<TradeRefund>lambdaQuery().eq(status != null, TradeRefund::getRefundStatus, status).orderByDesc(TradeRefund::getCreateTime));
+                Wrappers.<TradeRefund>lambdaQuery()
+                        .in(status != null && status == 1, TradeRefund::getRefundStatus, 1, 3)
+                        .eq(status != null && status != 1, TradeRefund::getRefundStatus, status)
+                        .orderByDesc(TradeRefund::getCreateTime));
     }
 
     @Override @Transactional(rollbackFor = Exception.class)

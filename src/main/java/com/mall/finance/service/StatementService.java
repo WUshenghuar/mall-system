@@ -9,6 +9,7 @@ import java.util.Map;
 
 public interface StatementService {
     IPage<Statement> selectPage(Integer page, Integer size);
+    void generateCurrentMonth();
     Map<String, Object> getDetail(Long id);
     List<StatementExportVO> getExportData(Long id);
     void confirm(Long id);

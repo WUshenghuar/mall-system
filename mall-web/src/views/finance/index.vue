@@ -6,6 +6,7 @@
         <h2 class="page-title">对账单</h2>
         <p class="page-desc">周期对账、确认与导出</p>
       </div>
+      <a-button type="primary" @click="generate">生成本月对账单</a-button>
     </div>
 
     <a-card :bordered="false">
@@ -40,7 +41,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
-import { getStatementPage, confirmStatement, exportStatement } from '@/api/finance'
+import { getStatementPage, confirmStatement, exportStatement, generateStatement } from '@/api/finance'
 
 const loading = ref(false)
 const dataSource = ref([])
@@ -95,6 +96,14 @@ async function confirm(id) {
     message.success('已确认')
     fetchData()
   } catch { /* ignore */ }
+}
+
+async function generate() {
+  try {
+    await generateStatement()
+    message.success('本月对账单已生成')
+    fetchData()
+  } catch { /* handled by interceptor */ }
 }
 
 async function exportExcel(id) {

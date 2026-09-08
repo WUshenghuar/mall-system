@@ -29,6 +29,13 @@ public class StatementController {
         return Result.success(statementService.selectPage(page, size));
     }
 
+    @PostMapping("/statement/generate")
+    @PreAuthorize("hasAuthority('finance:statement:confirm')")
+    public Result<Void> generate() {
+        statementService.generateCurrentMonth();
+        return Result.success(null);
+    }
+
     @GetMapping("/statement/{id}")
     @PreAuthorize("hasAuthority('finance:statement:list')")
     public Result<Object> detail(@PathVariable Long id) {

@@ -65,6 +65,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
 import { getActivityPage, createActivity, updateActivity, deleteActivity } from '@/api/marketing'
 
@@ -118,8 +119,8 @@ function openAdd() {
 function openEdit(r) {
   editingId.value = r.id
   form.activityName = r.activityName || ''
-  form.startTime = r.startTime || null
-  form.endTime = r.endTime || null
+  form.startTime = r.startTime ? dayjs(r.startTime) : null
+  form.endTime = r.endTime ? dayjs(r.endTime) : null
   form.description = r.description || ''
   modalOpen.value = true
 }
@@ -131,7 +132,7 @@ async function handleSave() {
   }
   saving.value = true
   try {
-    const payload = { ...form }
+    const payload = { ...form, startTime: form.startTime.format('YYYY-MM-DDTHH:mm:ss'), endTime: form.endTime.format('YYYY-MM-DDTHH:mm:ss') }
     if (editingId.value) {
       await updateActivity(editingId.value, payload)
       message.success('已更新')

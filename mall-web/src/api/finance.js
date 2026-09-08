@@ -4,6 +4,9 @@ import request from '@/utils/request'
 export function getStatementPage(params) {
   return request.get('/finance/statement/page', { params })
 }
+export function generateStatement() {
+  return request.post('/finance/statement/generate')
+}
 export function getStatementDetail(id) {
   return request.get(`/finance/statement/${id}`)
 }

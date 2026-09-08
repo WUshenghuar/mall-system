@@ -83,6 +83,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
 import { getTaxPage, createTax, updateTax, deleteTax } from '@/api/finance'
 
@@ -152,8 +153,8 @@ function openEdit(r) {
   form.originCountry = r.originCountry || ''
   form.destCountry = r.destCountry || ''
   form.taxType = r.taxType || 'IMPORT_DUTY'
-  form.effectiveDate = r.effectiveDate || null
-  form.expireDate = r.expireDate || null
+  form.effectiveDate = r.effectiveDate ? dayjs(r.effectiveDate) : null
+  form.expireDate = r.expireDate ? dayjs(r.expireDate) : null
   modalOpen.value = true
 }
 
@@ -164,7 +165,9 @@ async function handleSave() {
   }
   saving.value = true
   try {
-    const payload = { ...form }
+    const payload = { ...form,
+      effectiveDate: form.effectiveDate?.format('YYYY-MM-DD'),
+      expireDate: form.expireDate?.format('YYYY-MM-DD') }
     if (editingId.value) {
       await updateTax(editingId.value, payload)
       message.success('已更新')
