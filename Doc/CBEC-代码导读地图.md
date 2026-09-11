@@ -49,7 +49,7 @@
 | 会员 | member / member_account / member_address / member_favorite / member_browse_history | 账号与资料分离（登录用 account） |
 | **交易（重点）** | trade_cart / trade_order / trade_order_item / trade_pay / trade_logistics / trade_refund | C 端交易 |
 | 后台订单 | order / order_item / order_pay / order_logistics / order_refund | ⚠️ 与 trade_* 并存（历史演进，需统一） |
-| 营销 | coupon / coupon_issue / activity / activity_sku | 优惠券 + 活动 |
+| 营销 | coupon / coupon_issue / activity / activity_sku | 优惠券 + 活动商品关联（活动价/库存/限购） |
 | 财务 | finance_statement / finance_statement_item / tax_config | 结算单 + 税率 |
 
 ---
@@ -82,7 +82,7 @@
 |---|---|---|---|
 | product | 20 | SPU/SKU/品牌/分类/库存 | HS 编码（跨境） |
 | member | 23 | 会员资料/地址/积分/收藏/足迹 | 手机号账号与资料分离 |
-| marketing | 12 | 优惠券发放核销/活动/秒杀（`SeckillServiceImpl`） | 秒杀并发控制 |
+| marketing | 15 | 优惠券发放核销/活动商品关联/秒杀（`ActivityServiceImpl`、`SeckillServiceImpl`） | 唯一键 upsert、秒杀并发控制 |
 | finance | 11 | 结算单/税率/EasyExcel 导出 | 跨境税率配置 |
 | search | 4 | ES 索引/全文搜索 | ik_smart 分词 + 增量同步（未完整） |
 | system | 11 | 用户/角色/菜单 CRUD | RBAC |

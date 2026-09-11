@@ -24,6 +24,7 @@
           </template>
           <template v-if="column.key === 'action'">
             <a-space>
+              <a-button size="small" type="link" @click="openSku(record)">配置商品</a-button>
               <a-button size="small" type="link" @click="openEdit(record)">编辑</a-button>
               <a-popconfirm title="确定删除？" @confirm="handleDelete(record.id)">
                 <a-button size="small" type="link" danger>删除</a-button>
@@ -67,6 +68,25 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <a-modal v-model:open="skuModalOpen" :title="`配置活动商品 · ${skuActivity?.activityName || ''}`"
+      @ok="handleSkuSave" :confirm-loading="skuSaving" destroy-on-close>
+      <a-table v-if="skuList.length" :columns="skuColumns" :data-source="skuList" row-key="skuId"
+        size="small" :pagination="false">
+        <template #bodyCell="{ column, record }">
+          <a-button v-if="column.key === 'skuAction'" size="small" type="link" danger @click="removeSku(record.skuId)">移除</a-button>
+        </template>
+      </a-table>
+      <a-divider v-if="skuList.length" />
+      <a-form :model="skuForm" layout="vertical">
+        <a-form-item label="SKU ID" required><a-input-number v-model:value="skuForm.skuId" :min="1" style="width:100%" placeholder="填写已上架 SKU 的 ID" /></a-form-item>
+        <a-row :gutter="12">
+          <a-col :span="8"><a-form-item label="活动价"><a-input-number v-model:value="skuForm.seckillPrice" :min="0" :precision="2" style="width:100%" /></a-form-item></a-col>
+          <a-col :span="8"><a-form-item label="活动库存"><a-input-number v-model:value="skuForm.seckillStock" :min="1" style="width:100%" /></a-form-item></a-col>
+          <a-col :span="8"><a-form-item label="每人限购"><a-input-number v-model:value="skuForm.limitPerUser" :min="1" style="width:100%" /></a-form-item></a-col>
+        </a-row>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
@@ -74,7 +94,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import dayjs from 'dayjs'
 import { message } from 'ant-design-vue'
-import { getActivityPage, createActivity, updateActivity, deleteActivity } from '@/api/marketing'
+import { getActivityPage, createActivity, updateActivity, deleteActivity, getActivitySkus, saveActivitySku, deleteActivitySku } from '@/api/marketing'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -97,7 +117,7 @@ const columns = [
   { title: '开始时间', dataIndex: 'startTime' },
   { title: '结束时间', dataIndex: 'endTime' },
   { title: '状态', key: 'status', width: 80 },
-  { title: '操作', key: 'action', width: 150 }
+  { title: '操作', key: 'action', width: 220 }
 ]
 
 async function fetchData() {
@@ -164,4 +184,41 @@ async function handleDelete(id) {
 }
 
 onMounted(fetchData)
+
+const skuModalOpen = ref(false)
+const skuActivity = ref(null)
+const skuList = ref([])
+const skuSaving = ref(false)
+const skuForm = reactive({ skuId: null, seckillPrice: null, seckillStock: null, limitPerUser: 1 })
+const skuColumns = [
+  { title: 'SKU ID', dataIndex: 'skuId' },
+  { title: '活动价', dataIndex: 'seckillPrice' },
+  { title: '活动库存', dataIndex: 'seckillStock' },
+  { title: '每人限购', dataIndex: 'limitPerUser' },
+  { title: '操作', key: 'skuAction', width: 70 }
+]
+function resetSkuForm() { Object.assign(skuForm, { skuId: null, seckillPrice: null, seckillStock: null, limitPerUser: 1 }) }
+async function openSku(record) {
+  skuActivity.value = record
+  resetSkuForm()
+  skuModalOpen.value = true
+  const res = await getActivitySkus(record.id)
+  skuList.value = res.data || []
+}
+async function handleSkuSave() {
+  if (!skuForm.skuId) { message.warning('请输入有效的 SKU ID'); return }
+  skuSaving.value = true
+  try {
+    await saveActivitySku(skuActivity.value.id, skuForm)
+    message.success('活动商品已保存')
+    resetSkuForm()
+    const res = await getActivitySkus(skuActivity.value.id)
+    skuList.value = res.data || []
+  } finally { skuSaving.value = false }
+}
+async function removeSku(skuId) {
+  await deleteActivitySku(skuActivity.value.id, skuId)
+  skuList.value = skuList.value.filter(item => item.skuId !== skuId)
+  message.success('活动商品已移除')
+}
 </script>

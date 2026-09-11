@@ -2,6 +2,7 @@ package com.mall.web.controller.marketing;
 
 import com.mall.common.result.Result;
 import com.mall.marketing.entity.Activity;
+import com.mall.marketing.entity.ActivitySku;
 import com.mall.marketing.service.ActivityService;
 import com.mall.marketing.service.SeckillService;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,26 @@ public class ActivityController {
     @PreAuthorize("hasAuthority('marketing:activity:config')")
     public Result<Void> delete(@PathVariable Long id) {
         activityService.delete(id);
+        return Result.success(null);
+    }
+
+    @GetMapping("/{id}/skus")
+    @PreAuthorize("hasAuthority('marketing:activity:config')")
+    public Result<Object> skus(@PathVariable Long id) {
+        return Result.success(activityService.listSkus(id));
+    }
+
+    @PostMapping("/{id}/skus")
+    @PreAuthorize("hasAuthority('marketing:activity:config')")
+    public Result<Void> saveSku(@PathVariable Long id, @RequestBody ActivitySku activitySku) {
+        activityService.saveSku(id, activitySku);
+        return Result.success(null);
+    }
+
+    @DeleteMapping("/{id}/skus/{skuId}")
+    @PreAuthorize("hasAuthority('marketing:activity:config')")
+    public Result<Void> deleteSku(@PathVariable Long id, @PathVariable Long skuId) {
+        activityService.deleteSku(id, skuId);
         return Result.success(null);
     }
 

@@ -36,6 +36,17 @@ export function updateActivity(id, data) {
 export function deleteActivity(id) {
   return request.delete(`/marketing/activity/${id}`)
 }
+
+export function getActivitySkus(id) {
+  return request.get(`/marketing/activity/${id}/skus`)
+}
+export function saveActivitySku(id, data) {
+  return request.post(`/marketing/activity/${id}/skus`, data)
+}
+export function deleteActivitySku(id, skuId) {
+  return request.delete(`/marketing/activity/${id}/skus/${skuId}`)
+}
+
 export function prepareSeckill(id, skuId, totalStock) {
   return request.post(`/marketing/activity/${id}/seckill/prepare`, null, { params: { skuId, totalStock } })
 }

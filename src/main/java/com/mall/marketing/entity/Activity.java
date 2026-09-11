@@ -1,11 +1,13 @@
 package com.mall.marketing.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.mall.common.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -18,4 +20,6 @@ public class Activity extends BaseEntity {
     private LocalDateTime endTime;
     /** 0未开始 1进行中 2已结束 */
     private Integer status;
+    @TableField(exist = false)
+    private List<ActivitySku> skuItems;
 }
