@@ -15,4 +15,5 @@ public interface MemberService {
     BigDecimal getTotalAmount(Long id);
     List<MemberPointsLog> listPointsLogs(Long id);
     void recordOrderCompletion(Long id, BigDecimal amount, String orderNo);
+    void recordOrderRefund(Long id, BigDecimal amount, String orderNo);
 }

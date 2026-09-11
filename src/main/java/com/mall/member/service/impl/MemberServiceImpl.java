@@ -88,8 +88,7 @@ public class MemberServiceImpl implements MemberService {
         int points = amount.setScale(0, RoundingMode.DOWN).intValue();
         member.setTotalAmount(total.add(amount).setScale(2, RoundingMode.HALF_UP));
         member.setPoints((member.getPoints() == null ? 0 : member.getPoints()) + points);
-        member.setLevel(member.getTotalAmount().compareTo(PLATINUM_THRESHOLD) >= 0 ? 2
-                : member.getTotalAmount().compareTo(GOLD_THRESHOLD) >= 0 ? 1 : 0);
+        member.setLevel(resolveLevel(member.getTotalAmount()));
         memberMapper.updateById(member);
         if (points > 0) {
             MemberPointsLog log = new MemberPointsLog();
@@ -98,5 +97,31 @@ public class MemberServiceImpl implements MemberService {
             log.setReason("订单完成奖励：" + orderNo);
             pointsLogMapper.insert(log);
         }
+    }
+
+    @Override
+    @Transactional
+    public void recordOrderRefund(Long id, BigDecimal amount, String orderNo) {
+        if (amount == null || amount.signum() <= 0) return;
+        Member member = memberMapper.selectById(id);
+        if (member == null) throw new BusinessException("会员不存在");
+        BigDecimal total = member.getTotalAmount() == null ? BigDecimal.ZERO : member.getTotalAmount();
+        int points = amount.setScale(0, RoundingMode.DOWN).intValue();
+        member.setTotalAmount(total.subtract(amount).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
+        member.setPoints(Math.max(0, (member.getPoints() == null ? 0 : member.getPoints()) - points));
+        member.setLevel(resolveLevel(member.getTotalAmount()));
+        memberMapper.updateById(member);
+        if (points > 0) {
+            MemberPointsLog log = new MemberPointsLog();
+            log.setMemberId(id);
+            log.setPoints(-points);
+            log.setReason("订单退款扣回：" + orderNo);
+            pointsLogMapper.insert(log);
+        }
+    }
+
+    private int resolveLevel(BigDecimal totalAmount) {
+        return totalAmount.compareTo(PLATINUM_THRESHOLD) >= 0 ? 2
+                : totalAmount.compareTo(GOLD_THRESHOLD) >= 0 ? 1 : 0;
     }
 }

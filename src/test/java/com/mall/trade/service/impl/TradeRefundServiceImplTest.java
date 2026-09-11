@@ -4,6 +4,7 @@ import com.mall.trade.entity.TradeOrder;
 import com.mall.trade.entity.TradeRefund;
 import com.mall.trade.mapper.TradeOrderMapper;
 import com.mall.trade.mapper.TradeRefundMapper;
+import com.mall.member.service.MemberService;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -25,7 +26,7 @@ class TradeRefundServiceImplTest {
         when(orderMapper.selectOne(any())).thenReturn(order);
         when(refundMapper.selectCount(any())).thenReturn(0L);
         when(orderMapper.transitionOwned("T-1", 9L, 1, 5)).thenReturn(1);
-        TradeRefundServiceImpl service = new TradeRefundServiceImpl(refundMapper, orderMapper);
+        TradeRefundServiceImpl service = new TradeRefundServiceImpl(refundMapper, orderMapper, mock(MemberService.class));
 
         TradeRefund refund = service.apply("T-1", 9L, "不再需要", 0, null);
 
@@ -45,7 +46,7 @@ class TradeRefundServiceImplTest {
         when(orderMapper.selectOne(any())).thenReturn(order);
         when(refundMapper.selectCount(any())).thenReturn(0L);
         when(orderMapper.transitionOwned("T-2", 9L, 2, 5)).thenReturn(1);
-        TradeRefundServiceImpl service = new TradeRefundServiceImpl(refundMapper, orderMapper);
+        TradeRefundServiceImpl service = new TradeRefundServiceImpl(refundMapper, orderMapper, mock(MemberService.class));
 
         TradeRefund refund = service.apply("T-2", 9L, "商品损坏", 1, List.of("proof-a", "proof-b"));
         refund.setId(2L);
@@ -65,18 +66,21 @@ class TradeRefundServiceImplTest {
     void returnRefundMustSubmitTrackingBeforeCompletion() {
         TradeOrderMapper orderMapper = mock(TradeOrderMapper.class);
         TradeRefundMapper refundMapper = mock(TradeRefundMapper.class);
+        MemberService memberService = mock(MemberService.class);
         TradeRefund refund = new TradeRefund();
-        refund.setId(3L); refund.setOrderNo("T-3"); refund.setUserId(9L); refund.setRefundType(1); refund.setRefundStatus(4);
+        refund.setId(3L); refund.setOrderNo("T-3"); refund.setUserId(9L); refund.setRefundType(1);
+        refund.setOriginalOrderStatus(3); refund.setRefundAmount(new BigDecimal("88.00")); refund.setRefundStatus(4);
         when(refundMapper.selectById(3L)).thenReturn(refund);
         when(refundMapper.submitReturn(3L, 9L, "DHL", "DHL-001")).thenReturn(1);
         when(refundMapper.transitionStatus(3L, 4, 3, 7L, "已收货")).thenReturn(1);
         when(orderMapper.transitionOwned("T-3", 9L, 5, 6)).thenReturn(1);
-        TradeRefundServiceImpl service = new TradeRefundServiceImpl(refundMapper, orderMapper);
+        TradeRefundServiceImpl service = new TradeRefundServiceImpl(refundMapper, orderMapper, memberService);
 
         service.submitReturn(3L, 9L, "DHL", "DHL-001");
         service.complete(3L, 7L, "已收货");
 
         verify(refundMapper).submitReturn(3L, 9L, "DHL", "DHL-001");
         verify(orderMapper).transitionOwned("T-3", 9L, 5, 6);
+        verify(memberService).recordOrderRefund(9L, new BigDecimal("88.00"), "T-3");
     }
 }

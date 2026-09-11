@@ -50,4 +50,21 @@ class MemberServiceImplTest {
         verify(logMapper).insert(org.mockito.ArgumentMatchers.argThat((MemberPointsLog log) ->
                 log.getMemberId().equals(9L) && log.getPoints() == 120 && log.getReason().contains("T-1")));
     }
+
+    @Test
+    void refundedOrderReversesSpendingPointsAndLevel() {
+        MemberMapper memberMapper = mock(MemberMapper.class);
+        MemberPointsLogMapper logMapper = mock(MemberPointsLogMapper.class);
+        Member member = new Member();
+        member.setId(9L); member.setPoints(120); member.setTotalAmount(new BigDecimal("1020.50")); member.setLevel(1);
+        when(memberMapper.selectById(9L)).thenReturn(member);
+
+        new MemberServiceImpl(memberMapper, logMapper).recordOrderRefund(9L, new BigDecimal("120.50"), "T-1");
+
+        assertThat(member.getTotalAmount()).isEqualByComparingTo("900.00");
+        assertThat(member.getPoints()).isEqualTo(0);
+        assertThat(member.getLevel()).isZero();
+        verify(logMapper).insert(org.mockito.ArgumentMatchers.argThat((MemberPointsLog log) ->
+                log.getMemberId().equals(9L) && log.getPoints() == -120 && log.getReason().contains("T-1")));
+    }
 }
