@@ -82,7 +82,7 @@
 |---|---|---|---|
 | product | 20 | SPU/SKU/品牌/分类/库存 | HS 编码（跨境） |
 | member | 23 | 会员资料/地址/积分/收藏/足迹 | 手机号账号与资料分离 |
-| marketing | 15 | 优惠券发放核销/活动商品关联/秒杀（`ActivityServiceImpl`、`SeckillServiceImpl`） | 唯一键 upsert、秒杀并发控制 |
+| marketing | 15 | 优惠券发放核销/活动商品关联/秒杀（`ActivityServiceImpl`、`SeckillServiceImpl`） | 优惠券行锁与条件扣量、唯一键 upsert、秒杀并发控制 |
 | finance | 11 | 结算单/税率/EasyExcel 导出 | 跨境税率配置 |
 | search | 4 | ES 索引/全文搜索 | ik_smart 分词 + 增量同步（未完整） |
 | system | 11 | 用户/角色/菜单 CRUD | RBAC |

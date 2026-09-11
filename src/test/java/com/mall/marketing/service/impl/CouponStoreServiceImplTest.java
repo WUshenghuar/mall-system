@@ -40,7 +40,7 @@ class CouponStoreServiceImplTest {
         coupon.setId(7L); coupon.setStatus(2); coupon.setCouponName("欢迎券");
         coupon.setDiscount(new BigDecimal("20")); coupon.setValidStart(LocalDateTime.now().minusDays(1));
         coupon.setValidEnd(LocalDateTime.now().plusDays(1)); coupon.setPerLimit(1);
-        when(couponMapper.selectById(7L)).thenReturn(coupon);
+        when(couponMapper.selectForUpdate(7L)).thenReturn(coupon);
         when(issueMapper.selectCount(any())).thenReturn(0L);
         when(couponMapper.increaseIssuedCountIfAvailable(7L)).thenReturn(1);
 
@@ -57,7 +57,7 @@ class CouponStoreServiceImplTest {
         Coupon coupon = new Coupon();
         coupon.setId(7L); coupon.setStatus(2); coupon.setValidStart(LocalDateTime.now().minusDays(1));
         coupon.setValidEnd(LocalDateTime.now().plusDays(1)); coupon.setPerLimit(1);
-        when(couponMapper.selectById(7L)).thenReturn(coupon);
+        when(couponMapper.selectForUpdate(7L)).thenReturn(coupon);
         when(issueMapper.selectCount(any())).thenReturn(1L);
 
         assertThatThrownBy(() -> new CouponServiceImpl(couponMapper, issueMapper).claim(7L, 9L))

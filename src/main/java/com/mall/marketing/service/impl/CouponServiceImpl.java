@@ -99,7 +99,7 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void claim(Long couponId, Long memberId) {
-        Coupon coupon = couponMapper.selectById(couponId);
+        Coupon coupon = couponMapper.selectForUpdate(couponId);
         LocalDateTime now = LocalDateTime.now();
         if (coupon == null || coupon.getStatus() != 2 || coupon.getValidStart().isAfter(now) || coupon.getValidEnd().isBefore(now)) {
             throw new BusinessException("优惠券不可领取");
