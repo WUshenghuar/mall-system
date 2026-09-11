@@ -14,7 +14,14 @@
         <input v-model="keyword" placeholder="搜索商品" aria-label="搜索商品" @keyup.enter="load" />
       </label>
       <van-button type="primary" @click="load">搜索</van-button>
+      <van-button v-if="keyword || categoryId !== null" plain @click="resetFilters">清除</van-button>
     </div>
+    <nav class="catalog-filters" aria-label="商品分类">
+      <button type="button" :class="{ active: categoryId === null }" @click="selectCategory(null)">全部</button>
+      <button v-for="category in categories" :key="category.id" type="button" :class="{ active: categoryId === category.id }" @click="selectCategory(category.id)">
+        {{ category.categoryName }}
+      </button>
+    </nav>
     <van-loading v-if="loading" class="page-loading" />
     <div class="product-grid">
       <article
@@ -53,10 +60,13 @@
 import { ref, onMounted } from 'vue'
 import { showToast } from 'vant'
 import { storeApi, tradeApi, memberApi } from '../api'
-const products=ref([]),keyword=ref(''),loading=ref(false),show=ref(false),detail=ref(null),loadError=ref('')
-async function load(){loading.value=true;loadError.value='';try{products.value=(await storeApi.products({keyword:keyword.value})).data.records||[]}catch(e){products.value=[];loadError.value=String(e)}finally{loading.value=false}}
+const products=ref([]),categories=ref([]),keyword=ref(''),categoryId=ref(null),loading=ref(false),show=ref(false),detail=ref(null),loadError=ref('')
+async function load(){loading.value=true;loadError.value='';try{products.value=(await storeApi.products({keyword:keyword.value,categoryId:categoryId.value ?? undefined})).data.records||[]}catch(e){products.value=[];loadError.value=String(e)}finally{loading.value=false}}
+async function loadCategories(){try{categories.value=(await storeApi.categories()).data||[]}catch{categories.value=[]}}
+function selectCategory(id){categoryId.value=id;load()}
+function resetFilters(){keyword.value='';categoryId.value=null;load()}
 async function open(item){try{detail.value=(await storeApi.detail(item.id)).data;show.value=true;if(localStorage.getItem('member-token'))await memberApi.recordBrowse(item.id)}catch(e){showToast(e)}}
 async function favorite(){try{await memberApi.addFavorite(detail.value.spu.id);showToast('已收藏')}catch(e){showToast(e)}}
 async function add(skuId){try{await tradeApi.addCart({skuId,quantity:1});showToast('已加入购物车')}catch(e){showToast(e)}}
-onMounted(load)
+onMounted(() => { loadCategories(); load() })
 </script>
