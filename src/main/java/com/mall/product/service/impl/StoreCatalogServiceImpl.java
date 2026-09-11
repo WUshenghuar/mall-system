@@ -22,6 +22,7 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -42,11 +43,25 @@ public class StoreCatalogServiceImpl implements StoreCatalogService {
 
     @Override
     public IPage<?> products(int page, int size, Long categoryId, String keyword) {
-        IPage<Spu> result = spuMapper.selectPage(new Page<>(Math.max(page, 1), Math.min(Math.max(size, 1), 50)),
-                Wrappers.<Spu>lambdaQuery().eq(Spu::getStatus, 1)
-                        .eq(categoryId != null, Spu::getCategoryId, categoryId)
-                        .like(StringUtils.hasText(keyword), Spu::getSpuName, keyword)
-                        .orderByDesc(Spu::getSalesCount).orderByDesc(Spu::getCreateTime));
+        return products(page, size, categoryId, keyword, null, null, "sales");
+    }
+
+    @Override
+    public IPage<?> products(int page, int size, Long categoryId, String keyword,
+                             BigDecimal minPrice, BigDecimal maxPrice, String sortField) {
+        if (minPrice != null && minPrice.signum() < 0 || maxPrice != null && maxPrice.signum() < 0) {
+            throw new BusinessException("价格不能为负数");
+        }
+        if (minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0) {
+            throw new BusinessException("最低价不能高于最高价");
+        }
+        String selectedSort = switch (sortField == null ? "" : sortField) {
+            case "priceAsc", "priceDesc", "newest" -> sortField;
+            default -> "sales";
+        };
+        IPage<Spu> result = spuMapper.selectStorePage(
+                new Page<>(Math.max(page, 1), Math.min(Math.max(size, 1), 50)),
+                categoryId, keyword, minPrice, maxPrice, selectedSort);
         if (result.getRecords().isEmpty()) return result;
 
         List<Long> spuIds = result.getRecords().stream().map(Spu::getId).toList();

@@ -14,7 +14,7 @@
         <input v-model="keyword" placeholder="搜索商品" aria-label="搜索商品" @keyup.enter="load" />
       </label>
       <van-button type="primary" @click="load">搜索</van-button>
-      <van-button v-if="keyword || categoryId !== null" plain @click="resetFilters">清除</van-button>
+      <van-button v-if="keyword || categoryId !== null || minPrice !== '' || maxPrice !== '' || sortField !== 'sales'" plain @click="resetFilters">清除</van-button>
     </div>
     <nav class="catalog-filters" aria-label="商品分类">
       <button type="button" :class="{ active: categoryId === null }" @click="selectCategory(null)">全部</button>
@@ -22,6 +22,19 @@
         {{ category.categoryName }}
       </button>
     </nav>
+    <div class="catalog-refine">
+      <label>最低价 <input v-model="minPrice" type="number" min="0" step="0.01" placeholder="不限" @keyup.enter="load" /></label>
+      <label>最高价 <input v-model="maxPrice" type="number" min="0" step="0.01" placeholder="不限" @keyup.enter="load" /></label>
+      <label>排序
+        <select v-model="sortField" aria-label="商品排序" @change="load">
+          <option value="sales">按热度</option>
+          <option value="newest">最新上架</option>
+          <option value="priceAsc">价格从低到高</option>
+          <option value="priceDesc">价格从高到低</option>
+        </select>
+      </label>
+      <van-button plain type="primary" @click="load">应用</van-button>
+    </div>
     <van-loading v-if="loading" class="page-loading" />
     <div class="product-grid">
       <article
@@ -60,11 +73,11 @@
 import { ref, onMounted } from 'vue'
 import { showToast } from 'vant'
 import { storeApi, tradeApi, memberApi } from '../api'
-const products=ref([]),categories=ref([]),keyword=ref(''),categoryId=ref(null),loading=ref(false),show=ref(false),detail=ref(null),loadError=ref('')
-async function load(){loading.value=true;loadError.value='';try{products.value=(await storeApi.products({keyword:keyword.value,categoryId:categoryId.value ?? undefined})).data.records||[]}catch(e){products.value=[];loadError.value=String(e)}finally{loading.value=false}}
+const products=ref([]),categories=ref([]),keyword=ref(''),categoryId=ref(null),minPrice=ref(''),maxPrice=ref(''),sortField=ref('sales'),loading=ref(false),show=ref(false),detail=ref(null),loadError=ref('')
+async function load(){if(minPrice.value !== '' && maxPrice.value !== '' && Number(minPrice.value)>Number(maxPrice.value)){showToast('最低价不能高于最高价');return};loading.value=true;loadError.value='';try{products.value=(await storeApi.products({keyword:keyword.value,categoryId:categoryId.value ?? undefined,minPrice:minPrice.value || undefined,maxPrice:maxPrice.value || undefined,sortField:sortField.value})).data.records||[]}catch(e){products.value=[];loadError.value=String(e)}finally{loading.value=false}}
 async function loadCategories(){try{categories.value=(await storeApi.categories()).data||[]}catch{categories.value=[]}}
 function selectCategory(id){categoryId.value=id;load()}
-function resetFilters(){keyword.value='';categoryId.value=null;load()}
+function resetFilters(){keyword.value='';categoryId.value=null;minPrice.value='';maxPrice.value='';sortField.value='sales';load()}
 async function open(item){try{detail.value=(await storeApi.detail(item.id)).data;show.value=true;if(localStorage.getItem('member-token'))await memberApi.recordBrowse(item.id)}catch(e){showToast(e)}}
 async function favorite(){try{await memberApi.addFavorite(detail.value.spu.id);showToast('已收藏')}catch(e){showToast(e)}}
 async function add(skuId){try{await tradeApi.addCart({skuId,quantity:1});showToast('已加入购物车')}catch(e){showToast(e)}}

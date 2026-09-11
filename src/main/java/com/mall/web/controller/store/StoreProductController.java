@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/api/store")
@@ -23,8 +24,11 @@ public class StoreProductController {
     public Result<?> products(@RequestParam(defaultValue = "1") int page,
                               @RequestParam(defaultValue = "20") int size,
                               @RequestParam(required = false) Long categoryId,
-                              @RequestParam(required = false) String keyword) {
-        return Result.success(storeCatalogService.products(page, size, categoryId, keyword));
+                              @RequestParam(required = false) String keyword,
+                              @RequestParam(required = false) BigDecimal minPrice,
+                              @RequestParam(required = false) BigDecimal maxPrice,
+                              @RequestParam(defaultValue = "sales") String sortField) {
+        return Result.success(storeCatalogService.products(page, size, categoryId, keyword, minPrice, maxPrice, sortField));
     }
 
     @GetMapping("/products/{spuId}")

@@ -16,7 +16,10 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class StoreCatalogServiceImplTest {
@@ -29,7 +32,7 @@ class StoreCatalogServiceImplTest {
         spu.setSpuName("Travel Adapter");
         Page<Spu> page = new Page<>(1, 20);
         page.setRecords(List.of(spu));
-        when(spuMapper.selectPage(any(), any())).thenReturn(page);
+        when(spuMapper.selectStorePage(any(), any(), any(), any(), any(), any())).thenReturn(page);
 
         Sku sku = new Sku();
         sku.setSpuId(7L);
@@ -56,7 +59,7 @@ class StoreCatalogServiceImplTest {
         spu.setId(8L);
         Page<Spu> page = new Page<>(1, 20);
         page.setRecords(List.of(spu));
-        when(spuMapper.selectPage(any(), any())).thenReturn(page);
+        when(spuMapper.selectStorePage(any(), any(), any(), any(), any(), any())).thenReturn(page);
         Sku sku = new Sku();
         sku.setSpuId(8L);
         sku.setPrice(new BigDecimal("9.90"));
@@ -71,5 +74,18 @@ class StoreCatalogServiceImplTest {
         Spu card = (Spu) service.products(1, 20, null, null).getRecords().get(0);
 
         assertThat(card.getCoverImage()).isEqualTo("http://minio/cover.jpg");
+    }
+
+    @Test
+    void productsForwardPriceRangeAndSortToDatabasePageQuery() {
+        SpuMapper spuMapper = mock(SpuMapper.class);
+        when(spuMapper.selectStorePage(any(), any(), any(), any(), any(), any())).thenReturn(new Page<>(1, 20));
+        StoreCatalogServiceImpl service = new StoreCatalogServiceImpl(mock(CategoryMapper.class), spuMapper,
+                mock(SkuMapper.class), new ObjectMapper());
+
+        service.products(1, 20, null, "adapter", new BigDecimal("10.00"), new BigDecimal("20.00"), "priceAsc");
+
+        verify(spuMapper).selectStorePage(any(), isNull(), eq("adapter"), eq(new BigDecimal("10.00")),
+                eq(new BigDecimal("20.00")), eq("priceAsc"));
     }
 }
