@@ -35,7 +35,7 @@ async function loadHandoff() {
   if (!localStorage.getItem('member-token')) return
   try {
     const records = (await aiApi.mine({ page: 1, size: 10 })).data?.records || []
-    handoffTicket.value = records.find(ticket => ticket.status !== 2) || records[0] || null
+    if (!handoffTicket.value) handoffTicket.value = records.find(ticket => ticket.status !== 2) || records[0] || null
   } catch { /* 客服状态读取失败不影响 AI 对话 */ }
 }
 watch(open, value => { if (value) loadHandoff() })
