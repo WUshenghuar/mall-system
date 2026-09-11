@@ -41,6 +41,13 @@
         <a-form-item label="活动名称" required>
           <a-input v-model:value="form.activityName" placeholder="如 618年中大促" />
         </a-form-item>
+        <a-form-item label="活动类型" required>
+          <a-select v-model:value="form.activityType" placeholder="选择活动类型">
+            <a-select-option value="DISCOUNT">折扣活动</a-select-option>
+            <a-select-option value="FULL_REDUCTION">满减活动</a-select-option>
+            <a-select-option value="SECKILL">秒杀活动</a-select-option>
+          </a-select>
+        </a-form-item>
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="开始时间" required>
@@ -77,6 +84,7 @@ const editingId = ref(null)
 
 const form = reactive({
   activityName: '',
+  activityType: 'DISCOUNT',
   startTime: null,
   endTime: null,
   description: ''
@@ -105,6 +113,7 @@ function onPage(p) { pagination.value.current = p.current; fetchData() }
 
 function resetForm() {
   form.activityName = ''
+  form.activityType = 'DISCOUNT'
   form.startTime = null
   form.endTime = null
   form.description = ''
@@ -119,6 +128,7 @@ function openAdd() {
 function openEdit(r) {
   editingId.value = r.id
   form.activityName = r.activityName || ''
+  form.activityType = r.activityType || 'DISCOUNT'
   form.startTime = r.startTime ? dayjs(r.startTime) : null
   form.endTime = r.endTime ? dayjs(r.endTime) : null
   form.description = r.description || ''

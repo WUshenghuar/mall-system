@@ -9,6 +9,7 @@ import com.mall.marketing.mapper.ActivityMapper;
 import com.mall.marketing.service.ActivityService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -33,6 +34,7 @@ public class ActivityServiceImpl implements ActivityService {
 
     @Override
     public void save(Activity activity) {
+        if (!StringUtils.hasText(activity.getActivityType())) activity.setActivityType("DISCOUNT");
         activity.setStatus(0);
         activityMapper.insert(activity);
     }
