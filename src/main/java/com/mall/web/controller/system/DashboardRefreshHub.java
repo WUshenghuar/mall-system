@@ -35,8 +35,14 @@ public class DashboardRefreshHub {
             if (emitters.isEmpty()) stopRedisSubscription();
         };
         emitter.onCompletion(remove);
-        emitter.onTimeout(remove);
-        emitter.onError(error -> remove.run());
+        emitter.onTimeout(() -> {
+            remove.run();
+            emitter.complete();
+        });
+        emitter.onError(error -> {
+            remove.run();
+            emitter.complete();
+        });
         try {
             emitter.send(SseEmitter.event().name("ready").data("connected"));
         } catch (IOException | IllegalStateException e) {
