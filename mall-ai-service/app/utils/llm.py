@@ -18,7 +18,7 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
             yield business_context[index:index + 12]
         return
     if not settings.has_model:
-        domains = ("支付", "会员", "订单", "物流", "退款", "优惠券", "商品")
+        domains = ("支付", "会员", "订单", "物流", "退款", "优惠券", "商品", "税费", "币种")
         answers = context[:2] if sum(domain in message for domain in domains) > 1 else context[:1]
         answer = "\n".join(item["content"] for item in answers) if answers else local_agent.invoke({"message": message})["answer"]
         for index in range(0, len(answer), 12):

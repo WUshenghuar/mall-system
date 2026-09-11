@@ -18,6 +18,8 @@ import com.mall.product.entity.Spu;
 import com.mall.product.service.StoreCatalogService;
 import com.mall.marketing.entity.MemberCouponVO;
 import com.mall.marketing.service.CouponService;
+import com.mall.member.entity.Member;
+import com.mall.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -38,6 +40,7 @@ public class AiChatServiceImpl implements AiChatService {
     private final TradeRefundService tradeRefundService;
     private final StoreCatalogService storeCatalogService;
     private final CouponService couponService;
+    private final MemberService memberService;
 
     @Override
     public void stream(Long memberId, String conversationId, AiChatRequest request, Consumer<String> eventConsumer) {
@@ -58,6 +61,8 @@ public class AiChatServiceImpl implements AiChatService {
         if (context.isBlank()) return "";
         if (message.contains("物流") || message.contains("快递") || message.contains("运单")) return "query_logistics";
         if (message.contains("退款") || message.contains("售后")) return "query_refund";
+        if (message.contains("会员") || message.contains("积分") || message.contains("等级") || message.contains("成长")) return "query_member";
+        if (message.contains("税费") || message.contains("关税") || message.contains("币种")) return "query_tax";
         if (message.contains("商品") || message.contains("产品") || message.contains("推荐") || message.contains("找")) return "query_product";
         if (message.contains("优惠券") || message.contains("券包")) return "query_coupon";
         return "query_order";
@@ -79,6 +84,11 @@ public class AiChatServiceImpl implements AiChatService {
                         .filter(item -> orderNo.equals(item.getOrderNo())).findFirst().orElse(null);
                 return refund == null ? "订单" + orderNo + "当前没有退款申请，订单状态：" + orderStatus(order.getOrderStatus()) + "。"
                         : "订单" + orderNo + "的退款状态：" + refundStatus(refund.getRefundStatus()) + "。";
+            }
+            if (message.contains("税费") || message.contains("关税") || message.contains("币种")) {
+                return "订单" + orderNo + "币种：" + (order.getCurrency() == null ? "USD" : order.getCurrency())
+                        + "，税费：" + (order.getTaxAmount() == null ? "0.00" : order.getTaxAmount())
+                        + "，实付金额：" + order.getPayAmount() + "。";
             }
             return "订单" + orderNo + "当前状态：" + orderStatus(order.getOrderStatus()) + "，实付金额：" + order.getPayAmount() + "。";
         } catch (BusinessException ignored) {
@@ -103,6 +113,12 @@ public class AiChatServiceImpl implements AiChatService {
                     : "你目前有以下可用优惠券：\n" + coupons.stream()
                     .map(item -> item.getCouponName() + "（减" + item.getDiscount() + "）")
                     .collect(java.util.stream.Collectors.joining("\n"));
+        }
+        if (message.contains("会员") || message.contains("积分") || message.contains("等级") || message.contains("成长")) {
+            Member member = memberService.getById(memberId);
+            if (member == null) return "暂未查询到你的会员资料。";
+            return "你的会员等级：" + levelName(member.getLevel()) + "，积分：" + (member.getPoints() == null ? 0 : member.getPoints())
+                    + "，累计消费：" + (member.getTotalAmount() == null ? "0.00" : member.getTotalAmount()) + "。";
         }
         if (message.contains("退款") || message.contains("售后")) {
             if (!(message.contains("我的") || message.contains("查询") || message.contains("进度") || message.contains("状态") || message.contains("申请"))) return "";
@@ -131,7 +147,11 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     private String refundStatus(Integer status) {
-        return switch (status == null ? -1 : status) { case 0 -> "待审批"; case 1 -> "已通过"; case 2 -> "已驳回"; case 3 -> "已退款"; default -> "处理中"; };
+        return switch (status == null ? -1 : status) { case 0 -> "待审批"; case 1 -> "已通过"; case 2 -> "已驳回"; case 3 -> "已退款"; case 4 -> "待平台收货"; default -> "处理中"; };
+    }
+
+    private String levelName(Integer level) {
+        return switch (level == null ? 0 : level) { case 1 -> "Gold 会员"; case 2 -> "Platinum 会员"; default -> "基础会员"; };
     }
 
     private String readText(String event) {

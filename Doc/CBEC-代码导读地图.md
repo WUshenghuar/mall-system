@@ -114,7 +114,7 @@
 | 1 | `ai/controller/AiChatController` | 复用会员 JWT，建立 Java SSE 出口 | 业务鉴权不交给模型 |
 | 2 | `ai/service/impl/AiChatServiceImpl` | 保存会话并路由订单/物流/退款/商品只读查询 | 资源归属校验、工具白名单 |
 | 3 | `ai/service/AiGatewayClient` | Java 23 兼容地转发 Python SSE | 跨语言边界、超时和错误映射 |
-| 4 | `mall-ai-service/app/api/chat.py` | 校验内部令牌并输出 `thinking/tool_call/sources/text/done` | SSE 事件协议、可观测依据 |
+| 4 | `mall-ai-service/app/api/chat.py` | 校验内部令牌并输出 `thinking/tool_call/sources/text/done` | SSE 事件协议、订单/会员/税费只读来源 |
 | 5 | `mall-ai-service/app/rag/retriever.py` | ES BM25 检索平台规则，失败时回退本地 Agent | RAG 降级和来源展示 |
 | 6 | `mall-storefront/src/components/CustomerServiceWidget.vue` | C 端聊天浮窗、快捷问题、来源和转人工入口 | 44px 触控区、登录边界 |
 | 7 | `ai/controller/AiSupportTicketController` + `AiSupportTicketServiceImpl` | 平台客服工单创建、认领、解决 | 状态条件更新、会员/客服权限分离 |

@@ -14,6 +14,8 @@ import com.mall.product.service.StoreCatalogService;
 import com.mall.product.entity.Spu;
 import com.mall.marketing.entity.MemberCouponVO;
 import com.mall.marketing.service.CouponService;
+import com.mall.member.entity.Member;
+import com.mall.member.service.MemberService;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -49,7 +51,7 @@ class AiChatServiceImplTest {
         request.setMessage("你好");
         List<String> events = new ArrayList<>();
 
-        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orderService, logisticsService, refundService, mock(StoreCatalogService.class), mock(CouponService.class))
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orderService, logisticsService, refundService, mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class))
                 .stream(9L, "session-1", request, events::add);
 
         verify(mapper, org.mockito.Mockito.times(2)).insert(any(AiConversation.class));
@@ -66,7 +68,7 @@ class AiChatServiceImplTest {
         when(orderService.getOwnedByOrderNo("T202609071234567890", 9L)).thenReturn(order);
         AiChatRequest request = new AiChatRequest(); request.setMessage("查询订单 T202609071234567890");
 
-        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orderService, mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class), mock(CouponService.class))
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orderService, mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class))
                 .stream(9L, "session-1", request, ignored -> { });
 
         verify(gateway).stream(anyLong(), anyString(), anyString(), eq("订单T202609071234567890当前状态：待收货，实付金额：19.90。"), eq("query_order"), any(), any());
@@ -85,7 +87,7 @@ class AiChatServiceImplTest {
         when(page.getRecords()).thenReturn(List.of(order));
         AiChatRequest request = new AiChatRequest(); request.setMessage("查询我的订单");
 
-        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orderService, mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class), mock(CouponService.class))
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orderService, mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class))
                 .stream(9L, "session-1", request, ignored -> { });
 
         verify(gateway).stream(anyLong(), anyString(), anyString(), eq("你最近的订单：\n订单T202609071234567890：待发货，实付金额：19.90"), eq("query_order"), any(), any());
@@ -104,7 +106,7 @@ class AiChatServiceImplTest {
         AiChatRequest request = new AiChatRequest(); request.setMessage("查询耳机商品");
 
         new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
-                mock(LogisticsService.class), mock(TradeRefundService.class), catalog, mock(CouponService.class))
+                mock(LogisticsService.class), mock(TradeRefundService.class), catalog, mock(CouponService.class), mock(MemberService.class))
                 .stream(9L, "session-1", request, ignored -> { });
 
         verify(gateway).stream(anyLong(), anyString(), anyString(), eq("为你找到的上架商品：\n跨境耳机"), eq("query_product"), any(), any());
@@ -118,7 +120,7 @@ class AiChatServiceImplTest {
         AiChatRequest request = new AiChatRequest(); request.setMessage("退款规则是什么");
 
         new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
-                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class), mock(CouponService.class))
+                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class))
                 .stream(9L, "session-1", request, ignored -> { });
 
         verify(gateway).stream(anyLong(), anyString(), anyString(), eq(""), eq(""), any(), any());
@@ -136,9 +138,32 @@ class AiChatServiceImplTest {
         AiChatRequest request = new AiChatRequest(); request.setMessage("我的优惠券有哪些");
 
         new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
-                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class), coupons)
+                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class), coupons, mock(MemberService.class))
                 .stream(9L, "session-1", request, ignored -> { });
 
         verify(gateway).stream(anyLong(), anyString(), anyString(), eq("你目前有以下可用优惠券：\n满100减20（减20）"), eq("query_coupon"), any(), any());
+    }
+
+    @Test
+    void streamQueriesOwnedMemberLevelAndPoints() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        MemberService memberService = mock(MemberService.class);
+        Member member = new Member(); member.setLevel(1); member.setPoints(88); member.setTotalAmount(new java.math.BigDecimal("1200.00"));
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(memberService.getById(9L)).thenReturn(member);
+        when(memberService.listPointsLogs(9L)).thenReturn(List.of());
+
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
+                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class),
+                mock(CouponService.class), memberService)
+                .stream(9L, "session-1", newRequest("我的会员等级和积分"), ignored -> { });
+
+        verify(gateway).stream(anyLong(), anyString(), anyString(),
+                eq("你的会员等级：Gold 会员，积分：88，累计消费：1200.00。"), eq("query_member"), any(), any());
+    }
+
+    private AiChatRequest newRequest(String message) {
+        AiChatRequest request = new AiChatRequest(); request.setMessage(message); return request;
     }
 }

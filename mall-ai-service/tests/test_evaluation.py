@@ -34,3 +34,8 @@ def test_business_tool_schema_rejects_unknown_tool():
     except ValidationError:
         return
     raise AssertionError("unknown business tool was accepted")
+
+
+def test_business_tool_schema_accepts_member_and_tax_lookup():
+    assert ChatRequest(memberId=9, conversationId="s", message="查询会员积分", businessTool="query_member").businessTool == "query_member"
+    assert ChatRequest(memberId=9, conversationId="s", message="查询税费", businessTool="query_tax").businessTool == "query_tax"

@@ -12,6 +12,16 @@ from app.utils.llm import stream_reply
 
 router = APIRouter()
 
+BUSINESS_SOURCES = {
+    "query_order": ("订单只读查询", "business"),
+    "query_logistics": ("物流只读查询", "logistics"),
+    "query_refund": ("售后只读查询", "after_sales"),
+    "query_product": ("商品目录查询", "product"),
+    "query_coupon": ("优惠券查询", "marketing"),
+    "query_member": ("会员资料查询", "member"),
+    "query_tax": ("税费与币种查询", "finance"),
+}
+
 
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
@@ -23,7 +33,7 @@ class ChatRequest(BaseModel):
     conversationId: str = Field(min_length=1, max_length=64)
     message: str = Field(min_length=1, max_length=1000)
     businessContext: str = Field(default="", max_length=1000)
-    businessTool: Literal["", "query_order", "query_logistics", "query_refund", "query_product", "query_coupon"] = ""
+    businessTool: Literal["", "query_order", "query_logistics", "query_refund", "query_product", "query_coupon", "query_member", "query_tax"] = ""
     history: list[ChatMessage] = Field(default_factory=list)
 
 
@@ -43,7 +53,8 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
             context = []
             if request.businessContext:
                 yield sse({"type": "tool_call", "name": request.businessTool or "read_only_business_lookup", "status": "completed"})
-                yield sse({"type": "sources", "items": [{"title": "订单只读查询", "category": "business"}]})
+                title, category = BUSINESS_SOURCES.get(request.businessTool, ("业务只读查询", "business"))
+                yield sse({"type": "sources", "items": [{"title": title, "category": category}]})
             else:
                 context = await retrieve(request.message)
             if context:
