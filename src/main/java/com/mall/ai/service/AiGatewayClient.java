@@ -27,13 +27,13 @@ public class AiGatewayClient {
     @Value("${ai.service.base-url:http://localhost:8101}") private String baseUrl;
     @Value("${ai.service.token:change-me-local-only}") private String serviceToken;
 
-    public void stream(Long memberId, String conversationId, String message, String businessContext, List<AiConversation> history,
+    public void stream(Long memberId, String conversationId, String message, String businessContext, String businessTool, List<AiConversation> history,
                        Consumer<String> eventConsumer) {
         try {
             List<Map<String, String>> messages = history.stream()
                     .map(item -> Map.of("role", item.getRole(), "content", item.getContent())).toList();
             String body = objectMapper.writeValueAsString(Map.of("memberId", memberId, "conversationId", conversationId,
-                    "message", message, "businessContext", businessContext, "history", messages));
+                    "message", message, "businessContext", businessContext, "businessTool", businessTool, "history", messages));
             HttpURLConnection connection = (HttpURLConnection) URI.create(baseUrl + "/internal/chat").toURL().openConnection();
             connection.setRequestMethod("POST");
             connection.setConnectTimeout((int) Duration.ofSeconds(10).toMillis());

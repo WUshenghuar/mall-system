@@ -9,7 +9,7 @@
         </nav>
         <div ref="messageList" class="service-messages" aria-live="polite">
           <p v-if="!messages.length" class="service-welcome">你好，我可以帮你了解商品、订单、物流、退款进度、优惠券和会员服务。</p>
-          <div v-for="(item, index) in messages" :key="index" class="service-turn" :class="item.role"><p class="service-message">{{ item.content || '正在思考…' }}</p><small v-if="item.sources?.length" class="service-sources">依据：{{ item.sources.map(source => source.title).join('、') }}</small></div>
+          <div v-for="(item, index) in messages" :key="index" class="service-turn" :class="item.role"><p class="service-message">{{ item.content || '正在思考…' }}</p><small v-if="item.tool" class="service-sources">已执行：{{ toolLabel(item.tool) }}（只读）</small><small v-if="item.sources?.length" class="service-sources">依据：{{ item.sources.map(source => source.title).join('、') }}</small></div>
         </div>
         <form class="service-form" @submit.prevent="send"><van-field v-model="draft" aria-label="客服问题" placeholder="输入你的问题" maxlength="1000" :disabled="sending"/><van-button native-type="submit" type="primary" :loading="sending" :disabled="!draft.trim()">发送</van-button></form>
       </section>
@@ -23,6 +23,7 @@ import { showToast } from 'vant'
 import { aiApi } from '../api'
 const router = useRouter(), open = ref(false), draft = ref(''), sending = ref(false), messages = ref([]), conversationId = ref(''), messageList = ref(null)
 const quickQuestions = ['怎么查我的订单？', '退款规则是什么？', '物流在哪里看？', '优惠券怎么领？']
+const toolLabel = tool => ({ query_order: '订单查询', query_logistics: '物流查询', query_refund: '退款查询', query_product: '商品查询', query_coupon: '优惠券查询' }[tool] || '业务查询')
 function askQuickQuestion(question) { draft.value = question; send() }
 async function scrollToBottom() { await nextTick(); messageList.value?.scrollTo({ top: messageList.value.scrollHeight, behavior: 'smooth' }) }
 async function send() {
@@ -36,6 +37,7 @@ async function send() {
       if (event.type === 'meta') conversationId.value = event.conversationId
       if (event.type === 'text') assistant.content += event.content
       if (event.type === 'error') assistant.content = event.message
+      if (event.type === 'tool_call') assistant.tool = event.name
       if (event.type === 'sources') assistant.sources = event.items
       scrollToBottom()
     })

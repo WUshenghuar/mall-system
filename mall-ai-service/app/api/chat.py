@@ -22,6 +22,7 @@ class ChatRequest(BaseModel):
     conversationId: str = Field(min_length=1, max_length=64)
     message: str = Field(min_length=1, max_length=1000)
     businessContext: str = Field(default="", max_length=1000)
+    businessTool: str = Field(default="", max_length=32)
     history: list[ChatMessage] = Field(default_factory=list)
 
 
@@ -40,6 +41,7 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
             history = [item.model_dump() for item in request.history]
             context = []
             if request.businessContext:
+                yield sse({"type": "tool_call", "name": request.businessTool or "read_only_business_lookup", "status": "completed"})
                 yield sse({"type": "sources", "items": [{"title": "订单只读查询", "category": "business"}]})
             else:
                 context = await retrieve(request.message)

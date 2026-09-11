@@ -14,6 +14,10 @@ import com.mall.trade.entity.TradeRefund;
 import com.mall.trade.service.LogisticsService;
 import com.mall.trade.service.TradeOrderService;
 import com.mall.trade.service.TradeRefundService;
+import com.mall.product.entity.Spu;
+import com.mall.product.service.StoreCatalogService;
+import com.mall.marketing.entity.MemberCouponVO;
+import com.mall.marketing.service.CouponService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -32,6 +36,8 @@ public class AiChatServiceImpl implements AiChatService {
     private final TradeOrderService tradeOrderService;
     private final LogisticsService logisticsService;
     private final TradeRefundService tradeRefundService;
+    private final StoreCatalogService storeCatalogService;
+    private final CouponService couponService;
 
     @Override
     public void stream(Long memberId, String conversationId, AiChatRequest request, Consumer<String> eventConsumer) {
@@ -39,16 +45,27 @@ public class AiChatServiceImpl implements AiChatService {
         List<AiConversation> history = conversationMapper.selectRecent(memberId, conversationId, 10);
         StringBuilder answer = new StringBuilder();
         long start = System.currentTimeMillis();
-        gatewayClient.stream(memberId, conversationId, request.getMessage(), businessContext(memberId, request.getMessage()), history, event -> {
+        String businessContext = businessContext(memberId, request.getMessage());
+        gatewayClient.stream(memberId, conversationId, request.getMessage(), businessContext,
+                businessTool(request.getMessage(), businessContext), history, event -> {
             answer.append(readText(event));
             eventConsumer.accept(event);
         });
         save(memberId, conversationId, "assistant", answer.toString(), 0, (int) (System.currentTimeMillis() - start));
     }
 
+    private String businessTool(String message, String context) {
+        if (context.isBlank()) return "";
+        if (message.contains("物流") || message.contains("快递") || message.contains("运单")) return "query_logistics";
+        if (message.contains("退款") || message.contains("售后")) return "query_refund";
+        if (message.contains("商品") || message.contains("产品") || message.contains("推荐") || message.contains("找")) return "query_product";
+        if (message.contains("优惠券") || message.contains("券包")) return "query_coupon";
+        return "query_order";
+    }
+
     private String businessContext(Long memberId, String message) {
         Matcher matcher = ORDER_NO.matcher(message);
-        if (!matcher.find()) return "";
+        if (!matcher.find()) return recentContext(memberId, message);
         String orderNo = matcher.group();
         try {
             TradeOrder order = tradeOrderService.getOwnedByOrderNo(orderNo, memberId);
@@ -67,6 +84,46 @@ public class AiChatServiceImpl implements AiChatService {
         } catch (BusinessException ignored) {
             return "未查询到你名下的该订单，请核对订单号。";
         }
+    }
+
+    private String recentContext(Long memberId, String message) {
+        if (message.contains("商品") || message.contains("产品") || message.contains("推荐") || message.contains("找")) {
+            String keyword = message.replace("查询", "").replace("推荐", "").replace("商品", "")
+                    .replace("产品", "").replace("有哪些", "").replace("有什么", "").trim();
+            List<Spu> products = storeCatalogService.products(1, 3, null, keyword.isBlank() ? null : keyword)
+                    .getRecords().stream().filter(Spu.class::isInstance).map(Spu.class::cast).toList();
+            return products.isEmpty() ? "暂时没有找到匹配的上架商品。"
+                    : "为你找到的上架商品：\n" + products.stream().map(Spu::getSpuName)
+                    .collect(java.util.stream.Collectors.joining("\n"));
+        }
+        if (message.contains("我的优惠券") || message.contains("可用优惠券") || message.contains("优惠券有哪些") || message.contains("券包")) {
+            List<MemberCouponVO> coupons = couponService.listMemberCoupons(memberId).stream()
+                    .filter(item -> Integer.valueOf(0).equals(item.getStatus())).toList();
+            return coupons.isEmpty() ? "你目前没有可用优惠券。"
+                    : "你目前有以下可用优惠券：\n" + coupons.stream()
+                    .map(item -> item.getCouponName() + "（减" + item.getDiscount() + "）")
+                    .collect(java.util.stream.Collectors.joining("\n"));
+        }
+        if (message.contains("退款") || message.contains("售后")) {
+            if (!(message.contains("我的") || message.contains("查询") || message.contains("进度") || message.contains("状态") || message.contains("申请"))) return "";
+            List<TradeRefund> refunds = tradeRefundService.selectMemberPage(memberId, 1, 3).getRecords();
+            if (refunds.isEmpty()) return "你目前没有退款申请。";
+            return "你最近的退款申请：\n" + refunds.stream()
+                    .map(item -> "订单" + item.getOrderNo() + "：" + refundStatus(item.getRefundStatus()))
+                    .collect(java.util.stream.Collectors.joining("\n"));
+        }
+        if (!(message.contains("我的订单") || message.contains("查订单") || message.contains("订单状态") || message.contains("订单号"))) return "";
+        List<TradeOrder> orders = tradeOrderService.selectPage(1, 3, memberId, null).getRecords();
+        if (orders.isEmpty()) return "你目前还没有订单。";
+        if (message.contains("物流") || message.contains("快递") || message.contains("运单")) {
+            TradeOrder order = orders.get(0);
+            TradeLogistics logistics = logisticsService.getByOrderNo(order.getOrderNo());
+            return logistics == null ? "你最近的订单是" + order.getOrderNo() + "，当前暂无物流信息。"
+                    : "你最近的订单" + order.getOrderNo() + "的物流：" + logistics.getLogisticsCompany() + "，运单号：" + logistics.getLogisticsNo() + "。";
+        }
+        return "你最近的订单：\n" + orders.stream()
+                .map(order -> "订单" + order.getOrderNo() + "：" + orderStatus(order.getOrderStatus()) + "，实付金额：" + order.getPayAmount())
+                .collect(java.util.stream.Collectors.joining("\n"));
     }
 
     private String orderStatus(Integer status) {
