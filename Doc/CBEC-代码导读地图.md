@@ -116,7 +116,8 @@
 | 3 | `ai/service/AiGatewayClient` | Java 23 兼容地转发 Python SSE | 跨语言边界、超时和错误映射 |
 | 4 | `mall-ai-service/app/api/chat.py` | 校验内部令牌并输出 `thinking/tool_call/sources/text/done` | SSE 事件协议、可观测依据 |
 | 5 | `mall-ai-service/app/rag/retriever.py` | ES BM25 检索平台规则，失败时回退本地 Agent | RAG 降级和来源展示 |
-| 6 | `mall-storefront/src/components/CustomerServiceWidget.vue` | C 端聊天浮窗、快捷问题和来源展示 | 44px 触控区、登录边界 |
+| 6 | `mall-storefront/src/components/CustomerServiceWidget.vue` | C 端聊天浮窗、快捷问题、来源和转人工入口 | 44px 触控区、登录边界 |
+| 7 | `ai/controller/AiSupportTicketController` + `AiSupportTicketServiceImpl` | 平台客服工单创建、认领、解决 | 状态条件更新、会员/客服权限分离 |
 
 ---
 

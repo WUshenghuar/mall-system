@@ -62,6 +62,7 @@
               <template #title>订单管理</template>
               <a-menu-item key="/order/list">订单列表</a-menu-item>
               <a-menu-item key="/order/refund">退款处理</a-menu-item>
+              <a-menu-item key="/order/support">平台客服工单</a-menu-item>
             </a-sub-menu>
 
             <a-menu-item key="/member" class="menu-item-stagger">

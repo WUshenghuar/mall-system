@@ -53,7 +53,8 @@ export const aiApi = {
       }
       if (done) break
     }
-  }
+  },
+  handoff: data => request.post('/ai/tickets', data)
 }
 export const memberApi = {
   login: data => request.post('/member/auth/login', data),

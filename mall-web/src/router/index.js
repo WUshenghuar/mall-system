@@ -73,6 +73,12 @@ const routes = [
             name: 'OrderRefund',
             component: () => import('@/views/order/refund.vue'),
             meta: { title: '退款处理', module: '订单', perm: 'order', depth: 2 }
+          },
+          {
+            path: 'support',
+            name: 'OrderSupport',
+            component: () => import('@/views/order/support.vue'),
+            meta: { title: '平台客服工单', module: '订单', perm: 'order', depth: 2 }
           }
         ]
       },
