@@ -1232,7 +1232,7 @@ INSERT IGNORE INTO member_account (member_id,phone,password_hash,status,create_t
 (940097,'13900000097','$2b$10$82JZzGTps2Ug1jFfmkHb/uE5VRkRcUvbAfCCJngdHgSCxD2rBYf26',1,'2026-09-04 00:00:00','2026-09-04 00:00:00'),
 (940098,'13900000098','$2b$10$82JZzGTps2Ug1jFfmkHb/uE5VRkRcUvbAfCCJngdHgSCxD2rBYf26',1,'2026-09-04 00:00:00','2026-09-04 00:00:00'),
 (940099,'13900000099','$2b$10$82JZzGTps2Ug1jFfmkHb/uE5VRkRcUvbAfCCJngdHgSCxD2rBYf26',1,'2026-09-04 00:00:00','2026-09-04 00:00:00'),
-(940100,'13900000100','$2b$10$82JZzGTps2Ug1jFfmkHb/uE5VRkRcUvbAfCCJngdHgSCxD2rBYf26',1,'2026-09-04 00:00:00','2026-09-04 00:00:00');
+(940100,'13900000100','$2b$10$82JZzGTps2Ug1jFfmkHb/uE5VRkRcUvbAfCCJngdHgSCxD2rBYf26',1,'2026-09-04 00:00:00','2026-09-04 00:00:00') ON DUPLICATE KEY UPDATE password_hash=VALUES(password_hash), status=VALUES(status), update_time=VALUES(update_time);
 
 INSERT IGNORE INTO member_address (id,user_id,receiver_name,receiver_phone,province,city,district,detail_address,is_default,create_time,update_time) VALUES
 (960001,940001,'测试会员-001','13900000001','测试省','测试市','测试区','开发路-1号',1,'2026-09-04 00:00:00','2026-09-04 00:00:00'),
