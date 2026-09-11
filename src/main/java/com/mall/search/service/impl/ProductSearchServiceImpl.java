@@ -50,8 +50,12 @@ public class ProductSearchServiceImpl implements ProductSearchService {
     public void createIndex() {
         try {
             if (indexExists()) {
-                log.info("Index {} already exists", INDEX_NAME);
-                return;
+                if (!usesUnsupportedAnalyzer()) {
+                    log.info("Index {} already exists", INDEX_NAME);
+                    return;
+                }
+                log.warn("Rebuilding {} because its mapping uses unavailable analyzer", INDEX_NAME);
+                request("DELETE", "/" + INDEX_NAME, null);
             }
             request("PUT", "/" + INDEX_NAME, indexMapping());
             log.info("Index created: {}", INDEX_NAME);
@@ -200,11 +204,20 @@ public class ProductSearchServiceImpl implements ProductSearchService {
 
     private Map<String, Object> indexMapping() {
         return Map.of("mappings", Map.of("properties", Map.of(
-                "spuId", Map.of("type", "long"), "spuName", Map.of("type", "text", "analyzer", "ik_smart"),
+                "spuId", Map.of("type", "long"), "spuName", Map.of("type", "text", "analyzer", "standard"),
                 "categoryId", Map.of("type", "long"), "categoryPath", Map.of("type", "keyword"),
                 "brand", Map.of("type", "keyword"), "minPrice", Map.of("type", "double"),
                 "currency", Map.of("type", "keyword"), "salesCount", Map.of("type", "long"),
                 "rating", Map.of("type", "double"), "status", Map.of("type", "byte"))));
+    }
+
+    private boolean usesUnsupportedAnalyzer() {
+        try {
+            return objectMapper.writeValueAsString(request("GET", "/" + INDEX_NAME + "/_mapping", null))
+                    .contains("\"ik_smart\"");
+        } catch (IOException e) {
+            return true;
+        }
     }
 
     private Map<String, Object> searchRequest(String keyword, Long categoryId, Double minPrice, Double maxPrice,
