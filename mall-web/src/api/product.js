@@ -58,6 +58,11 @@ export function getSkuList(spuId) {
 export function createSku(data) {
   return request.post('/product/sku', data)
 }
+export function uploadProductImage(file) {
+  const form = new FormData()
+  form.append('file', file)
+  return request.post('/file/product-image', form)
+}
 export function updateSku(id, data) {
   return request.put(`/product/sku/${id}`, data)
 }

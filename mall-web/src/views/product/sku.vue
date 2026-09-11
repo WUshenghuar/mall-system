@@ -85,6 +85,16 @@
         <a-form-item label="规格属性">
           <a-input v-model:value="form.specs" placeholder='如 {"颜色":"黑色","尺寸":"M"}' />
         </a-form-item>
+        <a-form-item label="商品图片">
+          <div class="sku-image-field">
+            <img v-if="imagePreview" :src="imagePreview" alt="SKU 商品预览" class="sku-image-preview" />
+            <div class="sku-image-actions">
+              <a-button :loading="uploading" @click="openImagePicker">上传图片</a-button>
+              <span class="sku-image-hint">{{ form.images ? '已选择图片' : '支持 JPG、PNG，最大 5MB' }}</span>
+            </div>
+            <input ref="imageInput" class="sku-file-input" type="file" accept="image/*" @change="handleImageSelected" />
+          </div>
+        </a-form-item>
       </a-form>
     </a-modal>
 
@@ -128,14 +138,17 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { getSkuList, createSku, updateSku, deleteSku, batchSkuPrice, updateSkuStock } from '@/api/product'
+import { getSkuList, createSku, updateSku, deleteSku, batchSkuPrice, updateSkuStock, uploadProductImage } from '@/api/product'
 
 const route = useRoute()
 const spuId = route.params.spuId
 
 const loading = ref(false)
 const saving = ref(false)
+const uploading = ref(false)
 const list = ref([])
+const imageInput = ref(null)
+const imagePreview = ref('')
 const modalOpen = ref(false)
 const editingId = ref(null)
 
@@ -153,7 +166,8 @@ const form = reactive({
   currency: 'USD',
   weight: null,
   status: 1,
-  specs: ''
+  specs: '',
+  images: ''
 })
 
 const stockModalOpen = ref(false)
@@ -193,6 +207,8 @@ function resetForm() {
   form.weight = null
   form.status = 1
   form.specs = ''
+  form.images = ''
+  imagePreview.value = ''
   editingId.value = null
 }
 
@@ -208,8 +224,38 @@ function openEdit(r) {
   form.currency = r.currency || 'USD'
   form.weight = r.weight ?? null
   form.status = r.status ?? 1
-  form.specs = r.specs || ''
+  form.specs = r.attrs || r.specs || ''
+  form.images = r.images || ''
+  imagePreview.value = r.imageUrl || ''
   modalOpen.value = true
+}
+
+function openImagePicker() {
+  imageInput.value?.click()
+}
+
+async function handleImageSelected(event) {
+  const file = event.target.files?.[0]
+  event.target.value = ''
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    message.warning('请选择图片文件')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    message.warning('图片不能超过 5MB')
+    return
+  }
+  uploading.value = true
+  try {
+    const res = await uploadProductImage(file)
+    form.images = JSON.stringify([res.data.path])
+    imagePreview.value = res.data.url
+    message.success('图片上传成功')
+  } catch { /* handled by interceptor */
+  } finally {
+    uploading.value = false
+  }
 }
 
 async function handleSave() {
@@ -226,7 +272,8 @@ async function handleSave() {
       currency: form.currency,
       weight: form.weight,
       status: form.status,
-      specs: form.specs || undefined
+      attrs: form.specs || undefined,
+      images: form.images || undefined
     }
     if (editingId.value) {
       await updateSku(editingId.value, payload)
@@ -290,3 +337,37 @@ async function handleDelete(id) {
 
 onMounted(fetchData)
 </script>
+<style scoped>
+.sku-image-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sku-image-preview {
+  width: 72px;
+  height: 72px;
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.sku-image-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sku-image-hint {
+  color: var(--color-slate-light, #64748b);
+  font-size: 12px;
+}
+
+.sku-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+</style>
