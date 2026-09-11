@@ -64,6 +64,7 @@ export const memberApi = {
   login: data => request.post('/member/auth/login', data),
   register: data => request.post('/member/auth/register', data),
   profile: () => request.get('/member/auth/profile'),
+  pointsLogs: () => request.get('/member/auth/points/log'),
   addresses: () => request.get('/member/address'),
   addAddress: data => request.post('/member/address', data),
   updateAddress: (id, data) => request.put(`/member/address/${id}`, data),

@@ -13,6 +13,9 @@
     <template v-else>
       <div class="member-summary"><span class="member-avatar">{{ profile?.nickName?.slice(0, 1) || '会' }}</span><div><p class="eyebrow">MEMBER CENTER</p><h1>{{ profile?.nickName }}</h1><p>{{ profile?.phone }}</p></div><van-button size="small" plain @click="logout">退出登录</van-button></div>
       <section class="member-benefits"><div><span>会员等级</span><strong>{{ levelName(profile?.level) }}</strong></div><div><span>可用积分</span><strong>{{ profile?.points || 0 }}</strong></div><div><span>累计消费</span><strong>{{ profile?.totalAmount || 0 }}</strong></div></section>
+      <div class="section-heading"><h2>积分明细</h2><span class="note">最近 20 条</span></div>
+      <van-cell-group v-if="pointsLogs.length" inset><van-cell v-for="log in pointsLogs" :key="log.id" :title="log.reason || '积分变更'" :label="formatTime(log.createTime)" :value="`${log.points > 0 ? '+' : ''}${log.points}`" /></van-cell-group>
+      <van-empty v-else image="search" description="暂无积分变更记录" />
       <div class="section-heading"><h2>我的优惠券</h2><van-button size="small" plain type="primary" @click="router.push('/promotions')">去领券</van-button></div>
       <div v-for="coupon in coupons" :key="coupon.issueId" class="member-coupon"><div><b>{{ coupon.couponName }}</b><p>{{ couponText(coupon) }} · 有效至 {{ formatTime(coupon.validEnd) }}</p></div><van-tag :type="coupon.status === 0 ? 'success' : 'default'">{{ coupon.status === 0 ? '待使用' : coupon.status === 1 ? '已使用' : '已过期' }}</van-tag></div>
       <van-empty v-if="!coupons.length" image="search" description="还没有优惠券，去活动页领取吧" />
@@ -31,14 +34,14 @@ import { marketingApi, memberApi } from '../api'
 import { useRoute, useRouter } from 'vue-router'
 const phone = ref(''), password = ref(''), nickName = ref(''), authMode = ref('login'), submitting = ref(false)
 const route = useRoute(), router = useRouter()
-const logged = ref(!!localStorage.getItem('member-token')), profile = ref(null), addresses = ref([]), favorites = ref([]), history = ref([]), coupons = ref([])
+const logged = ref(!!localStorage.getItem('member-token')), profile = ref(null), addresses = ref([]), favorites = ref([]), history = ref([]), coupons = ref([]), pointsLogs = ref([])
 const address = reactive({ receiverName: '', receiverPhone: '', province: '', city: '', district: '', detailAddress: '' })
 const editingAddressId = ref(null), showAddressForm = ref(false), savingAddress = ref(false)
 function validCredentials(requireNickName = false) { if (!/^1\d{10}$/.test(phone.value)) { showToast('请输入正确的 11 位手机号'); return false } if (!password.value) { showToast('请输入密码'); return false } if (requireNickName && !nickName.value.trim()) { showToast('请输入昵称'); return false } return true }
 const levelName = level => ['基础会员', 'Gold 会员', 'Platinum 会员'][level] || '基础会员'
 const couponText = coupon => coupon.couponType === 'DISCOUNT' ? `${coupon.discount} 折优惠` : `满 ${coupon.threshold || 0} 减 ${coupon.discount}`
 const formatTime = value => value?.replace('T', ' ').slice(0, 10) || '--'
-async function load() { if (!logged.value) return; try { const [profileRes, addressRes, favoriteRes, historyRes, couponRes] = await Promise.all([memberApi.profile(), memberApi.addresses(), memberApi.favorites(), memberApi.browseHistory(), marketingApi.memberCoupons()]); profile.value = profileRes.data; addresses.value = addressRes.data || []; favorites.value = favoriteRes.data.records || []; history.value = historyRes.data.records || []; coupons.value = couponRes.data || [] } catch (e) { showToast(e) } }
+async function load() { if (!logged.value) return; try { const [profileRes, pointsRes, addressRes, favoriteRes, historyRes, couponRes] = await Promise.all([memberApi.profile(), memberApi.pointsLogs(), memberApi.addresses(), memberApi.favorites(), memberApi.browseHistory(), marketingApi.memberCoupons()]); profile.value = profileRes.data; pointsLogs.value = pointsRes.data || []; addresses.value = addressRes.data || []; favorites.value = favoriteRes.data.records || []; history.value = historyRes.data.records || []; coupons.value = couponRes.data || [] } catch (e) { showToast(e) } }
 async function login() { if (!validCredentials()) return; submitting.value = true; try { const r = await memberApi.login({ phone: phone.value, password: password.value }); localStorage.setItem('member-token', r.data.token); logged.value = true; await load(); router.replace(typeof route.query.redirect === 'string' ? route.query.redirect : '/') } catch (e) { showToast(e) } finally { submitting.value = false } }
 async function register() { if (!validCredentials(true)) return; submitting.value = true; try { await memberApi.register({ phone: phone.value, password: password.value, nickName: nickName.value.trim() }); authMode.value = 'login'; password.value = ''; showToast('注册成功，请登录') } catch (e) { showToast(e) } finally { submitting.value = false } }
 function resetAddress() { Object.keys(address).forEach(k => address[k] = '') }
@@ -49,6 +52,6 @@ function cancelAddressEdit() { showAddressForm.value = false; editingAddressId.v
 async function saveAddress() { if (!validAddress()) return; savingAddress.value = true; try { const payload = { ...address }; if (editingAddressId.value) { await memberApi.updateAddress(editingAddressId.value, payload); showToast('地址已更新') } else { await memberApi.addAddress(payload); showToast('地址已添加') } cancelAddressEdit(); await load() } catch (e) { showToast(e) } finally { savingAddress.value = false } }
 async function setDefault(id) { try { await memberApi.setDefaultAddress(id); await load() } catch (e) { showToast(e) } }
 async function removeAddress(item) { try { await showConfirmDialog({ title: '删除地址', message: `确定删除“${item.receiverName}”的收货地址吗？` }); await memberApi.removeAddress(item.id); showToast('地址已删除'); await load() } catch (e) { if (e !== 'cancel') showToast(e) } }
-function logout() { localStorage.removeItem('member-token'); logged.value = false; profile.value = null }
+function logout() { localStorage.removeItem('member-token'); logged.value = false; profile.value = null; pointsLogs.value = [] }
 onMounted(load)
 </script>

@@ -2,6 +2,7 @@ package com.mall.web.controller.member;
 
 import com.mall.common.result.Result;
 import com.mall.member.service.MemberAuthService;
+import com.mall.member.service.MemberService;
 import com.mall.security.jwt.JwtTokenProvider;
 import com.mall.security.user.MemberPrincipal;
 import jakarta.validation.Valid;
@@ -19,6 +20,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MemberAuthController {
     private final MemberAuthService memberAuthService;
+    private final MemberService memberService;
     private final JwtTokenProvider jwtTokenProvider;
 
     @PostMapping("/register")
@@ -38,6 +40,11 @@ public class MemberAuthController {
     public Result<?> profile(Authentication authentication) {
         MemberPrincipal member = requireMember(authentication);
         return Result.success(memberAuthService.getProfile(member.getMemberId()));
+    }
+
+    @GetMapping("/points/log")
+    public Result<?> pointsLog(Authentication authentication) {
+        return Result.success(memberService.listPointsLogs(requireMember(authentication).getMemberId()));
     }
 
     private MemberPrincipal requireMember(Authentication authentication) {

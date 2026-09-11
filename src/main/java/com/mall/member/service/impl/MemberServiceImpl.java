@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -64,5 +65,13 @@ public class MemberServiceImpl implements MemberService {
     public BigDecimal getTotalAmount(Long id) {
         Member member = memberMapper.selectById(id);
         return member != null ? member.getTotalAmount() : BigDecimal.ZERO;
+    }
+
+    @Override
+    public List<MemberPointsLog> listPointsLogs(Long id) {
+        return pointsLogMapper.selectList(Wrappers.<MemberPointsLog>lambdaQuery()
+                .eq(MemberPointsLog::getMemberId, id)
+                .orderByDesc(MemberPointsLog::getCreateTime)
+                .last("LIMIT 20"));
     }
 }
