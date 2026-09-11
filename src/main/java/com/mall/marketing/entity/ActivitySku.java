@@ -1,6 +1,7 @@
 package com.mall.marketing.entity;
 
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -20,4 +21,8 @@ public class ActivitySku {
     private Integer limitPerUser;
     private LocalDateTime createTime;
     private LocalDateTime updateTime;
+
+    /** C 端跳转详情所需的 SPU ID，非数据库字段。 */
+    @TableField(exist = false)
+    private Long spuId;
 }

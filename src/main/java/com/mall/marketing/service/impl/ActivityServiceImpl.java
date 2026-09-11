@@ -65,10 +65,14 @@ public class ActivityServiceImpl implements ActivityService {
                 .le(Activity::getStartTime, now).ge(Activity::getEndTime, now)
                 .ne(Activity::getStatus, 2).orderByAsc(Activity::getEndTime));
         if (activities.isEmpty()) return activities;
-        Map<Long, List<ActivitySku>> items = activitySkuMapper.selectList(
-                        Wrappers.<ActivitySku>lambdaQuery().in(ActivitySku::getActivityId,
-                                activities.stream().map(Activity::getId).toList()))
-                .stream().collect(Collectors.groupingBy(ActivitySku::getActivityId));
+        List<ActivitySku> activitySkus = activitySkuMapper.selectList(
+                Wrappers.<ActivitySku>lambdaQuery().in(ActivitySku::getActivityId,
+                        activities.stream().map(Activity::getId).toList()));
+        Map<Long, Long> spuIds = activitySkus.isEmpty() ? Map.of() : skuMapper.selectBatchIds(
+                        activitySkus.stream().map(ActivitySku::getSkuId).toList())
+                .stream().collect(Collectors.toMap(Sku::getId, Sku::getSpuId));
+        activitySkus.forEach(item -> item.setSpuId(spuIds.get(item.getSkuId())));
+        Map<Long, List<ActivitySku>> items = activitySkus.stream().collect(Collectors.groupingBy(ActivitySku::getActivityId));
         activities.forEach(activity -> activity.setSkuItems(items.getOrDefault(activity.getId(), List.of())));
         return activities;
     }

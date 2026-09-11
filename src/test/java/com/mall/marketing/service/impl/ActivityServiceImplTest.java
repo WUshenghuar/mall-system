@@ -63,11 +63,14 @@ class ActivityServiceImplTest {
         ActivitySku item = new ActivitySku(); item.setActivityId(7L); item.setSkuId(9L);
         when(activityMapper.selectList(any())).thenReturn(java.util.List.of(activity));
         when(itemMapper.selectList(any())).thenReturn(java.util.List.of(item));
+        Sku sku = new Sku(); sku.setId(9L); sku.setSpuId(11L);
+        when(skuMapper.selectBatchIds(any())).thenReturn(java.util.List.of(sku));
 
         var result = new ActivityServiceImpl(activityMapper, itemMapper, skuMapper).selectActive();
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getSkuItems()).containsExactly(item);
+        assertThat(item.getSpuId()).isEqualTo(11L);
     }
 
     @Test
