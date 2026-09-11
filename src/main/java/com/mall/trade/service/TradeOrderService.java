@@ -9,6 +9,7 @@ public interface TradeOrderService {
     IPage<TradeOrder> selectAdminPage(Integer page, Integer size, Integer orderStatus, String keyword);
     TradeOrder getByOrderNo(String orderNo);
     TradeOrder getOwnedByOrderNo(String orderNo, Long userId);
+    TradeOrder getOwnedByOrderNoForUpdate(String orderNo, Long userId);
     void cancelOrder(String orderNo, Long userId);
     void confirmReceive(String orderNo, Long userId);
     boolean markPaid(String orderNo, Integer payType);

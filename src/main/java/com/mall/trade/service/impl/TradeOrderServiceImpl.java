@@ -279,6 +279,14 @@ public class TradeOrderServiceImpl implements TradeOrderService {
     }
 
     @Override
+    public TradeOrder getOwnedByOrderNoForUpdate(String orderNo, Long userId) {
+        TradeOrder order = orderMapper.selectOne(Wrappers.<TradeOrder>lambdaQuery()
+                .eq(TradeOrder::getOrderNo, orderNo).eq(TradeOrder::getUserId, userId).last("FOR UPDATE"));
+        if (order == null) throw new BusinessException("订单不存在或无权访问");
+        return order;
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
     public void cancelOrder(String orderNo, Long userId) {
         TradeOrder order = getOwnedByOrderNo(orderNo, userId);

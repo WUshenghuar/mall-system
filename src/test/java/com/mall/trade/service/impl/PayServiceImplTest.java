@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -28,6 +29,30 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class PayServiceImplTest {
+
+    @Test
+    void createPayReusesPendingPaymentAfterLockingOwnedOrder() {
+        TradePayMapper payMapper = mock(TradePayMapper.class);
+        TradeOrderService orderService = mock(TradeOrderService.class);
+        TradeOrder order = new TradeOrder(); order.setOrderNo("T-1"); order.setUserId(9L); order.setOrderStatus(0);
+        order.setPayAmount(new BigDecimal("19.90"));
+        TradePay existing = new TradePay(); existing.setPayNo("P-1"); existing.setPayStatus(0);
+        when(orderService.getOwnedByOrderNoForUpdate("T-1", 9L)).thenReturn(order);
+        when(payMapper.selectOne(any())).thenReturn(existing);
+
+        TradePay result = new PayServiceImpl(payMapper, orderService).createPay("T-1", 1, 9L);
+
+        assertThat(result).isSameAs(existing);
+        verify(orderService).getOwnedByOrderNoForUpdate("T-1", 9L);
+    }
+
+    @Test
+    void createPayRejectsUnknownPaymentType() {
+        PayServiceImpl service = new PayServiceImpl(mock(TradePayMapper.class), mock(TradeOrderService.class));
+
+        assertThatThrownBy(() -> service.createPay("T-1", 9, 9L))
+                .hasMessage("支付方式不支持");
+    }
 
     @Test
     void repeatedAlipaySuccessCallbacksAreProcessedOnlyOnce() throws Exception {

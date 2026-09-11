@@ -40,8 +40,12 @@ public class PayServiceImpl implements PayService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public TradePay createPay(String orderNo, Integer payType, Long userId) {
-        var order = tradeOrderService.getOwnedByOrderNo(orderNo, userId);
+        if (!Integer.valueOf(1).equals(payType) && !Integer.valueOf(2).equals(payType)) {
+            throw new com.mall.common.exception.BusinessException("支付方式不支持");
+        }
+        var order = tradeOrderService.getOwnedByOrderNoForUpdate(orderNo, userId);
         if (order.getOrderStatus() != 0) {
             throw new com.mall.common.exception.BusinessException("当前订单不可支付");
         }
