@@ -59,7 +59,11 @@ public class RedisStockReservationService {
 
     public void release(Long skuId, int quantity) {
         StringRedisTemplate redis = redisTemplateProvider.getIfAvailable();
-        if (redis != null) redis.opsForValue().increment(key(skuId), quantity);
+        if (redis != null) {
+            String key = key(skuId);
+            redis.opsForValue().increment(key, quantity);
+            redis.expire(key, Duration.ofHours(6));
+        }
     }
 
     private String key(Long skuId) { return "trade:available-stock:" + skuId; }

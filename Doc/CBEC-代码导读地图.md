@@ -63,7 +63,7 @@
 | 1 | `trade/controller/CartController` + `service/CartServiceImpl` | 购物车 CRUD | 会员归属校验 |
 | 2 | `trade/service/SettlementService` + `finance/service/TaxConfigService` + `marketing/service/ActivityService` | 结算预览（活动价/优惠券/库存/税费核对） | 价格与税费由服务端重算 |
 | 3 | `trade/service/SettlementSnapshotService` | 结算快照（Redis 存 15 分钟） | 一次性、防价格篡改 |
-| 4 | `trade/service/RedisStockReservationService` | Redis Lua 预占库存 | ⚠️ **重点**：多 SKU 原子预占 + 事务回滚自动释放 |
+| 4 | `trade/service/RedisStockReservationService` | Redis Lua 预占库存 | ⚠️ **重点**：多 SKU 原子预占、事务回滚自动释放与回补 TTL |
 | 5 | `trade/service/impl/TradeOrderServiceImpl` | 下单：校验→锁普通/活动库存→建单→MQ | ⚠️ **重点**：活动价快照、优惠券占用回滚 + cancelExpiredOrders 超时关单 |
 | 6 | `trade/service/PayService` | 支付单创建、模拟支付与支付宝回调校验 | 真实商户渠道联调未完成 |
 | 7 | `order/service/impl/OrderServiceImpl` | B 端后台订单处理（发货/状态机） | ⚠️ trade 与 order 两套模型的关系 |
