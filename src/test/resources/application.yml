@@ -30,5 +30,7 @@ mybatis-plus:
 jwt:
   secret: test-secret-key-at-least-256-bits-long-for-hmac-sha256
   expiration: 86400000
+dashboard:
+  redis-pubsub-enabled: false
 minio:
   enabled: false
