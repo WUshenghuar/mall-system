@@ -3,11 +3,16 @@ from collections.abc import AsyncIterator
 
 import httpx
 
-from app.agent.agent import local_agent
+from app.agent.agent import is_prompt_injection, local_agent
 from app.config import settings
 
 
 async def stream_reply(message: str, history: list[dict[str, str]], context: list[dict], business_context: str = "") -> AsyncIterator[str]:
+    if is_prompt_injection(message):
+        answer = local_agent.invoke({"message": message})["answer"]
+        for index in range(0, len(answer), 12):
+            yield answer[index:index + 12]
+        return
     if business_context:
         for index in range(0, len(business_context), 12):
             yield business_context[index:index + 12]

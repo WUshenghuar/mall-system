@@ -8,9 +8,14 @@ class ChatState(TypedDict):
     answer: str
 
 
+def is_prompt_injection(message: str) -> bool:
+    normalized = message.lower()
+    return any(token in normalized for token in ("忽略", "系统提示", "system prompt", "指令"))
+
+
 def local_answer(message: str) -> str:
     normalized = message.lower()
-    if any(token in normalized for token in ("忽略", "系统提示", "system prompt", "指令")):
+    if is_prompt_injection(message):
         return "我只能回答平台商品、订单、物流、退款进度、优惠券和会员相关的问题。"
     if any(token in normalized for token in ("退款", "退货")):
         return "我可以协助查看退款进度和规则；退款审批由平台售后流程处理，客服不会直接执行退款。"
