@@ -17,7 +17,7 @@
   </div>
 </template>
 <script setup>
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { aiApi } from '../api'
@@ -31,6 +31,14 @@ async function handoff() {
   const latest = messages.value.filter(item => item.role === 'user').at(-1)?.content || '需要人工客服协助'
   try { handoffTicket.value = (await aiApi.handoff({ conversationId: conversationId.value || undefined, message: latest })).data; showToast('已提交平台人工客服工单') } catch (error) { showToast(error) }
 }
+async function loadHandoff() {
+  if (!localStorage.getItem('member-token')) return
+  try {
+    const records = (await aiApi.mine({ page: 1, size: 10 })).data?.records || []
+    handoffTicket.value = records.find(ticket => ticket.status !== 2) || records[0] || null
+  } catch { /* 客服状态读取失败不影响 AI 对话 */ }
+}
+watch(open, value => { if (value) loadHandoff() })
 async function scrollToBottom() { await nextTick(); messageList.value?.scrollTo({ top: messageList.value.scrollHeight, behavior: 'smooth' }) }
 async function send() {
   const content = draft.value.trim()

@@ -54,7 +54,8 @@ export const aiApi = {
       if (done) break
     }
   },
-  handoff: data => request.post('/ai/tickets', data)
+  handoff: data => request.post('/ai/tickets', data),
+  mine: params => request.get('/ai/tickets/mine', { params })
 }
 export const memberApi = {
   login: data => request.post('/member/auth/login', data),
