@@ -18,6 +18,8 @@ public class MemberAddress extends BaseEntity {
     @NotBlank(message = "联系电话不能为空")
     @Size(max = 20, message = "联系电话不能超过20个字符")
     private String receiverPhone;
+    @Size(max = 50, message = "国家不能超过50个字符")
+    private String country;
     @NotBlank(message = "省份不能为空")
     @Size(max = 50, message = "省份不能超过50个字符")
     private String province;

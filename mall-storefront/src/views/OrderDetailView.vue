@@ -6,11 +6,11 @@
       <section class="card detail-card">
         <p class="eyebrow">ORDER</p><h2>{{ statusLabel }}</h2>
         <p class="note">订单号：{{ order.orderNo }}</p>
-        <div class="amount-row"><span>实付金额</span><strong>{{ order.payAmount }}</strong></div>
+        <div class="amount-row"><span>实付金额</span><strong>{{ order.currency || '' }} {{ order.payAmount }}</strong></div>
         <p class="note">创建于 {{ order.createTime }}</p>
       </section>
       <section class="card detail-card"><h3>收货信息</h3><p>{{ order.receiverName }} · {{ order.receiverPhone }}</p><p class="note">{{ order.receiverAddress }}</p></section>
-      <section class="card detail-card"><h3>费用明细</h3><p>商品金额 <span>{{ order.totalAmount }}</span></p><p>优惠 <span>-{{ order.discountAmount }}</span></p><p>运费 <span>{{ order.freightAmount }}</span></p></section>
+      <section class="card detail-card"><h3>费用明细</h3><p>商品金额 <span>{{ order.totalAmount }}</span></p><p>优惠 <span>-{{ order.discountAmount }}</span></p><p>运费 <span>{{ order.freightAmount }}</span></p><p v-if="order.taxAmount > 0">税费 <span>{{ order.taxAmount }}</span></p></section>
       <section v-if="order.orderStatus >= 2" class="card detail-card"><h3>物流信息</h3><template v-if="logistics"><p>{{ logistics.logisticsCompany || '承运商待录入' }}</p><p class="note">运单号：{{ logistics.logisticsNo || '--' }}</p></template><van-empty v-else description="暂未录入物流信息" /></section>
       <div class="order-actions"><van-button v-if="order.orderStatus === 0" plain type="danger" @click="cancel">取消订单</van-button><van-button v-if="order.orderStatus === 1" plain type="warning" @click="refund(0)">申请仅退款</van-button><van-button v-if="[2, 3].includes(order.orderStatus)" plain type="warning" @click="refund(1)">申请退货退款</van-button><van-button v-if="order.orderStatus === 2" type="primary" @click="confirm">确认收货</van-button></div>
     </template>

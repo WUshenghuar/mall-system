@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.exception.BusinessException;
+import com.mall.finance.service.TaxConfigService;
 import com.mall.marketing.entity.ActivitySku;
 import com.mall.marketing.mapper.CouponIssueMapper;
 import com.mall.marketing.service.ActivityService;
@@ -16,8 +17,10 @@ import com.mall.member.mapper.MemberAddressMapper;
 import com.mall.member.service.MemberService;
 import com.mall.product.entity.Sku;
 import com.mall.product.entity.SkuStock;
+import com.mall.product.entity.Spu;
 import com.mall.product.mapper.SkuMapper;
 import com.mall.product.mapper.SkuStockMapper;
+import com.mall.product.mapper.SpuMapper;
 import com.mall.trade.entity.TradeCart;
 import com.mall.trade.entity.TradeLogistics;
 import com.mall.trade.entity.TradeOrder;
@@ -64,6 +67,8 @@ public class TradeOrderServiceImpl implements TradeOrderService {
     private final MemberService memberService;
     private final CouponIssueMapper couponIssueMapper;
     private final ActivityService activityService;
+    private final SpuMapper spuMapper;
+    private final TaxConfigService taxConfigService;
 
     private String generateOrderNo() {
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
@@ -115,6 +120,8 @@ public class TradeOrderServiceImpl implements TradeOrderService {
                 entry -> entry.getValue().getStock() - entry.getValue().getLockedStock()));
 
         BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal taxAmount = BigDecimal.ZERO;
+        String currency = null;
         List<TradeOrderItem> orderItems = new ArrayList<>();
         Map<Long, ActivitySku> promotions = new HashMap<>();
         for (OrderItemReq item : items) {
@@ -139,6 +146,15 @@ public class TradeOrderServiceImpl implements TradeOrderService {
                     ? sku.getPrice() : promotion.getSeckillPrice();
             BigDecimal itemTotal = unitPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
             totalAmount = totalAmount.add(itemTotal);
+            String itemCurrency = sku.getCurrency() == null || sku.getCurrency().isBlank() ? "USD" : sku.getCurrency();
+            if (currency == null) currency = itemCurrency;
+            else if (!currency.equalsIgnoreCase(itemCurrency)) throw new BusinessException("暂不支持混合币种结算");
+            Spu spu = sku.getSpuId() == null ? null : spuMapper.selectById(sku.getSpuId());
+            BigDecimal taxRate = spu == null ? BigDecimal.ZERO
+                    : taxConfigService.findApplicableRate(spu.getCategoryId(), spu.getOriginCountry(), address.getCountry());
+            if (taxRate == null) taxRate = BigDecimal.ZERO;
+            taxAmount = taxAmount.add(itemTotal.multiply(taxRate)
+                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP));
             TradeOrderItem orderItem = new TradeOrderItem();
             orderItem.setSkuId(item.getSkuId());
             orderItem.setSkuName(sku.getSkuCode());
@@ -182,11 +198,14 @@ public class TradeOrderServiceImpl implements TradeOrderService {
         order.setTotalAmount(totalAmount.setScale(2, RoundingMode.HALF_UP));
         order.setDiscountAmount(coupon.amount());
         order.setFreightAmount(BigDecimal.ZERO);
-        order.setPayAmount(totalAmount.subtract(coupon.amount()).setScale(2, RoundingMode.HALF_UP));
+        order.setTaxAmount(taxAmount.setScale(2, RoundingMode.HALF_UP));
+        order.setPayAmount(totalAmount.subtract(coupon.amount()).add(taxAmount).setScale(2, RoundingMode.HALF_UP));
+        order.setCurrency(currency);
         order.setReceiverName(address.getReceiverName());
         order.setReceiverPhone(address.getReceiverPhone());
         order.setReceiverAddress(
-                address.getProvince() + address.getCity() + address.getDistrict() + address.getDetailAddress());
+                (address.getCountry() == null ? "" : address.getCountry()) + address.getProvince() + address.getCity()
+                        + address.getDistrict() + address.getDetailAddress());
         order.setRemark(remark);
         order.setSourceType(1);
         orderMapper.insert(order);

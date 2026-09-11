@@ -19,7 +19,9 @@ public class TradeOrder extends BaseEntity {
     private BigDecimal totalAmount;
     private BigDecimal discountAmount;
     private BigDecimal freightAmount;
+    private BigDecimal taxAmount;
     private BigDecimal payAmount;
+    private String currency;
     /** 1支付宝 2微信 */
     private Integer payType;
     private LocalDateTime payTime;

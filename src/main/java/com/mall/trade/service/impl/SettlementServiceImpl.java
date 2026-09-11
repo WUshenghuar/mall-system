@@ -2,6 +2,7 @@ package com.mall.trade.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mall.common.exception.BusinessException;
+import com.mall.finance.service.TaxConfigService;
 import com.mall.marketing.entity.ActivitySku;
 import com.mall.marketing.entity.MemberCouponVO;
 import com.mall.marketing.service.ActivityService;
@@ -9,8 +10,10 @@ import com.mall.marketing.service.CouponService;
 import com.mall.member.entity.MemberAddress;
 import com.mall.member.mapper.MemberAddressMapper;
 import com.mall.product.entity.Sku;
+import com.mall.product.entity.Spu;
 import com.mall.product.entity.SkuStock;
 import com.mall.product.mapper.SkuMapper;
+import com.mall.product.mapper.SpuMapper;
 import com.mall.product.mapper.SkuStockMapper;
 import com.mall.trade.entity.TradeCart;
 import com.mall.trade.mapper.TradeCartMapper;
@@ -34,6 +37,8 @@ public class SettlementServiceImpl implements SettlementService {
     private final MemberAddressMapper addressMapper;
     private final CouponService couponService;
     private final ActivityService activityService;
+    private final SpuMapper spuMapper;
+    private final TaxConfigService taxConfigService;
 
     @Override
     public Map<String, Object> preview(Long userId, List<Long> cartIds, Long addressId, Long couponId) {
@@ -43,6 +48,8 @@ public class SettlementServiceImpl implements SettlementService {
                 .eq(TradeCart::getUserId, userId).in(TradeCart::getId, cartIds).eq(TradeCart::getChecked, 1));
         if (carts.size() != cartIds.size()) throw new BusinessException("结算商品不存在或未勾选");
         BigDecimal total = BigDecimal.ZERO;
+        BigDecimal taxAmount = BigDecimal.ZERO;
+        String currency = null;
         List<Map<String, Object>> items = new ArrayList<>();
         for (TradeCart cart : carts) {
             Sku sku = skuMapper.selectById(cart.getSkuId());
@@ -60,10 +67,20 @@ public class SettlementServiceImpl implements SettlementService {
                     ? sku.getPrice() : promotion.getSeckillPrice();
             BigDecimal subtotal = price.multiply(BigDecimal.valueOf(cart.getQuantity()));
             total = total.add(subtotal);
+            String itemCurrency = sku.getCurrency() == null || sku.getCurrency().isBlank() ? "USD" : sku.getCurrency();
+            if (currency == null) currency = itemCurrency;
+            else if (!currency.equalsIgnoreCase(itemCurrency)) throw new BusinessException("暂不支持混合币种结算");
+            Spu spu = sku.getSpuId() == null ? null : spuMapper.selectById(sku.getSpuId());
+            BigDecimal taxRate = spu == null ? BigDecimal.ZERO
+                    : taxConfigService.findApplicableRate(spu.getCategoryId(), spu.getOriginCountry(), address.getCountry());
+            if (taxRate == null) taxRate = BigDecimal.ZERO;
+            BigDecimal itemTax = subtotal.multiply(taxRate).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            taxAmount = taxAmount.add(itemTax);
             Map<String, Object> item = new HashMap<>();
             item.put("cartId", cart.getId()); item.put("skuId", sku.getId()); item.put("skuCode", sku.getSkuCode());
             item.put("quantity", cart.getQuantity()); item.put("price", price); item.put("originalPrice", sku.getPrice());
             item.put("activityId", promotion == null ? null : promotion.getActivityId()); item.put("subtotal", subtotal);
+            item.put("currency", itemCurrency); item.put("taxRate", taxRate); item.put("taxAmount", itemTax);
             items.add(item);
         }
         CouponService.DiscountResult coupon = couponId == null
@@ -79,7 +96,9 @@ public class SettlementServiceImpl implements SettlementService {
         result.put("totalAmount", total);
         result.put("discountAmount", coupon.amount());
         result.put("freightAmount", BigDecimal.ZERO);
-        result.put("payAmount", total.subtract(coupon.amount()).setScale(2, RoundingMode.HALF_UP));
+        result.put("taxAmount", taxAmount.setScale(2, RoundingMode.HALF_UP));
+        result.put("currency", currency);
+        result.put("payAmount", total.subtract(coupon.amount()).add(taxAmount).setScale(2, RoundingMode.HALF_UP));
         result.put("availableCoupons", availableCoupons);
         result.put("address", address);
         return result;

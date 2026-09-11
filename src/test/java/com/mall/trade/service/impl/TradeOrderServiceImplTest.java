@@ -2,6 +2,7 @@ package com.mall.trade.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.exception.BusinessException;
+import com.mall.finance.service.TaxConfigService;
 import com.mall.marketing.entity.ActivitySku;
 import com.mall.marketing.mapper.CouponIssueMapper;
 import com.mall.marketing.service.ActivityService;
@@ -13,6 +14,7 @@ import com.mall.product.entity.Sku;
 import com.mall.product.entity.SkuStock;
 import com.mall.product.mapper.SkuMapper;
 import com.mall.product.mapper.SkuStockMapper;
+import com.mall.product.mapper.SpuMapper;
 import com.mall.trade.entity.TradeCart;
 import com.mall.trade.entity.TradeOrder;
 import com.mall.trade.mapper.*;
@@ -40,7 +42,8 @@ class TradeOrderServiceImplTest {
                 mock(TradeCartMapper.class), mock(TradeLogisticsMapper.class), mock(SkuMapper.class),
                 mock(SkuStockMapper.class), mock(MemberAddressMapper.class), new ObjectMapper(),
                 mock(TradeEventPublisher.class), mock(RedisStockReservationService.class),
-                mock(CouponService.class), mock(MemberService.class), mock(CouponIssueMapper.class), mock(ActivityService.class));
+                mock(CouponService.class), mock(MemberService.class), mock(CouponIssueMapper.class), mock(ActivityService.class),
+                mock(SpuMapper.class), mock(TaxConfigService.class));
 
         assertThatThrownBy(() -> service.getOwnedByOrderNo("T-1", 10L))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("无权访问");
@@ -78,7 +81,8 @@ class TradeOrderServiceImplTest {
 
         TradeOrderServiceImpl service = new TradeOrderServiceImpl(orderMapper, itemMapper, cartMapper,
                 mock(TradeLogisticsMapper.class), skuMapper, stockMapper, addressMapper, new ObjectMapper(),
-                mock(TradeEventPublisher.class), reservation, couponService, mock(MemberService.class), issueMapper, mock(ActivityService.class));
+                mock(TradeEventPublisher.class), reservation, couponService, mock(MemberService.class), issueMapper, mock(ActivityService.class),
+                mock(SpuMapper.class), mock(TaxConfigService.class));
 
         TradeOrder order = service.createOrder(9L, 5L, 99L, null, "[{\"skuId\":7,\"quantity\":2}]");
 
@@ -116,7 +120,8 @@ class TradeOrderServiceImplTest {
 
         TradeOrderServiceImpl service = new TradeOrderServiceImpl(orderMapper, itemMapper, cartMapper,
                 mock(TradeLogisticsMapper.class), skuMapper, stockMapper, addressMapper, new ObjectMapper(),
-                mock(TradeEventPublisher.class), reservation, couponService, mock(MemberService.class), mock(CouponIssueMapper.class), activityService);
+                mock(TradeEventPublisher.class), reservation, couponService, mock(MemberService.class), mock(CouponIssueMapper.class), activityService,
+                mock(SpuMapper.class), mock(TaxConfigService.class));
 
         TradeOrder order = service.createOrder(9L, 5L, null, null, "[{\"skuId\":7,\"quantity\":2}]");
 

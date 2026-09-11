@@ -64,7 +64,8 @@ public class StatementServiceImpl implements StatementService {
         statement.setPeriodStart(start);
         statement.setPeriodEnd(end.minusDays(1));
         statement.setTotalAmount(orders.stream().map(TradeOrder::getTotalAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
-        statement.setTariffAmount(BigDecimal.ZERO);
+        statement.setTariffAmount(orders.stream().map(order -> order.getTaxAmount() == null ? BigDecimal.ZERO : order.getTaxAmount())
+                .reduce(BigDecimal.ZERO, BigDecimal::add));
         statement.setShippingFee(orders.stream().map(TradeOrder::getFreightAmount).reduce(BigDecimal.ZERO, BigDecimal::add));
         statement.setRefundAmount(refunds.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add));
         statement.setNetAmount(orders.stream().map(TradeOrder::getPayAmount).reduce(BigDecimal.ZERO, BigDecimal::add).subtract(statement.getRefundAmount()));
@@ -76,7 +77,7 @@ public class StatementServiceImpl implements StatementService {
             item.setStatementId(statement.getId());
             item.setOrderNo(order.getOrderNo());
             item.setTotalAmount(order.getTotalAmount());
-            item.setTariffAmount(BigDecimal.ZERO);
+            item.setTariffAmount(order.getTaxAmount() == null ? BigDecimal.ZERO : order.getTaxAmount());
             item.setShippingFee(order.getFreightAmount());
             item.setRefundAmount(refunds.getOrDefault(order.getOrderNo(), BigDecimal.ZERO));
             item.setPayAmount(order.getPayAmount());

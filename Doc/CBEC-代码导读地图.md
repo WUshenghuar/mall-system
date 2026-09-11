@@ -61,7 +61,7 @@
 | 顺序 | 类 | 一句话职责 | 面试可讲点 |
 |---|---|---|---|
 | 1 | `trade/controller/CartController` + `service/CartServiceImpl` | 购物车 CRUD | 会员归属校验 |
-| 2 | `trade/service/SettlementService` + `marketing/service/ActivityService` | 结算预览（活动价/优惠券/库存核对） | 价格由服务端重算 |
+| 2 | `trade/service/SettlementService` + `finance/service/TaxConfigService` + `marketing/service/ActivityService` | 结算预览（活动价/优惠券/库存/税费核对） | 价格与税费由服务端重算 |
 | 3 | `trade/service/SettlementSnapshotService` | 结算快照（Redis 存 15 分钟） | 一次性、防价格篡改 |
 | 4 | `trade/service/RedisStockReservationService` | Redis Lua 预占库存 | ⚠️ **重点**：多 SKU 原子预占 + 事务回滚自动释放 |
 | 5 | `trade/service/impl/TradeOrderServiceImpl` | 下单：校验→锁普通/活动库存→建单→MQ | ⚠️ **重点**：活动价快照 + cancelExpiredOrders 超时关单 |
