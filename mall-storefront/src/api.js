@@ -57,6 +57,9 @@ export const aiApi = {
   handoff: data => request.post('/ai/tickets', data),
   mine: params => request.get('/ai/tickets/mine', { params })
 }
+export const fileApi = {
+  upload: file => { const form = new FormData(); form.append('file', file); return request.post('/file/upload', form) }
+}
 export const memberApi = {
   login: data => request.post('/member/auth/login', data),
   register: data => request.post('/member/auth/register', data),
@@ -86,6 +89,7 @@ export const tradeApi = {
   logistics: orderNo => request.get(`/trade/logistics/${orderNo}`),
   refunds: params => request.get('/trade/refund', { params }),
   applyRefund: data => request.post('/trade/refund', data),
+  submitReturn: (id, data) => request.post(`/trade/refund/${id}/return`, data),
   pay: data => request.post('/trade/pay/create', data),
   simulate: payNo => request.post(`/trade/pay/${payNo}/simulate-success`)
 }

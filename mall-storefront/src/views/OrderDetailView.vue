@@ -12,7 +12,7 @@
       <section class="card detail-card"><h3>收货信息</h3><p>{{ order.receiverName }} · {{ order.receiverPhone }}</p><p class="note">{{ order.receiverAddress }}</p></section>
       <section class="card detail-card"><h3>费用明细</h3><p>商品金额 <span>{{ order.totalAmount }}</span></p><p>优惠 <span>-{{ order.discountAmount }}</span></p><p>运费 <span>{{ order.freightAmount }}</span></p></section>
       <section v-if="order.orderStatus >= 2" class="card detail-card"><h3>物流信息</h3><template v-if="logistics"><p>{{ logistics.logisticsCompany || '承运商待录入' }}</p><p class="note">运单号：{{ logistics.logisticsNo || '--' }}</p></template><van-empty v-else description="暂未录入物流信息" /></section>
-      <div class="order-actions"><van-button v-if="order.orderStatus === 0" plain type="danger" @click="cancel">取消订单</van-button><van-button v-if="order.orderStatus === 1" plain type="warning" @click="refund">申请退款</van-button><van-button v-if="order.orderStatus === 2" type="primary" @click="confirm">确认收货</van-button></div>
+      <div class="order-actions"><van-button v-if="order.orderStatus === 0" plain type="danger" @click="cancel">取消订单</van-button><van-button v-if="order.orderStatus === 1" plain type="warning" @click="refund(0)">申请仅退款</van-button><van-button v-if="[2, 3].includes(order.orderStatus)" plain type="warning" @click="refund(1)">申请退货退款</van-button><van-button v-if="order.orderStatus === 2" type="primary" @click="confirm">确认收货</van-button></div>
     </template>
     <van-empty v-else description="订单不存在或无权查看" />
   </section>
@@ -31,7 +31,7 @@ const statusLabel = computed(() => labels[order.value?.orderStatus] || '处理�
 async function load() { loading.value = true; try { const result = await tradeApi.order(route.params.orderNo); order.value = result.data; if (order.value?.orderStatus >= 2) logistics.value = (await tradeApi.logistics(route.params.orderNo)).data } catch (e) { showToast(e) } finally { loading.value = false } }
 async function cancel() { try { await showConfirmDialog({ title: '取消订单', message: '取消后已锁定库存将被释放。' }); await tradeApi.cancelOrder(order.value.orderNo); showToast('订单已取消'); load() } catch (e) { if (e !== 'cancel') showToast(e) } }
 async function confirm() { try { await tradeApi.confirmOrder(order.value.orderNo); showToast('已确认收货'); load() } catch (e) { showToast(e) } }
-function refund() { router.push({ path: '/refunds', query: { orderNo: order.value.orderNo } }) }
+function refund(type) { router.push({ path: '/refunds', query: { orderNo: order.value.orderNo, type } }) }
 onMounted(async () => { await load(); if (order.value?.orderStatus === 5) refreshTimer = window.setInterval(load, 15000) })
 onUnmounted(() => window.clearInterval(refreshTimer))
 </script>

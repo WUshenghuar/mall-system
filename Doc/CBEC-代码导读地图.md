@@ -67,11 +67,11 @@
 | 5 | `trade/service/impl/TradeOrderServiceImpl` | 下单：校验→锁普通/活动库存→建单→MQ | ⚠️ **重点**：活动价快照 + cancelExpiredOrders 超时关单 |
 | 6 | `trade/service/PayService` | 支付单创建、模拟支付与支付宝回调校验 | 真实商户渠道联调未完成 |
 | 7 | `order/service/impl/OrderServiceImpl` | B 端后台订单处理（发货/状态机） | ⚠️ trade 与 order 两套模型的关系 |
-| 8 | `trade/service/TradeRefundService` | C 端仅退款申请 | 状态流转：待审→通过/驳回→已退款 |
+| 8 | `trade/service/TradeRefundService` | C 端退款/退货退款售后 | 仅退款：待审→待退款→已退款；退货退款：待审→待用户退货→待平台收货→已退款；驳回恢复原订单状态 |
 | 9 | `trade/service/LogisticsService` | 物流记录查询 | — |
 
 **读懂 trade 的捷径**：先画一张状态机——
-待支付 → 待发货 → 待收货 → 已完成；待支付可取消/超时关单；待发货可申请仅退款。
+待支付 → 待发货 → 待收货 → 已完成；待支付可取消/超时关单；待发货可申请仅退款，待收货/已完成可申请退货退款并提交退货物流。
 然后读 `TradeOrderServiceImpl` 的 public 方法列表（上面已列出），基本覆盖全链路。
 
 ---

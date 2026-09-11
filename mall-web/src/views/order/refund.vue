@@ -11,7 +11,8 @@
       <a-tabs v-model:activeKey="statusFilter" @change="fetchData">
         <a-tab-pane key="" tab="全部" />
         <a-tab-pane key="0" tab="待审批" />
-        <a-tab-pane key="1" tab="已通过" />
+        <a-tab-pane key="1" tab="处理中" />
+        <a-tab-pane key="4" tab="待平台收货" />
         <a-tab-pane key="2" tab="已驳回" />
       </a-tabs>
       <a-table :columns="columns" :data-source="list" :loading="loading"
@@ -19,11 +20,18 @@
         <template #bodyCell="{ column, record }">
           <template v-if="column.key === 'status'">
             <a-tag v-if="record.refundStatus === 0" color="orange">待审批</a-tag>
-            <a-tag v-else-if="record.refundStatus === 1" color="green">已通过</a-tag>
+            <a-tag v-else-if="record.refundStatus === 1 && record.refundType === 1" color="blue">待用户退货</a-tag>
+            <a-tag v-else-if="record.refundStatus === 1" color="green">待退款</a-tag>
+            <a-tag v-else-if="record.refundStatus === 4" color="blue">待平台收货</a-tag>
             <a-tag v-else-if="record.refundStatus === 2" color="default">已驳回</a-tag>
             <a-tag v-else color="purple">已退款</a-tag>
           </template>
+          <template v-if="column.key === 'type'">{{ record.refundType === 1 ? '退货退款' : '仅退款' }}</template>
           <template v-if="column.key === 'amount'">${{ record.refundAmount }}</template>
+          <template v-if="column.key === 'returnLogistics'">
+            <span v-if="record.returnLogisticsNo">{{ record.returnLogisticsCompany }} {{ record.returnLogisticsNo }}</span>
+            <span v-else>--</span>
+          </template>
           <template v-if="column.key === 'comment'">
             <span v-if="record.approveComment" :class="{ 'reject-reason': record.refundStatus === 2 }">
               {{ record.approveComment }}
@@ -35,7 +43,9 @@
               <a-button size="small" type="primary" @click="handleApprove(record.id)">通过</a-button>
               <a-button size="small" danger @click="openReject(record.id)">驳回</a-button>
             </a-space>
-            <a-button v-else-if="record.refundStatus === 1" size="small" type="primary" @click="handleComplete(record.id)">确认退款</a-button>
+            <a-button v-else-if="record.refundStatus === 1 && record.refundType !== 1" size="small" type="primary" @click="handleComplete(record.id)">确认退款</a-button>
+            <span v-else-if="record.refundStatus === 1">等待用户退货</span>
+            <a-button v-else-if="record.refundStatus === 4" size="small" type="primary" @click="handleComplete(record.id)">收货并退款</a-button>
             <span v-else>--</span>
           </template>
         </template>
@@ -73,8 +83,10 @@ let refreshTimer
 
 const columns = [
   { title: '订单号', dataIndex: 'orderNo' },
+  { title: '类型', key: 'type', width: 100 },
   { title: '退款金额', key: 'amount', width: 120 },
   { title: '原因', dataIndex: 'refundReason', ellipsis: true },
+  { title: '退货物流', key: 'returnLogistics', width: 180, ellipsis: true },
   { title: '处理备注', key: 'comment', width: 180, ellipsis: true },
   { title: '状态', key: 'status', width: 80 },
   { title: '操作', key: 'action', width: 150 }

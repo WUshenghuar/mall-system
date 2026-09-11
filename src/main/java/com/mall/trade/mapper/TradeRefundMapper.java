@@ -12,4 +12,10 @@ public interface TradeRefundMapper extends BaseMapper<TradeRefund> {
     int transitionStatus(@Param("id") Long id, @Param("expectedStatus") int expectedStatus,
                          @Param("targetStatus") int targetStatus, @Param("approverId") Long approverId,
                          @Param("comment") String comment);
+
+    @Update("UPDATE trade_refund SET refund_status = 4, return_logistics_company = #{company}, "
+            + "return_logistics_no = #{trackingNo}, return_submit_time = NOW(), update_time = NOW() "
+            + "WHERE id = #{id} AND user_id = #{userId} AND refund_type = 1 AND refund_status = 1")
+    int submitReturn(@Param("id") Long id, @Param("userId") Long userId, @Param("company") String company,
+                     @Param("trackingNo") String trackingNo);
 }
