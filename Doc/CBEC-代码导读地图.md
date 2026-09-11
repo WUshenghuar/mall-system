@@ -1,7 +1,7 @@
 # CBEC 代码导读地图（按阅读顺序）
 
-> 生成时间：2026-09-06。目的：按"最快读懂全项目"的顺序标注每个关键类的一句话职责与面试可讲点。
-> 代码规模：Java ~179 文件 / ~6400 行，SQL ~1260 行，B 端 17 页 ~5600 行，C 端 8 页 ~360 行，AI 未实现。
+> 生成时间：2026-09-11。目的：按“最快读懂全项目”的顺序标注每个关键类的一句话职责与面试可讲点。
+> 代码规模：以下规模仅作阅读导航，不作为当前统计口径；AI 已具备 Java SSE + Python 对话/RAG + 受控只读工具 Demo，高级能力仍在规划中。
 > 阅读前提：先读 `Doc/当前实现基线与文档口径.md`（30 分钟建立全局）。
 
 ---
@@ -65,7 +65,7 @@
 | 3 | `trade/service/SettlementSnapshotService` | 结算快照（Redis 存 15 分钟） | 一次性、防价格篡改 |
 | 4 | `trade/service/RedisStockReservationService` | Redis Lua 预占库存 | ⚠️ **重点**：多 SKU 原子预占 + 事务回滚自动释放 |
 | 5 | `trade/service/impl/TradeOrderServiceImpl` | 下单：校验→锁库存→建单→MQ | ⚠️ **重点**：createOrder 全流程 + cancelExpiredOrders 超时关单 |
-| 6 | `trade/service/PayService` | 支付单创建 + 模拟支付 | 真实回调验签未接 |
+| 6 | `trade/service/PayService` | 支付单创建、模拟支付与支付宝回调校验 | 真实商户渠道联调未完成 |
 | 7 | `order/service/impl/OrderServiceImpl` | B 端后台订单处理（发货/状态机） | ⚠️ trade 与 order 两套模型的关系 |
 | 8 | `trade/service/TradeRefundService` | C 端仅退款申请 | 状态流转：待审→通过/驳回→已退款 |
 | 9 | `trade/service/LogisticsService` | 物流记录查询 | — |
@@ -104,6 +104,19 @@
 - 全部只有 8 个视图 ~360 行，半天读完整
 - 重点：`src/api.js`（axios 封装 + ⚠️ 401/403 拦截器 bug）、`src/router.js`（会员路由守卫）
 - 响应式：`src/styles.css` 末尾 `@media(min-width:1025px)` 桌面断点（本次新增）
+
+---
+
+## 第 7 步：AI 客服 Agent（1 天，项目差异化）
+
+| 顺序 | 类/文件 | 一句话职责 | 面试可讲点 |
+|---|---|---|---|
+| 1 | `ai/controller/AiChatController` | 复用会员 JWT，建立 Java SSE 出口 | 业务鉴权不交给模型 |
+| 2 | `ai/service/impl/AiChatServiceImpl` | 保存会话并路由订单/物流/退款/商品只读查询 | 资源归属校验、工具白名单 |
+| 3 | `ai/service/AiGatewayClient` | Java 23 兼容地转发 Python SSE | 跨语言边界、超时和错误映射 |
+| 4 | `mall-ai-service/app/api/chat.py` | 校验内部令牌并输出 `thinking/tool_call/sources/text/done` | SSE 事件协议、可观测依据 |
+| 5 | `mall-ai-service/app/rag/retriever.py` | ES BM25 检索平台规则，失败时回退本地 Agent | RAG 降级和来源展示 |
+| 6 | `mall-storefront/src/components/CustomerServiceWidget.vue` | C 端聊天浮窗、快捷问题和来源展示 | 44px 触控区、登录边界 |
 
 ---
 

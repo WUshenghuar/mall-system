@@ -7,6 +7,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.exception.BusinessException;
+import com.mall.marketing.mapper.CouponIssueMapper;
+import com.mall.marketing.service.CouponService;
 import com.mall.member.entity.MemberAddress;
 import com.mall.member.mapper.MemberAddressMapper;
 import com.mall.product.entity.Sku;
@@ -54,6 +56,8 @@ public class TradeOrderServiceImpl implements TradeOrderService {
     private final ObjectMapper objectMapper;
     private final TradeEventPublisher tradeEventPublisher;
     private final RedisStockReservationService redisStockReservationService;
+    private final CouponService couponService;
+    private final CouponIssueMapper couponIssueMapper;
 
     private String generateOrderNo() {
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
@@ -103,32 +107,17 @@ public class TradeOrderServiceImpl implements TradeOrderService {
         Map<Long, Integer> quantities = items.stream().collect(Collectors.toMap(OrderItemReq::getSkuId, OrderItemReq::getQuantity));
         Map<Long, Integer> availableStock = stockMap.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey,
                 entry -> entry.getValue().getStock() - entry.getValue().getLockedStock()));
-        if (!redisStockReservationService.reserveAll(quantities, availableStock)) {
-            throw new BusinessException("商品库存不足，请刷新后重试");
-        }
 
-        // 5. 校验商品 + 库存 + 锁定库存 + 计算金额
         BigDecimal totalAmount = BigDecimal.ZERO;
         List<TradeOrderItem> orderItems = new ArrayList<>();
-
         for (OrderItemReq item : items) {
             Sku sku = skuMap.get(item.getSkuId());
             if (sku == null || !Integer.valueOf(1).equals(sku.getStatus())) {
                 throw new BusinessException("商品[" + item.getSkuId() + "]不存在或已下架");
             }
-
-            SkuStock stock = stockMap.get(item.getSkuId());
-            int available = stock == null ? 0 : stock.getStock() - stock.getLockedStock();
-            if (available < item.getQuantity()) {
-                throw new BusinessException("商品[" + sku.getSkuCode() + "]库存不足，剩余" + available);
-            }
-            if (skuStockMapper.lockAvailableStock(item.getSkuId(), item.getQuantity()) != 1) {
-                throw new BusinessException("商品[" + sku.getSkuCode() + "]库存不足，请刷新后重试");
-            }
-
+            if (sku.getPrice() == null || sku.getPrice().signum() < 0) throw new BusinessException("商品价格异常");
             BigDecimal itemTotal = sku.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
             totalAmount = totalAmount.add(itemTotal);
-
             TradeOrderItem orderItem = new TradeOrderItem();
             orderItem.setSkuId(item.getSkuId());
             orderItem.setSkuName(sku.getSkuCode());
@@ -138,16 +127,32 @@ public class TradeOrderServiceImpl implements TradeOrderService {
             orderItem.setSkuImage(extractFirstImage(sku.getImages()));
             orderItems.add(orderItem);
         }
+        CouponService.DiscountResult coupon = couponId == null
+                ? new CouponService.DiscountResult(BigDecimal.ZERO.setScale(2), null)
+                : couponService.validateAndCalculateDiscount(userId, couponId, totalAmount);
+        if (!redisStockReservationService.reserveAll(quantities, availableStock)) {
+            throw new BusinessException("商品库存不足，请刷新后重试");
+        }
+        for (OrderItemReq item : items) {
+            Sku sku = skuMap.get(item.getSkuId());
+            SkuStock stock = stockMap.get(item.getSkuId());
+            int available = stock == null ? 0 : stock.getStock() - stock.getLockedStock();
+            if (available < item.getQuantity()) {
+                throw new BusinessException("商品[" + sku.getSkuCode() + "]库存不足，剩余" + available);
+            }
+            if (skuStockMapper.lockAvailableStock(item.getSkuId(), item.getQuantity()) != 1) {
+                throw new BusinessException("商品[" + sku.getSkuCode() + "]库存不足，请刷新后重试");
+            }
+        }
 
-        // 6. 创建订单
         TradeOrder order = new TradeOrder();
         order.setOrderNo(generateOrderNo());
         order.setUserId(userId);
         order.setOrderStatus(0);
         order.setTotalAmount(totalAmount.setScale(2, RoundingMode.HALF_UP));
-        order.setDiscountAmount(BigDecimal.ZERO);
+        order.setDiscountAmount(coupon.amount());
         order.setFreightAmount(BigDecimal.ZERO);
-        order.setPayAmount(totalAmount.setScale(2, RoundingMode.HALF_UP));
+        order.setPayAmount(totalAmount.subtract(coupon.amount()).setScale(2, RoundingMode.HALF_UP));
         order.setReceiverName(address.getReceiverName());
         order.setReceiverPhone(address.getReceiverPhone());
         order.setReceiverAddress(
@@ -155,15 +160,16 @@ public class TradeOrderServiceImpl implements TradeOrderService {
         order.setRemark(remark);
         order.setSourceType(1);
         orderMapper.insert(order);
+        if (couponId != null && couponIssueMapper.markUsed(coupon.issueId(), couponId, userId, order.getOrderNo()) != 1) {
+            throw new BusinessException("优惠券已使用或不可用");
+        }
 
-        // 7. 插入订单明细
         for (TradeOrderItem orderItem : orderItems) {
             orderItem.setOrderId(order.getId());
             orderItem.setOrderNo(order.getOrderNo());
             orderItemMapper.insert(orderItem);
         }
 
-        // 8. 清空购物车已选商品
         cartMapper.delete(Wrappers.lambdaQuery(TradeCart.class)
                 .eq(TradeCart::getUserId, userId)
                 .eq(TradeCart::getChecked, 1)

@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -129,8 +131,53 @@ public class CouponServiceImpl implements CouponService {
         result.setIssueId(issue.getId()); result.setCouponId(coupon.getId()); result.setCouponName(coupon.getCouponName());
         result.setCouponType(coupon.getCouponType()); result.setThreshold(coupon.getThreshold()); result.setDiscount(coupon.getDiscount());
         result.setCurrency(coupon.getCurrency()); result.setValidStart(coupon.getValidStart()); result.setValidEnd(coupon.getValidEnd());
-        result.setStatus(coupon.getValidEnd().isBefore(LocalDateTime.now()) && issue.getStatus() == 0 ? 2 : issue.getStatus());
+        LocalDateTime now = LocalDateTime.now();
+        boolean active = Integer.valueOf(2).equals(coupon.getStatus())
+                && coupon.getValidStart() != null && coupon.getValidEnd() != null
+                && !coupon.getValidStart().isAfter(now) && !coupon.getValidEnd().isBefore(now);
+        result.setStatus(Integer.valueOf(0).equals(issue.getStatus()) && !active ? 2 : issue.getStatus());
         return result;
+    }
+
+    @Override
+    public DiscountResult validateAndCalculateDiscount(Long memberId, Long couponId, BigDecimal totalAmount) {
+        if (couponId == null) return new DiscountResult(BigDecimal.ZERO.setScale(2), null);
+        Coupon coupon = couponMapper.selectById(couponId);
+        CouponIssue issue = couponIssueMapper.selectOne(Wrappers.<CouponIssue>lambdaQuery()
+                .eq(CouponIssue::getCouponId, couponId)
+                .eq(CouponIssue::getMemberId, memberId)
+                .eq(CouponIssue::getStatus, 0)
+                .orderByAsc(CouponIssue::getIssueTime)
+                .orderByAsc(CouponIssue::getId)
+                .last("LIMIT 1"));
+        LocalDateTime now = LocalDateTime.now();
+        if (coupon == null || issue == null || !Integer.valueOf(2).equals(coupon.getStatus())
+                || coupon.getValidStart() == null || coupon.getValidEnd() == null
+                || coupon.getValidStart().isAfter(now) || coupon.getValidEnd().isBefore(now)) {
+            throw new BusinessException("优惠券不可用");
+        }
+        BigDecimal threshold = coupon.getThreshold() == null ? BigDecimal.ZERO : coupon.getThreshold();
+        if (totalAmount == null || totalAmount.compareTo(threshold) < 0) {
+            throw new BusinessException("未满足优惠券使用门槛");
+        }
+
+        BigDecimal discount;
+        if ("DISCOUNT".equals(coupon.getCouponType())) {
+            if (coupon.getDiscount() == null || coupon.getDiscount().compareTo(BigDecimal.ZERO) < 0
+                    || coupon.getDiscount().compareTo(BigDecimal.TEN) > 0) {
+                throw new BusinessException("优惠券优惠规则无效");
+            }
+            discount = totalAmount.multiply(BigDecimal.TEN.subtract(coupon.getDiscount()))
+                    .divide(BigDecimal.TEN, 2, RoundingMode.HALF_UP);
+        } else if ("SHIPPING".equals(coupon.getCouponType())) {
+            discount = BigDecimal.ZERO;
+        } else {
+            if (coupon.getDiscount() == null || coupon.getDiscount().compareTo(BigDecimal.ZERO) < 0) {
+                throw new BusinessException("优惠券优惠规则无效");
+            }
+            discount = coupon.getDiscount().min(totalAmount);
+        }
+        return new DiscountResult(discount.max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP), issue.getId());
     }
 
     private void normalizeCoupon(Coupon coupon) {

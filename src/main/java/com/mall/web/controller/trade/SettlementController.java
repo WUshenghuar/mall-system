@@ -22,14 +22,20 @@ public class SettlementController {
 
     @GetMapping
     public Result<Map<String, Object>> preview(@RequestParam List<Long> cartIds,
-                                                @RequestParam Long addressId, Authentication auth) {
-        return Result.success(settlementService.preview(CurrentMember.id(auth), cartIds, addressId));
+                                                @RequestParam Long addressId,
+                                                @RequestParam(required = false) Long couponId,
+                                                Authentication auth) {
+        return Result.success(settlementService.preview(CurrentMember.id(auth), cartIds, addressId, couponId));
     }
 
     @PostMapping("/check")
     public Result<Map<String, Object>> check(@RequestBody SettlementReq req, Authentication auth) {
-        return Result.success(settlementSnapshotService.create(CurrentMember.id(auth), req.getCartIds(), req.getAddressId()));
+        return Result.success(settlementSnapshotService.create(CurrentMember.id(auth), req.getCartIds(), req.getAddressId(), req.getCouponId()));
     }
 
-    @Data public static class SettlementReq { @NotEmpty private List<Long> cartIds; private Long addressId; }
+    @Data public static class SettlementReq {
+        @NotEmpty private List<Long> cartIds;
+        private Long addressId;
+        private Long couponId;
+    }
 }

@@ -23,7 +23,7 @@ public class TradeOrderController {
     public Result<TradeOrder> create(@RequestBody CreateReq req, Authentication auth) {
         Long userId = CurrentMember.id(auth);
         SettlementSnapshotService.Snapshot snapshot = settlementSnapshotService.consume(req.getSnapshotToken(), userId);
-        return Result.success(tradeOrderService.createOrder(userId, snapshot.addressId(), null, req.getRemark(), snapshot.itemsJson()));
+        return Result.success(tradeOrderService.createOrder(userId, snapshot.addressId(), snapshot.couponId(), req.getRemark(), snapshot.itemsJson()));
     }
 
     @GetMapping("/list")

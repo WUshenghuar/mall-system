@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.mall.marketing.entity.Coupon;
 import com.mall.marketing.entity.MemberCouponVO;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface CouponService {
@@ -19,4 +20,7 @@ public interface CouponService {
     List<Coupon> listAvailable();
     void claim(Long couponId, Long memberId);
     List<MemberCouponVO> listMemberCoupons(Long memberId);
+    DiscountResult validateAndCalculateDiscount(Long memberId, Long couponId, BigDecimal totalAmount);
+
+    record DiscountResult(BigDecimal amount, Long issueId) {}
 }

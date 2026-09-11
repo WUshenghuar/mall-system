@@ -23,14 +23,15 @@ public class SettlementSnapshotService {
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
 
-    public Map<String, Object> create(Long userId, List<Long> cartIds, Long addressId) {
-        Map<String, Object> preview = settlementService.preview(userId, cartIds, addressId);
+    public Map<String, Object> create(Long userId, List<Long> cartIds, Long addressId, Long couponId) {
+        Map<String, Object> preview = settlementService.preview(userId, cartIds, addressId, couponId);
         String token = UUID.randomUUID().toString().replace("-", "");
         try {
             List<Map<String, Object>> previewItems = objectMapper.convertValue(preview.get("items"), new TypeReference<>() {});
             List<Map<String, Object>> orderItems = previewItems.stream()
                     .map(item -> Map.of("skuId", item.get("skuId"), "quantity", item.get("quantity"))).toList();
-            String snapshot = objectMapper.writeValueAsString(new Snapshot(userId, addressId, objectMapper.writeValueAsString(orderItems)));
+            String snapshot = objectMapper.writeValueAsString(new Snapshot(userId, addressId, couponId,
+                    objectMapper.writeValueAsString(orderItems)));
             stringRedisTemplate.opsForValue().set(KEY_PREFIX + token, snapshot, TTL);
         } catch (Exception e) {
             throw new BusinessException("结算快照生成失败");
@@ -55,5 +56,5 @@ public class SettlementSnapshotService {
         }
     }
 
-    public record Snapshot(Long userId, Long addressId, String itemsJson) {}
+    public record Snapshot(Long userId, Long addressId, Long couponId, String itemsJson) {}
 }
