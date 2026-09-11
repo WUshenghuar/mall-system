@@ -22,7 +22,7 @@
     <div class="kpi-grid">
       <div v-for="s in stats" :key="s.key" class="kpi-card" :style="{ '--accent': s.fg, '--accent-soft': s.bg }">
         <div class="kpi-top">
-          <span class="kpi-label">{{ s.label }}</span>
+          <span class="kpi-label">{{ s.key === 'order' ? rangeLabel + '订单' : s.label }}</span>
           <span class="kpi-icon-row">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" :style="{ color: s.fg }" v-html="s.icon"></svg>
           </span>
@@ -36,7 +36,7 @@
             </svg>
             <span>{{ s.trendText }}</span>
           </span>
-          <span class="kpi-period">今日</span>
+          <span class="kpi-period">{{ s.key === 'order' ? rangeLabel : '今日' }}</span>
         </div>
       </div>
     </div>
@@ -46,7 +46,7 @@
       <!-- Chart area -->
       <div class="grid-panel panel-chart">
         <div class="panel-header">
-          <h3 class="panel-title">今日概览</h3>
+          <h3 class="panel-title">{{ rangeLabel }}概览</h3>
           <div class="panel-badges" aria-label="订单统计时间范围">
             <a-button size="small" :type="range === 'today' ? 'primary' : 'default'" @click="changeRange('today')">今日</a-button>
             <a-button size="small" :type="range === '24h' ? 'primary' : 'default'" @click="changeRange('24h')">过去 24 小时</a-button>
@@ -139,6 +139,7 @@ const chartLabels = ref(Array.from({ length: 24 }, (_, hour) => `${String(hour).
 const range = ref('today')
 let refreshTimer
 const hasOrders = computed(() => barHeights.value.some(height => height > 4))
+const rangeLabel = computed(() => range.value === '24h' ? '过去 24 小时' : '今日')
 
 function displayLabel(index) { return chartLabels.value[index]?.slice(-2) + ':00' }
 async function fetchStats() {

@@ -37,4 +37,21 @@ class DashboardControllerTest {
         assertThat(stats).containsEntry("todayOrders", 5L).containsEntry("pendingRefund", 2L);
         assertThat((List<Long>) stats.get("hourlyOrderCounts")).hasSize(24).contains(3L);
     }
+
+    @Test
+    void twentyFourHourStatsExposeSelectedRangeAndTwentyFourBuckets() {
+        SpuMapper spuMapper = mock(SpuMapper.class);
+        TradeOrderMapper orderMapper = mock(TradeOrderMapper.class);
+        MemberMapper memberMapper = mock(MemberMapper.class);
+        TradeRefundMapper refundMapper = mock(TradeRefundMapper.class);
+        when(orderMapper.countByHourSince(any(LocalDateTime.class))).thenReturn(List.of());
+
+        DashboardController controller = new DashboardController(spuMapper, orderMapper, memberMapper, refundMapper);
+
+        Map<String, Object> stats = controller.stats("24h").getData();
+
+        assertThat(stats).containsEntry("range", "24h");
+        assertThat((List<String>) stats.get("hourLabels")).hasSize(24);
+        assertThat((List<Long>) stats.get("hourlyOrderCounts")).hasSize(24);
+    }
 }
