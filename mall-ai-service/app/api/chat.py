@@ -1,5 +1,6 @@
 import json
 from collections.abc import AsyncIterator
+from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import StreamingResponse
@@ -13,7 +14,7 @@ router = APIRouter()
 
 
 class ChatMessage(BaseModel):
-    role: str
+    role: Literal["user", "assistant"]
     content: str
 
 
@@ -22,7 +23,7 @@ class ChatRequest(BaseModel):
     conversationId: str = Field(min_length=1, max_length=64)
     message: str = Field(min_length=1, max_length=1000)
     businessContext: str = Field(default="", max_length=1000)
-    businessTool: str = Field(default="", max_length=32)
+    businessTool: Literal["", "query_order", "query_logistics", "query_refund", "query_product", "query_coupon"] = ""
     history: list[ChatMessage] = Field(default_factory=list)
 
 

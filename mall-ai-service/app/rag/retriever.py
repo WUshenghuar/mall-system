@@ -34,6 +34,20 @@ async def retrieve(query: str) -> list[dict]:
                 await ensure_seeded()
                 response = await client.post(f"{settings.elasticsearch_url}/{INDEX}/_search", json=payload)
             response.raise_for_status()
-        return [hit["_source"] for hit in response.json()["hits"]["hits"]]
+        hits = [hit["_source"] for hit in response.json()["hits"]["hits"]]
+        return hits or fallback_hits(query)
     except Exception:
-        return []
+        return fallback_hits(query)
+
+
+def fallback_hits(query: str) -> list[dict]:
+    grams = {query[index:index + 2] for index in range(len(query) - 1)}
+    ranked = []
+    for document in SEED_DOCS:
+        title = document["title"]
+        text = title + document["content"]
+        title_grams = {title[index:index + 2] for index in range(len(title) - 1)}
+        score = sum(10 for gram in title_grams if gram in query) + sum(gram in text for gram in grams)
+        if score:
+            ranked.append((score, document))
+    return [document for _, document in sorted(ranked, key=lambda item: item[0], reverse=True)[:3]]
