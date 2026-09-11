@@ -16,4 +16,7 @@ public interface ActivityService {
     List<ActivitySku> listSkus(Long activityId);
     void saveSku(Long activityId, ActivitySku activitySku);
     void deleteSku(Long activityId, Long skuId);
+    ActivitySku findActiveSku(Long skuId);
+    boolean reserveStock(ActivitySku activitySku, int quantity);
+    void releaseStock(Long activityId, Long skuId, int quantity);
 }

@@ -466,6 +466,8 @@ CREATE TABLE IF NOT EXISTS trade_order_item (
     order_id    BIGINT       NOT NULL,
     order_no    VARCHAR(32)  NOT NULL,
     sku_id      BIGINT,
+    activity_id BIGINT,
+    activity_stock_reserved TINYINT DEFAULT 0,
     sku_name    VARCHAR(200) COMMENT '商品名称（快照）',
     sku_price   DECIMAL(10,2) COMMENT '商品单价（快照）',
     quantity    INT          DEFAULT 1,

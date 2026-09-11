@@ -7,7 +7,9 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.exception.BusinessException;
+import com.mall.marketing.entity.ActivitySku;
 import com.mall.marketing.mapper.CouponIssueMapper;
+import com.mall.marketing.service.ActivityService;
 import com.mall.marketing.service.CouponService;
 import com.mall.member.entity.MemberAddress;
 import com.mall.member.mapper.MemberAddressMapper;
@@ -37,6 +39,7 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -58,6 +61,7 @@ public class TradeOrderServiceImpl implements TradeOrderService {
     private final RedisStockReservationService redisStockReservationService;
     private final CouponService couponService;
     private final CouponIssueMapper couponIssueMapper;
+    private final ActivityService activityService;
 
     private String generateOrderNo() {
         String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
@@ -110,21 +114,38 @@ public class TradeOrderServiceImpl implements TradeOrderService {
 
         BigDecimal totalAmount = BigDecimal.ZERO;
         List<TradeOrderItem> orderItems = new ArrayList<>();
+        Map<Long, ActivitySku> promotions = new HashMap<>();
         for (OrderItemReq item : items) {
             Sku sku = skuMap.get(item.getSkuId());
             if (sku == null || !Integer.valueOf(1).equals(sku.getStatus())) {
                 throw new BusinessException("商品[" + item.getSkuId() + "]不存在或已下架");
             }
             if (sku.getPrice() == null || sku.getPrice().signum() < 0) throw new BusinessException("商品价格异常");
-            BigDecimal itemTotal = sku.getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
+            ActivitySku promotion = activityService.findActiveSku(item.getSkuId());
+            if (promotion != null) {
+                if (promotion.getSeckillStock() != null && promotion.getSeckillStock() < item.getQuantity()) {
+                    throw new BusinessException("活动库存不足");
+                }
+                if (promotion.getLimitPerUser() != null
+                        && orderItemMapper.countActiveUserActivitySku(userId, promotion.getActivityId(), item.getSkuId())
+                        + item.getQuantity() > promotion.getLimitPerUser()) {
+                    throw new BusinessException("超过活动限购数量");
+                }
+                promotions.put(item.getSkuId(), promotion);
+            }
+            BigDecimal unitPrice = promotion == null || promotion.getSeckillPrice() == null
+                    ? sku.getPrice() : promotion.getSeckillPrice();
+            BigDecimal itemTotal = unitPrice.multiply(BigDecimal.valueOf(item.getQuantity()));
             totalAmount = totalAmount.add(itemTotal);
             TradeOrderItem orderItem = new TradeOrderItem();
             orderItem.setSkuId(item.getSkuId());
             orderItem.setSkuName(sku.getSkuCode());
-            orderItem.setSkuPrice(sku.getPrice());
+            orderItem.setSkuPrice(unitPrice);
             orderItem.setQuantity(item.getQuantity());
             orderItem.setTotalAmount(itemTotal.setScale(2, RoundingMode.HALF_UP));
             orderItem.setSkuImage(extractFirstImage(sku.getImages()));
+            orderItem.setActivityId(promotion == null ? null : promotion.getActivityId());
+            orderItem.setActivityStockReserved(promotion != null && promotion.getSeckillStock() != null ? 1 : 0);
             orderItems.add(orderItem);
         }
         CouponService.DiscountResult coupon = couponId == null
@@ -142,6 +163,13 @@ public class TradeOrderServiceImpl implements TradeOrderService {
             }
             if (skuStockMapper.lockAvailableStock(item.getSkuId(), item.getQuantity()) != 1) {
                 throw new BusinessException("商品[" + sku.getSkuCode() + "]库存不足，请刷新后重试");
+            }
+        }
+        for (OrderItemReq item : items) {
+            ActivitySku promotion = promotions.get(item.getSkuId());
+            if (promotion != null && promotion.getSeckillStock() != null
+                    && !activityService.reserveStock(promotion, item.getQuantity())) {
+                throw new BusinessException("活动库存不足，请刷新后重试");
             }
         }
 
@@ -315,6 +343,9 @@ public class TradeOrderServiceImpl implements TradeOrderService {
                 throw new BusinessException("订单库存状态异常，请联系管理员");
             }
             redisStockReservationService.release(item.getSkuId(), item.getQuantity());
+            if (Integer.valueOf(1).equals(item.getActivityStockReserved())) {
+                activityService.releaseStock(item.getActivityId(), item.getSkuId(), item.getQuantity());
+            }
         }
     }
 }

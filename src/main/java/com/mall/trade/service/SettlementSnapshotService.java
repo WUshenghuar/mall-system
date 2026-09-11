@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SettlementSnapshotService {
     private static final String KEY_PREFIX = "trade:settlement:snapshot:";
     private static final Duration TTL = Duration.ofMinutes(15);
@@ -34,6 +36,7 @@ public class SettlementSnapshotService {
                     objectMapper.writeValueAsString(orderItems)));
             stringRedisTemplate.opsForValue().set(KEY_PREFIX + token, snapshot, TTL);
         } catch (Exception e) {
+            log.error("Failed to create settlement snapshot", e);
             throw new BusinessException("结算快照生成失败");
         }
         Map<String, Object> result = new HashMap<>(preview);

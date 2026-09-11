@@ -81,7 +81,8 @@ public class ActivityServiceImpl implements ActivityService {
 
     @Override
     public void saveSku(Long activityId, ActivitySku activitySku) {
-        if (activityMapper.selectById(activityId) == null || activitySku == null || activitySku.getSkuId() == null) {
+        Activity activity = activityMapper.selectById(activityId);
+        if (activity == null || activitySku == null || activitySku.getSkuId() == null) {
             throw new BusinessException("活动或商品不存在");
         }
         Sku sku = skuMapper.selectById(activitySku.getSkuId());
@@ -89,8 +90,16 @@ public class ActivityServiceImpl implements ActivityService {
         if (activitySku.getSeckillPrice() != null && activitySku.getSeckillPrice().signum() < 0) {
             throw new BusinessException("活动价不能为负数");
         }
+        if (activitySku.getSeckillPrice() != null && sku.getPrice() != null
+                && activitySku.getSeckillPrice().compareTo(sku.getPrice()) > 0) {
+            throw new BusinessException("活动价不能高于商品原价");
+        }
         if (activitySku.getSeckillStock() != null && activitySku.getSeckillStock() <= 0) {
             throw new BusinessException("活动库存必须大于 0");
+        }
+        if ("SECKILL".equals(activity.getActivityType())
+                && (activitySku.getSeckillPrice() == null || activitySku.getSeckillStock() == null)) {
+            throw new BusinessException("秒杀活动必须配置活动价和活动库存");
         }
         if (activitySku.getLimitPerUser() == null) activitySku.setLimitPerUser(1);
         if (activitySku.getLimitPerUser() <= 0) throw new BusinessException("每人限购必须大于 0");
@@ -105,5 +114,23 @@ public class ActivityServiceImpl implements ActivityService {
     public void deleteSku(Long activityId, Long skuId) {
         activitySkuMapper.delete(Wrappers.<ActivitySku>lambdaQuery()
                 .eq(ActivitySku::getActivityId, activityId).eq(ActivitySku::getSkuId, skuId));
+    }
+
+    @Override
+    public ActivitySku findActiveSku(Long skuId) {
+        return activitySkuMapper.findActiveBySkuId(skuId, LocalDateTime.now());
+    }
+
+    @Override
+    public boolean reserveStock(ActivitySku activitySku, int quantity) {
+        return activitySku == null || activitySku.getSeckillStock() == null
+                || activitySkuMapper.reserveStock(activitySku.getActivityId(), activitySku.getSkuId(), quantity) == 1;
+    }
+
+    @Override
+    public void releaseStock(Long activityId, Long skuId, int quantity) {
+        if (activitySkuMapper.releaseStock(activityId, skuId, quantity) != 1) {
+            throw new BusinessException("活动库存状态异常");
+        }
     }
 }

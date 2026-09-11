@@ -2,7 +2,9 @@ package com.mall.trade.service.impl;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.mall.common.exception.BusinessException;
+import com.mall.marketing.entity.ActivitySku;
 import com.mall.marketing.entity.MemberCouponVO;
+import com.mall.marketing.service.ActivityService;
 import com.mall.marketing.service.CouponService;
 import com.mall.member.entity.MemberAddress;
 import com.mall.member.mapper.MemberAddressMapper;
@@ -31,6 +33,7 @@ public class SettlementServiceImpl implements SettlementService {
     private final SkuStockMapper stockMapper;
     private final MemberAddressMapper addressMapper;
     private final CouponService couponService;
+    private final ActivityService activityService;
 
     @Override
     public Map<String, Object> preview(Long userId, List<Long> cartIds, Long addressId, Long couponId) {
@@ -48,10 +51,20 @@ public class SettlementServiceImpl implements SettlementService {
             if (sku == null || !Integer.valueOf(1).equals(sku.getStatus()) || available < cart.getQuantity()) {
                 throw new BusinessException("存在已下架或库存不足的商品");
             }
-            BigDecimal subtotal = sku.getPrice().multiply(BigDecimal.valueOf(cart.getQuantity()));
+            ActivitySku promotion = activityService.findActiveSku(cart.getSkuId());
+            if (promotion != null && promotion.getSeckillStock() != null
+                    && promotion.getSeckillStock() < cart.getQuantity()) {
+                throw new BusinessException("活动库存不足");
+            }
+            BigDecimal price = promotion == null || promotion.getSeckillPrice() == null
+                    ? sku.getPrice() : promotion.getSeckillPrice();
+            BigDecimal subtotal = price.multiply(BigDecimal.valueOf(cart.getQuantity()));
             total = total.add(subtotal);
-            items.add(Map.of("cartId", cart.getId(), "skuId", sku.getId(), "skuCode", sku.getSkuCode(),
-                    "quantity", cart.getQuantity(), "price", sku.getPrice(), "subtotal", subtotal));
+            Map<String, Object> item = new HashMap<>();
+            item.put("cartId", cart.getId()); item.put("skuId", sku.getId()); item.put("skuCode", sku.getSkuCode());
+            item.put("quantity", cart.getQuantity()); item.put("price", price); item.put("originalPrice", sku.getPrice());
+            item.put("activityId", promotion == null ? null : promotion.getActivityId()); item.put("subtotal", subtotal);
+            items.add(item);
         }
         CouponService.DiscountResult coupon = couponId == null
                 ? new CouponService.DiscountResult(BigDecimal.ZERO.setScale(2), null)

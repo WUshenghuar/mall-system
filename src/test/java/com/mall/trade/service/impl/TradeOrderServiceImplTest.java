@@ -2,7 +2,9 @@ package com.mall.trade.service.impl;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.exception.BusinessException;
+import com.mall.marketing.entity.ActivitySku;
 import com.mall.marketing.mapper.CouponIssueMapper;
+import com.mall.marketing.service.ActivityService;
 import com.mall.marketing.service.CouponService;
 import com.mall.member.entity.MemberAddress;
 import com.mall.member.mapper.MemberAddressMapper;
@@ -37,7 +39,7 @@ class TradeOrderServiceImplTest {
                 mock(TradeCartMapper.class), mock(TradeLogisticsMapper.class), mock(SkuMapper.class),
                 mock(SkuStockMapper.class), mock(MemberAddressMapper.class), new ObjectMapper(),
                 mock(TradeEventPublisher.class), mock(RedisStockReservationService.class),
-                mock(CouponService.class), mock(CouponIssueMapper.class));
+                mock(CouponService.class), mock(CouponIssueMapper.class), mock(ActivityService.class));
 
         assertThatThrownBy(() -> service.getOwnedByOrderNo("T-1", 10L))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("无权访问");
@@ -75,7 +77,7 @@ class TradeOrderServiceImplTest {
 
         TradeOrderServiceImpl service = new TradeOrderServiceImpl(orderMapper, itemMapper, cartMapper,
                 mock(TradeLogisticsMapper.class), skuMapper, stockMapper, addressMapper, new ObjectMapper(),
-                mock(TradeEventPublisher.class), reservation, couponService, issueMapper);
+                mock(TradeEventPublisher.class), reservation, couponService, issueMapper, mock(ActivityService.class));
 
         TradeOrder order = service.createOrder(9L, 5L, 99L, null, "[{\"skuId\":7,\"quantity\":2}]");
 
@@ -83,5 +85,44 @@ class TradeOrderServiceImplTest {
         assertThat(order.getDiscountAmount()).isEqualByComparingTo("20.00");
         assertThat(order.getPayAmount()).isEqualByComparingTo("180.00");
         verify(issueMapper).markUsed(eq(11L), eq(99L), eq(9L), anyString());
+    }
+
+    @Test
+    void createsOrderWithActiveActivityPriceAndReservesActivityStock() {
+        TradeOrderMapper orderMapper = mock(TradeOrderMapper.class);
+        TradeOrderItemMapper itemMapper = mock(TradeOrderItemMapper.class);
+        TradeCartMapper cartMapper = mock(TradeCartMapper.class);
+        SkuMapper skuMapper = mock(SkuMapper.class);
+        SkuStockMapper stockMapper = mock(SkuStockMapper.class);
+        MemberAddressMapper addressMapper = mock(MemberAddressMapper.class);
+        RedisStockReservationService reservation = mock(RedisStockReservationService.class);
+        CouponService couponService = mock(CouponService.class);
+        ActivityService activityService = mock(ActivityService.class);
+        MemberAddress address = new MemberAddress(); address.setUserId(9L);
+        TradeCart cart = new TradeCart(); cart.setUserId(9L); cart.setSkuId(7L); cart.setQuantity(2); cart.setChecked(1);
+        Sku sku = new Sku(); sku.setId(7L); sku.setSkuCode("SKU-7"); sku.setStatus(1); sku.setPrice(new BigDecimal("120.00"));
+        SkuStock stock = new SkuStock(); stock.setSkuId(7L); stock.setStock(10); stock.setLockedStock(0);
+        ActivitySku promotion = new ActivitySku(); promotion.setActivityId(8L); promotion.setSkuId(7L);
+        promotion.setSeckillPrice(new BigDecimal("80.00")); promotion.setSeckillStock(5); promotion.setLimitPerUser(2);
+        when(addressMapper.selectById(5L)).thenReturn(address);
+        when(cartMapper.selectList(any())).thenReturn(List.of(cart));
+        when(skuMapper.selectBatchIds(any())).thenReturn(List.of(sku));
+        when(stockMapper.selectList(any())).thenReturn(List.of(stock));
+        when(reservation.reserveAll(any(), any())).thenReturn(true);
+        when(stockMapper.lockAvailableStock(7L, 2)).thenReturn(1);
+        when(activityService.findActiveSku(7L)).thenReturn(promotion);
+        when(activityService.reserveStock(promotion, 2)).thenReturn(true);
+
+        TradeOrderServiceImpl service = new TradeOrderServiceImpl(orderMapper, itemMapper, cartMapper,
+                mock(TradeLogisticsMapper.class), skuMapper, stockMapper, addressMapper, new ObjectMapper(),
+                mock(TradeEventPublisher.class), reservation, couponService, mock(CouponIssueMapper.class), activityService);
+
+        TradeOrder order = service.createOrder(9L, 5L, null, null, "[{\"skuId\":7,\"quantity\":2}]");
+
+        assertThat(order.getTotalAmount()).isEqualByComparingTo("160.00");
+        verify(activityService).reserveStock(promotion, 2);
+        verify(itemMapper).insert(argThat((com.mall.trade.entity.TradeOrderItem item) -> item.getActivityId().equals(8L)
+                && item.getSkuPrice().compareTo(new BigDecimal("80.00")) == 0
+                && Integer.valueOf(1).equals(item.getActivityStockReserved())));
     }
 }

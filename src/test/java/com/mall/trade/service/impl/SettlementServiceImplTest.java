@@ -2,6 +2,8 @@ package com.mall.trade.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.mall.marketing.entity.MemberCouponVO;
+import com.mall.marketing.entity.ActivitySku;
+import com.mall.marketing.service.ActivityService;
 import com.mall.marketing.service.CouponService;
 import com.mall.member.entity.MemberAddress;
 import com.mall.member.mapper.MemberAddressMapper;
@@ -43,12 +45,44 @@ class SettlementServiceImplTest {
                 .thenReturn(new CouponService.DiscountResult(new BigDecimal("20"), 11L));
         when(couponService.listMemberCoupons(9L)).thenReturn(List.of(available));
 
-        Map<String, Object> result = new SettlementServiceImpl(cartMapper, skuMapper, stockMapper, addressMapper, couponService)
+        Map<String, Object> result = new SettlementServiceImpl(cartMapper, skuMapper, stockMapper, addressMapper, couponService,
+                        mock(ActivityService.class))
                 .preview(9L, List.of(3L), 5L, 7L);
 
         assertThat(result).containsEntry("totalAmount", new BigDecimal("240"))
                 .containsEntry("discountAmount", new BigDecimal("20"))
                 .containsEntry("payAmount", new BigDecimal("220.00"));
         assertThat((List<?>) result.get("availableCoupons")).hasSize(1);
+    }
+
+    @Test
+    void previewUsesActiveActivityPriceAndStock() {
+        TradeCartMapper cartMapper = mock(TradeCartMapper.class);
+        SkuMapper skuMapper = mock(SkuMapper.class);
+        SkuStockMapper stockMapper = mock(SkuStockMapper.class);
+        MemberAddressMapper addressMapper = mock(MemberAddressMapper.class);
+        CouponService couponService = mock(CouponService.class);
+        ActivityService activityService = mock(ActivityService.class);
+        MemberAddress address = new MemberAddress(); address.setId(5L); address.setUserId(9L);
+        TradeCart cart = new TradeCart(); cart.setId(3L); cart.setSkuId(7L); cart.setQuantity(2); cart.setChecked(1);
+        Sku sku = new Sku(); sku.setId(7L); sku.setStatus(1); sku.setSkuCode("SKU-7"); sku.setPrice(new BigDecimal("120"));
+        SkuStock stock = new SkuStock(); stock.setSkuId(7L); stock.setStock(10); stock.setLockedStock(0);
+        ActivitySku promotion = new ActivitySku(); promotion.setActivityId(8L); promotion.setSkuId(7L);
+        promotion.setSeckillPrice(new BigDecimal("80")); promotion.setSeckillStock(5); promotion.setLimitPerUser(1);
+        when(addressMapper.selectById(5L)).thenReturn(address);
+        when(cartMapper.selectList(any())).thenReturn(List.of(cart));
+        when(skuMapper.selectById(7L)).thenReturn(sku);
+        when(stockMapper.selectOne(any())).thenReturn(stock);
+        when(activityService.findActiveSku(7L)).thenReturn(promotion);
+        when(couponService.listMemberCoupons(9L)).thenReturn(List.of());
+
+        Map<String, Object> result = new SettlementServiceImpl(cartMapper, skuMapper, stockMapper, addressMapper,
+                        couponService, activityService).preview(9L, List.of(3L), 5L, null);
+
+        assertThat(result).containsEntry("totalAmount", new BigDecimal("160"))
+                .containsEntry("payAmount", new BigDecimal("160.00"));
+        Map<?, ?> item = (Map<?, ?>) ((List<?>) result.get("items")).get(0);
+        assertThat(item.get("price")).isEqualTo(new BigDecimal("80"));
+        assertThat(item.get("activityId")).isEqualTo(8L);
     }
 }

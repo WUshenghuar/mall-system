@@ -14,6 +14,10 @@ public class TradeOrderItem extends BaseEntity {
     private Long orderId;
     private String orderNo;
     private Long skuId;
+    /** 活动 ID 快照，普通订单为空 */
+    private Long activityId;
+    /** 是否实际占用活动库存 */
+    private Integer activityStockReserved;
     /** 商品名称（快照） */
     private String skuName;
     /** 商品单价（快照） */

@@ -61,10 +61,10 @@
 | 顺序 | 类 | 一句话职责 | 面试可讲点 |
 |---|---|---|---|
 | 1 | `trade/controller/CartController` + `service/CartServiceImpl` | 购物车 CRUD | 会员归属校验 |
-| 2 | `trade/service/SettlementService` | 结算预览（价格/库存核对） | 生成快照 token |
+| 2 | `trade/service/SettlementService` + `marketing/service/ActivityService` | 结算预览（活动价/优惠券/库存核对） | 价格由服务端重算 |
 | 3 | `trade/service/SettlementSnapshotService` | 结算快照（Redis 存 15 分钟） | 一次性、防价格篡改 |
 | 4 | `trade/service/RedisStockReservationService` | Redis Lua 预占库存 | ⚠️ **重点**：多 SKU 原子预占 + 事务回滚自动释放 |
-| 5 | `trade/service/impl/TradeOrderServiceImpl` | 下单：校验→锁库存→建单→MQ | ⚠️ **重点**：createOrder 全流程 + cancelExpiredOrders 超时关单 |
+| 5 | `trade/service/impl/TradeOrderServiceImpl` | 下单：校验→锁普通/活动库存→建单→MQ | ⚠️ **重点**：活动价快照 + cancelExpiredOrders 超时关单 |
 | 6 | `trade/service/PayService` | 支付单创建、模拟支付与支付宝回调校验 | 真实商户渠道联调未完成 |
 | 7 | `order/service/impl/OrderServiceImpl` | B 端后台订单处理（发货/状态机） | ⚠️ trade 与 order 两套模型的关系 |
 | 8 | `trade/service/TradeRefundService` | C 端仅退款申请 | 状态流转：待审→通过/驳回→已退款 |
