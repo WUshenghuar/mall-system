@@ -107,9 +107,16 @@ async function generate() {
 }
 
 async function exportExcel(id) {
-  const token = localStorage.getItem('token')
-  window.open(`/api/finance/statement/${id}/export?token=${token}`, '_blank')
-  message.success('正在下载')
+  try {
+    const blob = await exportStatement(id)
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `对账单-${id}.xlsx`
+    link.click()
+    URL.revokeObjectURL(url)
+    message.success('对账单已下载')
+  } catch { /* handled by interceptor */ }
 }
 
 onMounted(() => { fetchData() })
