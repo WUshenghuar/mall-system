@@ -41,6 +41,7 @@ public class FileController {
     }
 
     @DeleteMapping
+    @PreAuthorize("hasAuthority('product:spu:edit')")
     public Result<Void> delete(@RequestParam String path) {
         fileService.delete(path);
         return Result.success(null);

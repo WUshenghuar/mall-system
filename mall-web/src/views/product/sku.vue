@@ -90,6 +90,7 @@
             <img v-if="imagePreview" :src="imagePreview" alt="SKU 商品预览" class="sku-image-preview" />
             <div class="sku-image-actions">
               <a-button :loading="uploading" @click="openImagePicker">上传图片</a-button>
+              <a-button v-if="imagePreview || (form.images && form.images !== '[]')" type="link" danger :loading="clearing" @click="clearImage">移除</a-button>
               <span class="sku-image-hint">{{ form.images ? '已选择图片' : '支持 JPG、PNG，最大 5MB' }}</span>
             </div>
             <input ref="imageInput" class="sku-file-input" type="file" accept="image/*" @change="handleImageSelected" />
@@ -138,7 +139,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { getSkuList, createSku, updateSku, deleteSku, batchSkuPrice, updateSkuStock, uploadProductImage } from '@/api/product'
+import { getSkuList, createSku, updateSku, deleteSku, batchSkuPrice, updateSkuStock, uploadProductImage, deleteProductImage } from '@/api/product'
 
 const route = useRoute()
 const spuId = route.params.spuId
@@ -146,9 +147,11 @@ const spuId = route.params.spuId
 const loading = ref(false)
 const saving = ref(false)
 const uploading = ref(false)
+const clearing = ref(false)
 const list = ref([])
 const imageInput = ref(null)
 const imagePreview = ref('')
+const uploadedImagePath = ref('')
 const modalOpen = ref(false)
 const editingId = ref(null)
 
@@ -209,6 +212,7 @@ function resetForm() {
   form.specs = ''
   form.images = ''
   imagePreview.value = ''
+  uploadedImagePath.value = ''
   editingId.value = null
 }
 
@@ -227,11 +231,27 @@ function openEdit(r) {
   form.specs = r.attrs || r.specs || ''
   form.images = r.images || ''
   imagePreview.value = r.imageUrl || ''
+  uploadedImagePath.value = ''
   modalOpen.value = true
 }
 
 function openImagePicker() {
   imageInput.value?.click()
+}
+
+async function clearImage() {
+  clearing.value = true
+  try {
+    if (uploadedImagePath.value) {
+      await deleteProductImage(uploadedImagePath.value)
+      uploadedImagePath.value = ''
+    }
+    form.images = '[]'
+    imagePreview.value = ''
+  } catch { /* handled by interceptor */
+  } finally {
+    clearing.value = false
+  }
 }
 
 async function handleImageSelected(event) {
@@ -251,6 +271,7 @@ async function handleImageSelected(event) {
     const res = await uploadProductImage(file)
     form.images = JSON.stringify([res.data.path])
     imagePreview.value = res.data.url
+    uploadedImagePath.value = res.data.path
     message.success('图片上传成功')
   } catch { /* handled by interceptor */
   } finally {

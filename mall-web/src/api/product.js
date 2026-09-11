@@ -63,6 +63,9 @@ export function uploadProductImage(file) {
   form.append('file', file)
   return request.post('/file/product-image', form)
 }
+export function deleteProductImage(path) {
+  return request.delete('/file', { params: { path } })
+}
 export function updateSku(id, data) {
   return request.put(`/product/sku/${id}`, data)
 }

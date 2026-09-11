@@ -29,4 +29,8 @@ public class Sku extends BaseEntity {
     /** 库存（透传，非表字段） */
     @TableField(exist = false)
     private Integer stock;
+
+    /** 图片预览地址（透传，非表字段） */
+    @TableField(exist = false)
+    private String imageUrl;
 }

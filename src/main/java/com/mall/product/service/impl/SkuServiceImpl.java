@@ -1,6 +1,9 @@
 package com.mall.product.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.mall.common.service.FileService;
 import com.mall.product.entity.Sku;
 import com.mall.product.entity.SkuStock;
 import com.mall.product.mapper.SkuMapper;
@@ -15,6 +18,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -25,6 +29,10 @@ public class SkuServiceImpl implements SkuService {
 
     @Autowired(required = false)
     private RedisTemplate<String, Object> redisTemplate;
+    @Autowired(required = false)
+    private FileService fileService;
+    @Autowired(required = false)
+    private ObjectMapper objectMapper;
 
     public SkuServiceImpl(SkuMapper skuMapper,
                            SkuStockMapper skuStockMapper,
@@ -47,7 +55,10 @@ public class SkuServiceImpl implements SkuService {
                     Wrappers.<SkuStock>lambdaQuery().in(SkuStock::getSkuId, skuIds));
             Map<Long, Integer> stockMap = stocks.stream()
                     .collect(Collectors.toMap(SkuStock::getSkuId, SkuStock::getStock, (a, b) -> a));
-            skus.forEach(s -> s.setStock(stockMap.getOrDefault(s.getId(), 0)));
+            skus.forEach(s -> {
+                s.setStock(stockMap.getOrDefault(s.getId(), 0));
+                s.setImageUrl(resolveImageUrl(s.getImages()));
+            });
         }
         return skus;
     }
@@ -67,6 +78,9 @@ public class SkuServiceImpl implements SkuService {
     public void update(Sku sku) {
         Sku storedSku = skuMapper.selectById(sku.getId());
         skuMapper.updateById(sku);
+        if (storedSku != null && sku.getImages() != null && !Objects.equals(storedSku.getImages(), sku.getImages())) {
+            deleteImage(storedSku.getImages());
+        }
         reindex(storedSku != null ? storedSku.getSpuId() : sku.getSpuId());
     }
 
@@ -77,6 +91,7 @@ public class SkuServiceImpl implements SkuService {
         if (redisTemplate != null) {
             redisTemplate.delete(STOCK_KEY + id);
         }
+        deleteImage(sku == null ? null : sku.getImages());
         reindex(sku == null ? null : sku.getSpuId());
     }
 
@@ -129,6 +144,29 @@ public class SkuServiceImpl implements SkuService {
     private void reindex(Long spuId) {
         if (spuId != null) {
             productSearchServiceProvider.ifAvailable(service -> service.indexProduct(spuId));
+        }
+    }
+
+    private String resolveImageUrl(String images) {
+        String image = firstImage(images);
+        if (image == null || image.startsWith("http") || !image.contains("/") || fileService == null) return image;
+        return fileService.getPresignedUrl(image);
+    }
+
+    private String firstImage(String images) {
+        if (objectMapper == null || images == null || images.isBlank()) return null;
+        try {
+            List<String> values = objectMapper.readValue(images, new TypeReference<>() {});
+            return values.isEmpty() ? null : values.get(0);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private void deleteImage(String images) {
+        String image = firstImage(images);
+        if (image != null && !image.startsWith("http") && image.contains("/") && fileService != null) {
+            fileService.delete(image);
         }
     }
 }
