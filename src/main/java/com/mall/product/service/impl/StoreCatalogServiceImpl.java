@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mall.common.exception.BusinessException;
+import com.mall.common.service.FileService;
 import com.mall.product.entity.Category;
 import com.mall.product.entity.Sku;
 import com.mall.product.entity.Spu;
@@ -14,6 +15,7 @@ import com.mall.product.mapper.SkuMapper;
 import com.mall.product.mapper.SpuMapper;
 import com.mall.product.service.StoreCatalogService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -28,6 +30,9 @@ public class StoreCatalogServiceImpl implements StoreCatalogService {
     private final SpuMapper spuMapper;
     private final SkuMapper skuMapper;
     private final ObjectMapper objectMapper;
+
+    @Autowired(required = false)
+    private FileService fileService;
 
     @Override
     public List<Category> categories() {
@@ -68,7 +73,10 @@ public class StoreCatalogServiceImpl implements StoreCatalogService {
         if (!StringUtils.hasText(images)) return null;
         try {
             List<String> values = objectMapper.readValue(images, new TypeReference<>() {});
-            return values.isEmpty() ? null : values.get(0);
+            if (values.isEmpty()) return null;
+            String image = values.get(0);
+            return image != null && !image.startsWith("http") && image.contains("/") && fileService != null
+                    ? fileService.getPresignedUrl(image) : image;
         } catch (Exception ignored) {
             return null;
         }
