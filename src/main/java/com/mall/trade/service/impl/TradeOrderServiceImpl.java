@@ -286,6 +286,7 @@ public class TradeOrderServiceImpl implements TradeOrderService {
             throw new BusinessException("当前状态不可取消");
         }
         releaseLockedStock(orderNo);
+        couponIssueMapper.releaseUsed(userId, orderNo);
         tradeEventPublisher.publish("cancelled", orderNo);
     }
 
@@ -354,6 +355,7 @@ public class TradeOrderServiceImpl implements TradeOrderService {
         for (TradeOrder order : expired) {
             if (orderMapper.transitionOwned(order.getOrderNo(), order.getUserId(), 0, 4) == 1) {
                 releaseLockedStock(order.getOrderNo());
+                couponIssueMapper.releaseUsed(order.getUserId(), order.getOrderNo());
                 tradeEventPublisher.publish("cancelled", order.getOrderNo());
                 cancelled++;
             }

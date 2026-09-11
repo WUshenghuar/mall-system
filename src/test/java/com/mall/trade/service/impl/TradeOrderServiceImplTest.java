@@ -24,6 +24,7 @@ import com.mall.trade.service.RedisStockReservationService;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -156,5 +157,45 @@ class TradeOrderServiceImplTest {
         verify(stockMapper).restoreStock(7L, 2);
         verify(reservation).release(7L, 2);
         verify(activityService).releaseStock(8L, 7L, 2);
+    }
+
+    @Test
+    void unpaidOrderCancellationReleasesCouponIssue() {
+        TradeOrderMapper orderMapper = mock(TradeOrderMapper.class);
+        TradeOrderItemMapper itemMapper = mock(TradeOrderItemMapper.class);
+        CouponIssueMapper issueMapper = mock(CouponIssueMapper.class);
+        TradeOrder order = new TradeOrder(); order.setOrderNo("T-2"); order.setUserId(9L); order.setOrderStatus(0);
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(orderMapper.transitionOwned("T-2", 9L, 0, 4)).thenReturn(1);
+        when(itemMapper.selectList(any())).thenReturn(List.of());
+        when(issueMapper.releaseUsed(9L, "T-2")).thenReturn(1);
+        TradeOrderServiceImpl service = new TradeOrderServiceImpl(orderMapper, itemMapper, mock(TradeCartMapper.class),
+                mock(TradeLogisticsMapper.class), mock(SkuMapper.class), mock(SkuStockMapper.class), mock(MemberAddressMapper.class), new ObjectMapper(),
+                mock(TradeEventPublisher.class), mock(RedisStockReservationService.class), mock(CouponService.class), mock(MemberService.class),
+                issueMapper, mock(ActivityService.class), mock(SpuMapper.class), mock(TaxConfigService.class));
+
+        service.cancelOrder("T-2", 9L);
+
+        verify(issueMapper).releaseUsed(9L, "T-2");
+    }
+
+    @Test
+    void expiredOrderCancellationReleasesCouponIssue() {
+        TradeOrderMapper orderMapper = mock(TradeOrderMapper.class);
+        TradeOrderItemMapper itemMapper = mock(TradeOrderItemMapper.class);
+        CouponIssueMapper issueMapper = mock(CouponIssueMapper.class);
+        TradeOrder order = new TradeOrder(); order.setOrderNo("T-3"); order.setUserId(9L);
+        order.setOrderStatus(0); order.setCreateTime(LocalDateTime.now().minusMinutes(31));
+        when(orderMapper.selectList(any())).thenReturn(List.of(order));
+        when(orderMapper.transitionOwned("T-3", 9L, 0, 4)).thenReturn(1);
+        when(itemMapper.selectList(any())).thenReturn(List.of());
+        when(issueMapper.releaseUsed(9L, "T-3")).thenReturn(1);
+        TradeOrderServiceImpl service = new TradeOrderServiceImpl(orderMapper, itemMapper, mock(TradeCartMapper.class),
+                mock(TradeLogisticsMapper.class), mock(SkuMapper.class), mock(SkuStockMapper.class), mock(MemberAddressMapper.class), new ObjectMapper(),
+                mock(TradeEventPublisher.class), mock(RedisStockReservationService.class), mock(CouponService.class), mock(MemberService.class),
+                issueMapper, mock(ActivityService.class), mock(SpuMapper.class), mock(TaxConfigService.class));
+
+        assertThat(service.cancelExpiredOrders()).isEqualTo(1);
+        verify(issueMapper).releaseUsed(9L, "T-3");
     }
 }
