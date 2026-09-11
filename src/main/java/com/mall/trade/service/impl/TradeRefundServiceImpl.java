@@ -9,6 +9,7 @@ import com.mall.trade.entity.TradeRefund;
 import com.mall.trade.mapper.TradeOrderMapper;
 import com.mall.trade.mapper.TradeRefundMapper;
 import com.mall.trade.service.TradeRefundService;
+import com.mall.trade.service.TradeOrderService;
 import com.mall.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public class TradeRefundServiceImpl implements TradeRefundService {
     private final TradeRefundMapper refundMapper;
     private final TradeOrderMapper orderMapper;
     private final MemberService memberService;
+    private final TradeOrderService tradeOrderService;
 
     @Override @Transactional(rollbackFor = Exception.class)
     public TradeRefund apply(String orderNo, Long userId, String reason, Integer refundType, List<String> evidenceUrls) {
@@ -78,6 +80,7 @@ public class TradeRefundServiceImpl implements TradeRefundService {
         }
         int expected = Integer.valueOf(1).equals(refund.getRefundType()) ? 4 : 1;
         transition(id, expected, 3, operatorId, comment, false);
+        tradeOrderService.restoreStockForRefund(refund.getOrderNo(), refund.getUserId());
         if (Integer.valueOf(1).equals(refund.getRefundType()) && Integer.valueOf(3).equals(refund.getOriginalOrderStatus())) {
             memberService.recordOrderRefund(refund.getUserId(), refund.getRefundAmount(), refund.getOrderNo());
         }

@@ -330,6 +330,22 @@ public class TradeOrderServiceImpl implements TradeOrderService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
+    public void restoreStockForRefund(String orderNo, Long userId) {
+        TradeOrder order = getOwnedByOrderNo(orderNo, userId);
+        if (!Integer.valueOf(6).equals(order.getOrderStatus())) throw new BusinessException("订单尚未完成退款");
+        for (TradeOrderItem item : orderItems(orderNo)) {
+            if (skuStockMapper.restoreStock(item.getSkuId(), item.getQuantity()) != 1) {
+                throw new BusinessException("退款补库存失败，请联系管理员");
+            }
+            redisStockReservationService.release(item.getSkuId(), item.getQuantity());
+            if (Integer.valueOf(1).equals(item.getActivityStockReserved())) {
+                activityService.releaseStock(item.getActivityId(), item.getSkuId(), item.getQuantity());
+            }
+        }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public int cancelExpiredOrders() {
         List<TradeOrder> expired = orderMapper.selectList(Wrappers.<TradeOrder>lambdaQuery()
                 .eq(TradeOrder::getOrderStatus, 0)

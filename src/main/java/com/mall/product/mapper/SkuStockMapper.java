@@ -17,4 +17,8 @@ public interface SkuStockMapper extends BaseMapper<SkuStock> {
     @Update("UPDATE pm_sku_stock SET stock = stock - #{quantity}, locked_stock = locked_stock - #{quantity} "
             + "WHERE sku_id = #{skuId} AND locked_stock >= #{quantity}")
     int deductLockedStock(@Param("skuId") Long skuId, @Param("quantity") int quantity);
+
+    @Update("UPDATE pm_sku_stock SET stock = stock + #{quantity} "
+            + "WHERE sku_id = #{skuId}")
+    int restoreStock(@Param("skuId") Long skuId, @Param("quantity") int quantity);
 }

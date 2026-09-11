@@ -17,6 +17,7 @@ import com.mall.product.mapper.SkuStockMapper;
 import com.mall.product.mapper.SpuMapper;
 import com.mall.trade.entity.TradeCart;
 import com.mall.trade.entity.TradeOrder;
+import com.mall.trade.entity.TradeOrderItem;
 import com.mall.trade.mapper.*;
 import com.mall.trade.mq.TradeEventPublisher;
 import com.mall.trade.service.RedisStockReservationService;
@@ -130,5 +131,30 @@ class TradeOrderServiceImplTest {
         verify(itemMapper).insert(argThat((com.mall.trade.entity.TradeOrderItem item) -> item.getActivityId().equals(8L)
                 && item.getSkuPrice().compareTo(new BigDecimal("80.00")) == 0
                 && Integer.valueOf(1).equals(item.getActivityStockReserved())));
+    }
+
+    @Test
+    void refundRestoresDatabaseRedisAndActivityStock() {
+        TradeOrderMapper orderMapper = mock(TradeOrderMapper.class);
+        TradeOrderItemMapper itemMapper = mock(TradeOrderItemMapper.class);
+        SkuStockMapper stockMapper = mock(SkuStockMapper.class);
+        RedisStockReservationService reservation = mock(RedisStockReservationService.class);
+        ActivityService activityService = mock(ActivityService.class);
+        TradeOrder order = new TradeOrder(); order.setOrderNo("T-1"); order.setUserId(9L); order.setOrderStatus(6);
+        TradeOrderItem item = new TradeOrderItem(); item.setSkuId(7L); item.setQuantity(2); item.setActivityId(8L); item.setActivityStockReserved(1);
+        when(orderMapper.selectOne(any())).thenReturn(order);
+        when(itemMapper.selectList(any())).thenReturn(List.of(item));
+        when(stockMapper.restoreStock(7L, 2)).thenReturn(1);
+
+        TradeOrderServiceImpl service = new TradeOrderServiceImpl(orderMapper, itemMapper, mock(TradeCartMapper.class),
+                mock(TradeLogisticsMapper.class), mock(SkuMapper.class), stockMapper, mock(MemberAddressMapper.class), new ObjectMapper(),
+                mock(TradeEventPublisher.class), reservation, mock(CouponService.class), mock(MemberService.class),
+                mock(CouponIssueMapper.class), activityService, mock(SpuMapper.class), mock(TaxConfigService.class));
+
+        service.restoreStockForRefund("T-1", 9L);
+
+        verify(stockMapper).restoreStock(7L, 2);
+        verify(reservation).release(7L, 2);
+        verify(activityService).releaseStock(8L, 7L, 2);
     }
 }

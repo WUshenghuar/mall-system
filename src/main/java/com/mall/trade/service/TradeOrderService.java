@@ -13,5 +13,6 @@ public interface TradeOrderService {
     void confirmReceive(String orderNo, Long userId);
     boolean markPaid(String orderNo, Integer payType);
     void ship(String orderNo, String logisticsNo, String logisticsCompany);
+    void restoreStockForRefund(String orderNo, Long userId);
     int cancelExpiredOrders();
 }
