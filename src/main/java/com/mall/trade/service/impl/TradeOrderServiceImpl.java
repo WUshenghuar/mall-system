@@ -13,6 +13,7 @@ import com.mall.marketing.service.ActivityService;
 import com.mall.marketing.service.CouponService;
 import com.mall.member.entity.MemberAddress;
 import com.mall.member.mapper.MemberAddressMapper;
+import com.mall.member.service.MemberService;
 import com.mall.product.entity.Sku;
 import com.mall.product.entity.SkuStock;
 import com.mall.product.mapper.SkuMapper;
@@ -60,6 +61,7 @@ public class TradeOrderServiceImpl implements TradeOrderService {
     private final TradeEventPublisher tradeEventPublisher;
     private final RedisStockReservationService redisStockReservationService;
     private final CouponService couponService;
+    private final MemberService memberService;
     private final CouponIssueMapper couponIssueMapper;
     private final ActivityService activityService;
 
@@ -275,6 +277,7 @@ public class TradeOrderServiceImpl implements TradeOrderService {
         if (orderMapper.transitionOwned(orderNo, userId, 2, 3) != 1) {
             throw new BusinessException("当前状态不可确认收货");
         }
+        memberService.recordOrderCompletion(userId, order.getPayAmount(), orderNo);
     }
 
     @Override

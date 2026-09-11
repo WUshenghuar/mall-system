@@ -8,6 +8,7 @@ import com.mall.marketing.service.ActivityService;
 import com.mall.marketing.service.CouponService;
 import com.mall.member.entity.MemberAddress;
 import com.mall.member.mapper.MemberAddressMapper;
+import com.mall.member.service.MemberService;
 import com.mall.product.entity.Sku;
 import com.mall.product.entity.SkuStock;
 import com.mall.product.mapper.SkuMapper;
@@ -39,7 +40,7 @@ class TradeOrderServiceImplTest {
                 mock(TradeCartMapper.class), mock(TradeLogisticsMapper.class), mock(SkuMapper.class),
                 mock(SkuStockMapper.class), mock(MemberAddressMapper.class), new ObjectMapper(),
                 mock(TradeEventPublisher.class), mock(RedisStockReservationService.class),
-                mock(CouponService.class), mock(CouponIssueMapper.class), mock(ActivityService.class));
+                mock(CouponService.class), mock(MemberService.class), mock(CouponIssueMapper.class), mock(ActivityService.class));
 
         assertThatThrownBy(() -> service.getOwnedByOrderNo("T-1", 10L))
                 .isInstanceOf(BusinessException.class).hasMessageContaining("无权访问");
@@ -77,7 +78,7 @@ class TradeOrderServiceImplTest {
 
         TradeOrderServiceImpl service = new TradeOrderServiceImpl(orderMapper, itemMapper, cartMapper,
                 mock(TradeLogisticsMapper.class), skuMapper, stockMapper, addressMapper, new ObjectMapper(),
-                mock(TradeEventPublisher.class), reservation, couponService, issueMapper, mock(ActivityService.class));
+                mock(TradeEventPublisher.class), reservation, couponService, mock(MemberService.class), issueMapper, mock(ActivityService.class));
 
         TradeOrder order = service.createOrder(9L, 5L, 99L, null, "[{\"skuId\":7,\"quantity\":2}]");
 
@@ -115,7 +116,7 @@ class TradeOrderServiceImplTest {
 
         TradeOrderServiceImpl service = new TradeOrderServiceImpl(orderMapper, itemMapper, cartMapper,
                 mock(TradeLogisticsMapper.class), skuMapper, stockMapper, addressMapper, new ObjectMapper(),
-                mock(TradeEventPublisher.class), reservation, couponService, mock(CouponIssueMapper.class), activityService);
+                mock(TradeEventPublisher.class), reservation, couponService, mock(MemberService.class), mock(CouponIssueMapper.class), activityService);
 
         TradeOrder order = service.createOrder(9L, 5L, null, null, "[{\"skuId\":7,\"quantity\":2}]");
 

@@ -14,4 +14,5 @@ public interface MemberService {
     void adjustPoints(Long id, int points, String reason);
     BigDecimal getTotalAmount(Long id);
     List<MemberPointsLog> listPointsLogs(Long id);
+    void recordOrderCompletion(Long id, BigDecimal amount, String orderNo);
 }

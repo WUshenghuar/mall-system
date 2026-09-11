@@ -46,7 +46,7 @@
 |---|---|---|
 | 系统 | sys_user / sys_role / sys_menu | RBAC |
 | 商品 | pm_spu / pm_sku / pm_sku_stock / pm_brand / pm_category | SPU 一对多 SKU，SKU 一对多库存 |
-| 会员 | mm_member / member_account / member_address / member_favorite / member_browse_history / mm_member_points_log | 账号与资料分离，积分流水按会员归属查询 |
+| 会员 | mm_member / member_account / member_address / member_favorite / member_browse_history / mm_member_points_log | 账号与资料分离，积分流水按会员归属查询，确认收货触发成长奖励 |
 | **交易（重点）** | trade_cart / trade_order / trade_order_item / trade_pay / trade_logistics / trade_refund | C 端交易 |
 | 后台订单 | order / order_item / order_pay / order_logistics / order_refund | ⚠️ 与 trade_* 并存（历史演进，需统一） |
 | 营销 | coupon / coupon_issue / activity / activity_sku | 优惠券 + 活动商品关联（活动价/库存/限购） |
