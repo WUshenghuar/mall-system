@@ -1,14 +1,7 @@
 package com.mall.search.service.impl;
 
-import co.elastic.clients.elasticsearch.ElasticsearchClient;
-import co.elastic.clients.elasticsearch._types.SortOrder;
-import co.elastic.clients.elasticsearch.core.BulkRequest;
-import co.elastic.clients.elasticsearch.core.BulkResponse;
-import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
-import co.elastic.clients.elasticsearch.core.SearchResponse;
-import co.elastic.clients.elasticsearch.core.search.Hit;
-import co.elastic.clients.elasticsearch.indices.CreateIndexResponse;
-import co.elastic.clients.json.JsonData;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.exception.BusinessException;
 import com.mall.product.entity.Brand;
 import com.mall.product.entity.Sku;
@@ -19,51 +12,49 @@ import com.mall.product.mapper.SpuMapper;
 import com.mall.search.service.ProductSearchService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
+import java.io.InputStream;
 import java.io.IOException;
-import java.util.*;
+import java.net.HttpURLConnection;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnBean(ElasticsearchClient.class)
+@ConditionalOnProperty(name = "elasticsearch.enabled", havingValue = "true")
 public class ProductSearchServiceImpl implements ProductSearchService {
 
-    private final ElasticsearchClient esClient;
+    private final ObjectMapper objectMapper;
     private final SpuMapper spuMapper;
     private final SkuMapper skuMapper;
     private final BrandMapper brandMapper;
+    @Value("${elasticsearch.hosts:localhost:9200}")
+    private String hosts;
     private static final String INDEX_NAME = "mall_product";
     private static final int BULK_SIZE = 500;
 
     @Override
     public void createIndex() {
         try {
-            boolean exists = esClient.indices().exists(
-                    r -> r.index(INDEX_NAME)).value();
-            if (exists) {
+            if (indexExists()) {
                 log.info("Index {} already exists", INDEX_NAME);
                 return;
             }
-            CreateIndexResponse response = esClient.indices().create(
-                    r -> r.index(INDEX_NAME)
-                            .mappings(m -> m
-                                    .properties("spuId", p -> p.long_(l -> l))
-                                    .properties("spuName", p -> p.text(t -> t.analyzer("ik_smart")))
-                                    .properties("categoryId", p -> p.long_(l -> l))
-                                    .properties("categoryPath", p -> p.keyword(k -> k))
-                                    .properties("brand", p -> p.keyword(k -> k))
-                                    .properties("minPrice", p -> p.double_(d -> d))
-                                    .properties("currency", p -> p.keyword(k -> k))
-                                    .properties("salesCount", p -> p.long_(l -> l))
-                                    .properties("rating", p -> p.double_(d -> d))
-                                    .properties("status", p -> p.byte_(b -> b))
-                            )
-            );
-            log.info("Index created: {}", response.acknowledged());
+            request("PUT", "/" + INDEX_NAME, indexMapping());
+            log.info("Index created: {}", INDEX_NAME);
         } catch (IOException e) {
             log.error("Failed to create index", e);
             throw new BusinessException("ES索引创建失败: " + e.getMessage());
@@ -73,10 +64,7 @@ public class ProductSearchServiceImpl implements ProductSearchService {
     @Override
     public void indexProduct(Map<String, Object> product) {
         try {
-            esClient.index(r -> r
-                    .index(INDEX_NAME)
-                    .id(String.valueOf(product.get("spuId")))
-                    .document(product));
+            request("PUT", "/" + INDEX_NAME + "/_doc/" + product.get("spuId") + "?refresh=true", product);
         } catch (IOException e) {
             log.error("Failed to index product: {}", product.get("spuId"), e);
         }
@@ -99,7 +87,7 @@ public class ProductSearchServiceImpl implements ProductSearchService {
     @Override
     public void deleteProduct(Long spuId) {
         try {
-            esClient.delete(r -> r.index(INDEX_NAME).id(String.valueOf(spuId)));
+            request("DELETE", "/" + INDEX_NAME + "/_doc/" + spuId + "?refresh=true", null);
         } catch (IOException e) {
             log.error("Failed to delete product from index: {}", spuId, e);
         }
@@ -111,54 +99,16 @@ public class ProductSearchServiceImpl implements ProductSearchService {
                                        String sortField, String sortOrder,
                                        int page, int size) {
         try {
-            int from = (page - 1) * size;
-            SortOrder order = "desc".equalsIgnoreCase(sortOrder) ? SortOrder.Desc : SortOrder.Asc;
-
-            SearchResponse<Map> response = esClient.search(s -> s
-                            .index(INDEX_NAME)
-                            .from(from)
-                            .size(size)
-                            .query(q -> q
-                                    .bool(b -> {
-                                        if (keyword != null && !keyword.isEmpty()) {
-                                            b.must(m -> m.match(t -> t.field("spuName").query(keyword)));
-                                        }
-                                        if (categoryId != null) {
-                                            b.filter(f -> f.term(t -> t.field("categoryId").value(categoryId)));
-                                        }
-                                        if (minPrice != null || maxPrice != null) {
-                                            b.filter(f -> f.range(r -> {
-                                                if (minPrice != null) {
-                                                    r.gte(JsonData.of(minPrice));
-                                                }
-                                                if (maxPrice != null) {
-                                                    r.lte(JsonData.of(maxPrice));
-                                                }
-                                                return r.field("minPrice");
-                                            }));
-                                        }
-                                        return b;
-                                    }))
-                            .sort(s0 -> s0.field(f -> {
-                                if (sortField != null) {
-                                    f.field(sortField).order(order);
-                                } else {
-                                    f.field("salesCount").order(SortOrder.Desc);
-                                }
-                                return f;
-                            })),
-                    Map.class);
-
-            List<Map> records = response.hits().hits().stream()
-                    .map(Hit::source)
-                    .collect(Collectors.toList());
-
-            Map<String, Object> result = new HashMap<>();
-            result.put("records", records);
-            result.put("total", response.hits().total().value());
-            result.put("page", page);
-            result.put("size", size);
-            return result;
+            Map<String, Object> response = request("POST", "/" + INDEX_NAME + "/_search",
+                    searchRequest(keyword, categoryId, minPrice, maxPrice, sortField, sortOrder, page, size));
+            Map<String, Object> hits = map(response.get("hits"));
+            List<Map<String, Object>> records = list(hits.get("hits")).stream()
+                    .map(hit -> map(hit.get("_source")))
+                    .toList();
+            Object total = hits.get("total");
+            long totalValue = total instanceof Map<?, ?> totalMap
+                    ? ((Number) totalMap.get("value")).longValue() : ((Number) total).longValue();
+            return Map.of("records", records, "total", totalValue, "page", page, "size", size);
         } catch (IOException e) {
             log.error("Search failed", e);
             throw new BusinessException("搜索失败: " + e.getMessage());
@@ -230,27 +180,115 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         if (documents.isEmpty()) {
             return;
         }
-        BulkRequest.Builder request = new BulkRequest.Builder();
-        documents.forEach(document -> request.operations(operation -> operation.index(index -> index
-                .index(INDEX_NAME)
-                .id(String.valueOf(document.get("spuId")))
-                .document(document))));
         try {
-            BulkResponse response = esClient.bulk(request.build());
-            if (response.errors()) {
-                List<String> failedIds = new ArrayList<>();
-                for (BulkResponseItem item : response.items()) {
-                    if (item.error() != null) {
-                        failedIds.add(item.id());
-                        log.error("ES bulk index failed, spuId={}, reason={}",
-                                item.id(), item.error().reason());
-                    }
-                }
-                throw new BusinessException("ES商品索引批量写入失败: " + String.join(",", failedIds));
+            StringBuilder body = new StringBuilder();
+            for (Map<String, Object> document : documents) {
+                body.append("{\"index\":{\"_index\":\"").append(INDEX_NAME)
+                        .append("\",\"_id\":\"").append(document.get("spuId")).append("\"}}\n")
+                        .append(objectMapper.writeValueAsString(document)).append('\n');
+            }
+            Map<String, Object> response = requestRaw("POST", "/_bulk?refresh=true", body.toString(),
+                    "application/x-ndjson");
+            if (Boolean.TRUE.equals(response.get("errors"))) {
+                throw new BusinessException("ES商品索引批量写入失败");
             }
         } catch (IOException e) {
             log.error("ES bulk index request failed", e);
             throw new BusinessException("ES商品索引批量写入失败: " + e.getMessage());
         }
+    }
+
+    private Map<String, Object> indexMapping() {
+        return Map.of("mappings", Map.of("properties", Map.of(
+                "spuId", Map.of("type", "long"), "spuName", Map.of("type", "text", "analyzer", "ik_smart"),
+                "categoryId", Map.of("type", "long"), "categoryPath", Map.of("type", "keyword"),
+                "brand", Map.of("type", "keyword"), "minPrice", Map.of("type", "double"),
+                "currency", Map.of("type", "keyword"), "salesCount", Map.of("type", "long"),
+                "rating", Map.of("type", "double"), "status", Map.of("type", "byte"))));
+    }
+
+    private Map<String, Object> searchRequest(String keyword, Long categoryId, Double minPrice, Double maxPrice,
+                                              String sortField, String sortOrder, int page, int size) {
+        Map<String, Object> bool = new LinkedHashMap<>();
+        List<Map<String, Object>> filters = new ArrayList<>();
+        if (keyword != null && !keyword.isBlank()) {
+            bool.put("must", List.of(Map.of("match", Map.of("spuName", keyword))));
+        }
+        if (categoryId != null) {
+            filters.add(Map.of("term", Map.of("categoryId", categoryId)));
+        }
+        if (minPrice != null || maxPrice != null) {
+            Map<String, Object> range = new LinkedHashMap<>();
+            if (minPrice != null) range.put("gte", minPrice);
+            if (maxPrice != null) range.put("lte", maxPrice);
+            filters.add(Map.of("range", Map.of("minPrice", range)));
+        }
+        if (!filters.isEmpty()) {
+            bool.put("filter", filters);
+        }
+        String field = sortField == null ? "salesCount" : sortField;
+        String order = sortField == null || "desc".equalsIgnoreCase(sortOrder) ? "desc" : "asc";
+        return Map.of("from", Math.max(page - 1, 0) * size, "size", size,
+                "query", Map.of("bool", bool), "sort", List.of(Map.of(field, Map.of("order", order))));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> map(Object value) {
+        return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private List<Map<String, Object>> list(Object value) {
+        if (!(value instanceof List<?> values)) {
+            return List.of();
+        }
+        return values.stream().map(this::map).toList();
+    }
+
+    private boolean indexExists() throws IOException {
+        HttpURLConnection connection = open("HEAD", "/" + INDEX_NAME);
+        try {
+            int status = connection.getResponseCode();
+            if (status == HttpURLConnection.HTTP_OK) {
+                return true;
+            }
+            if (status == HttpURLConnection.HTTP_NOT_FOUND) {
+                return false;
+            }
+            throw new IOException("ES index check failed: HTTP " + status);
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private Map<String, Object> request(String method, String path, Object body) throws IOException {
+        return requestRaw(method, path, body == null ? null : objectMapper.writeValueAsString(body), "application/json");
+    }
+
+    private Map<String, Object> requestRaw(String method, String path, String body, String contentType) throws IOException {
+        HttpURLConnection connection = open(method, path);
+        try {
+            if (body != null) {
+                connection.setDoOutput(true);
+                connection.setRequestProperty("Content-Type", contentType);
+                connection.getOutputStream().write(body.getBytes(StandardCharsets.UTF_8));
+            }
+            int status = connection.getResponseCode();
+            InputStream stream = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
+            String response = stream == null ? "" : new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            if (status >= 400) {
+                throw new IOException("ES request failed: HTTP " + status + " " + response);
+            }
+            return response.isBlank() ? Map.of() : objectMapper.readValue(response, new TypeReference<>() {});
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    private HttpURLConnection open(String method, String path) throws IOException {
+        HttpURLConnection connection = (HttpURLConnection) URI.create("http://" + hosts + path).toURL().openConnection();
+        connection.setRequestMethod(method);
+        connection.setConnectTimeout(5_000);
+        connection.setReadTimeout(10_000);
+        return connection;
     }
 }
