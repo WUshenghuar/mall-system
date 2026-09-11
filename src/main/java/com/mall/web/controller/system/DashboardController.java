@@ -3,10 +3,12 @@ package com.mall.web.controller.system;
 import com.mall.common.result.Result;
 import com.mall.member.mapper.MemberMapper;
 import com.mall.product.mapper.SpuMapper;
+import com.mall.security.user.LoginUser;
 import com.mall.trade.entity.TradeOrder;
 import com.mall.trade.mapper.TradeOrderMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,12 +34,14 @@ public class DashboardController {
     private final DashboardRefreshHub refreshHub;
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter stream() {
+    public SseEmitter stream(Authentication auth) {
+        requireStaff(auth);
         return refreshHub.subscribe();
     }
 
     @GetMapping("/stats")
-    public Result<Map<String, Object>> stats(@RequestParam(defaultValue = "today") String range) {
+    public Result<Map<String, Object>> stats(@RequestParam(defaultValue = "today") String range, Authentication auth) {
+        requireStaff(auth);
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         boolean recent24Hours = "24h".equals(range);
         LocalDateTime start = recent24Hours ? LocalDateTime.now().minusHours(23).withMinute(0).withSecond(0).withNano(0) : todayStart;
@@ -70,5 +74,11 @@ public class DashboardController {
         data.put("hourLabels", hourLabels);
         data.put("range", recent24Hours ? "24h" : "today");
         return Result.success(data);
+    }
+
+    private void requireStaff(Authentication auth) {
+        if (auth == null || !(auth.getPrincipal() instanceof LoginUser)) {
+            throw new com.mall.common.exception.BusinessException(403, "仅后台账户可访问");
+        }
     }
 }
