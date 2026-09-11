@@ -66,20 +66,18 @@
     </div>
     <section v-if="!loading && loadError" class="network-state"><van-empty image="network" description="暂时无法连接商品服务" /><p>请确认后端服务已启动后重试。</p><van-button type="primary" @click="load">重新连接</van-button></section>
     <van-empty v-else-if="!loading && !products.length" description="暂时没有匹配商品" />
-    <van-action-sheet v-model:show="show" :title="detail?.spu?.spuName"><div class="page"><van-button block plain @click="favorite">收藏此商品</van-button></div><div class="page" v-for="sku in detail?.skus" :key="sku.id"><b>{{ sku.skuCode }}</b><p class="money">{{ sku.currency }} {{ sku.price }}</p><van-button block type="primary" @click="add(sku.id)">加入购物车</van-button></div></van-action-sheet>
   </section>
 </template>
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
-import { storeApi, tradeApi, memberApi } from '../api'
-const products=ref([]),categories=ref([]),keyword=ref(''),categoryId=ref(null),minPrice=ref(''),maxPrice=ref(''),sortField=ref('sales'),loading=ref(false),show=ref(false),detail=ref(null),loadError=ref('')
+import { storeApi } from '../api'
+const router=useRouter(),products=ref([]),categories=ref([]),keyword=ref(''),categoryId=ref(null),minPrice=ref(''),maxPrice=ref(''),sortField=ref('sales'),loading=ref(false),loadError=ref('')
 async function load(){if(minPrice.value !== '' && maxPrice.value !== '' && Number(minPrice.value)>Number(maxPrice.value)){showToast('最低价不能高于最高价');return};loading.value=true;loadError.value='';try{products.value=(await storeApi.products({keyword:keyword.value,categoryId:categoryId.value ?? undefined,minPrice:minPrice.value || undefined,maxPrice:maxPrice.value || undefined,sortField:sortField.value})).data.records||[]}catch(e){products.value=[];loadError.value=String(e)}finally{loading.value=false}}
 async function loadCategories(){try{categories.value=(await storeApi.categories()).data||[]}catch{categories.value=[]}}
 function selectCategory(id){categoryId.value=id;load()}
 function resetFilters(){keyword.value='';categoryId.value=null;minPrice.value='';maxPrice.value='';sortField.value='sales';load()}
-async function open(item){try{detail.value=(await storeApi.detail(item.id)).data;show.value=true;if(localStorage.getItem('member-token'))await memberApi.recordBrowse(item.id)}catch(e){showToast(e)}}
-async function favorite(){try{await memberApi.addFavorite(detail.value.spu.id);showToast('已收藏')}catch(e){showToast(e)}}
-async function add(skuId){try{await tradeApi.addCart({skuId,quantity:1});showToast('已加入购物车')}catch(e){showToast(e)}}
+function open(item){router.push(`/products/${item.id}`)}
 onMounted(() => { loadCategories(); load() })
 </script>

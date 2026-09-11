@@ -13,6 +13,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -87,5 +88,30 @@ class StoreCatalogServiceImplTest {
 
         verify(spuMapper).selectStorePage(any(), isNull(), eq("adapter"), eq(new BigDecimal("10.00")),
                 eq(new BigDecimal("20.00")), eq("priceAsc"));
+    }
+
+    @Test
+    void detailExposesSkuImageAndSpuPriceSummary() {
+        SpuMapper spuMapper = mock(SpuMapper.class);
+        SkuMapper skuMapper = mock(SkuMapper.class);
+        Spu spu = new Spu();
+        spu.setId(11L);
+        spu.setStatus(1);
+        when(spuMapper.selectById(11L)).thenReturn(spu);
+        Sku sku = new Sku();
+        sku.setId(12L);
+        sku.setSpuId(11L);
+        sku.setPrice(new BigDecimal("29.90"));
+        sku.setCurrency("EUR");
+        sku.setStatus(1);
+        sku.setImages("[\"https://cdn.example/detail.jpg\"]");
+        when(skuMapper.selectList(any())).thenReturn(List.of(sku));
+        StoreCatalogServiceImpl service = new StoreCatalogServiceImpl(mock(CategoryMapper.class), spuMapper, skuMapper, new ObjectMapper());
+
+        Map<String, Object> detail = service.detail(11L);
+
+        assertThat(((Spu) detail.get("spu")).getCoverImage()).isEqualTo("https://cdn.example/detail.jpg");
+        assertThat(((Spu) detail.get("spu")).getMinPrice()).isEqualByComparingTo("29.90");
+        assertThat(((List<Sku>) detail.get("skus")).get(0).getImageUrl()).isEqualTo("https://cdn.example/detail.jpg");
     }
 }

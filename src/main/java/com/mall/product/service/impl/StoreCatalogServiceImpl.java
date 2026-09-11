@@ -105,6 +105,14 @@ public class StoreCatalogServiceImpl implements StoreCatalogService {
         }
         List<Sku> skus = skuMapper.selectList(Wrappers.<Sku>lambdaQuery()
                 .eq(Sku::getSpuId, spuId).eq(Sku::getStatus, 1));
+        skus.forEach(sku -> sku.setImageUrl(firstImage(sku.getImages())));
+        skus.stream().filter(sku -> sku.getPrice() != null)
+                .min(java.util.Comparator.comparing(Sku::getPrice))
+                .ifPresent(sku -> {
+                    spu.setMinPrice(sku.getPrice());
+                    spu.setCurrency(StringUtils.hasText(sku.getCurrency()) ? sku.getCurrency() : "USD");
+                    spu.setCoverImage(firstImage(sku.getImages()));
+                });
         return Map.of("spu", spu, "skus", skus);
     }
 }
