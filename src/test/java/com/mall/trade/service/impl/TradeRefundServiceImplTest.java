@@ -4,6 +4,7 @@ import com.mall.trade.entity.TradeOrder;
 import com.mall.trade.entity.TradeRefund;
 import com.mall.trade.mapper.TradeOrderMapper;
 import com.mall.trade.mapper.TradeRefundMapper;
+import com.mall.trade.mq.TradeEventPublisher;
 import com.mall.member.service.MemberService;
 import com.mall.trade.service.TradeOrderService;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,8 @@ class TradeRefundServiceImplTest {
         when(orderMapper.selectOne(any())).thenReturn(order);
         when(refundMapper.selectCount(any())).thenReturn(0L);
         when(orderMapper.transitionOwned("T-1", 9L, 1, 5)).thenReturn(1);
-        TradeRefundServiceImpl service = new TradeRefundServiceImpl(refundMapper, orderMapper, mock(MemberService.class), mock(TradeOrderService.class));
+        TradeEventPublisher eventPublisher = mock(TradeEventPublisher.class);
+        TradeRefundServiceImpl service = new TradeRefundServiceImpl(refundMapper, orderMapper, mock(MemberService.class), mock(TradeOrderService.class), eventPublisher);
 
         TradeRefund refund = service.apply("T-1", 9L, "不再需要", 0, null);
 
@@ -36,6 +38,7 @@ class TradeRefundServiceImplTest {
         assertThat(refund.getOriginalOrderStatus()).isEqualTo(1);
         assertThat(refund.getRefundStatus()).isZero();
         verify(refundMapper).insert(refund);
+        verify(eventPublisher).publish("refund_applied", "T-1");
     }
 
     @Test
@@ -47,7 +50,8 @@ class TradeRefundServiceImplTest {
         when(orderMapper.selectOne(any())).thenReturn(order);
         when(refundMapper.selectCount(any())).thenReturn(0L);
         when(orderMapper.transitionOwned("T-2", 9L, 2, 5)).thenReturn(1);
-        TradeRefundServiceImpl service = new TradeRefundServiceImpl(refundMapper, orderMapper, mock(MemberService.class), mock(TradeOrderService.class));
+        TradeEventPublisher eventPublisher = mock(TradeEventPublisher.class);
+        TradeRefundServiceImpl service = new TradeRefundServiceImpl(refundMapper, orderMapper, mock(MemberService.class), mock(TradeOrderService.class), eventPublisher);
 
         TradeRefund refund = service.apply("T-2", 9L, "商品损坏", 1, List.of("proof-a", "proof-b"));
         refund.setId(2L);
@@ -61,6 +65,7 @@ class TradeRefundServiceImplTest {
         assertThat(refund.getOriginalOrderStatus()).isEqualTo(2);
         assertThat(refund.getEvidenceUrls()).isEqualTo("proof-a,proof-b");
         verify(orderMapper).transitionOwned("T-2", 9L, 5, 2);
+        verify(eventPublisher).publish("refund_rejected", "T-2");
     }
 
     @Test
@@ -76,7 +81,8 @@ class TradeRefundServiceImplTest {
         when(refundMapper.submitReturn(3L, 9L, "DHL", "DHL-001")).thenReturn(1);
         when(refundMapper.transitionStatus(3L, 4, 3, 7L, "已收货")).thenReturn(1);
         when(orderMapper.transitionOwned("T-3", 9L, 5, 6)).thenReturn(1);
-        TradeRefundServiceImpl service = new TradeRefundServiceImpl(refundMapper, orderMapper, memberService, tradeOrderService);
+        TradeEventPublisher eventPublisher = mock(TradeEventPublisher.class);
+        TradeRefundServiceImpl service = new TradeRefundServiceImpl(refundMapper, orderMapper, memberService, tradeOrderService, eventPublisher);
 
         service.submitReturn(3L, 9L, "DHL", "DHL-001");
         service.complete(3L, 7L, "已收货");
@@ -85,5 +91,6 @@ class TradeRefundServiceImplTest {
         verify(orderMapper).transitionOwned("T-3", 9L, 5, 6);
         verify(tradeOrderService).restoreStockForRefund("T-3", 9L);
         verify(memberService).recordOrderRefund(9L, new BigDecimal("88.00"), "T-3");
+        verify(eventPublisher).publish("refund_completed", "T-3");
     }
 }

@@ -8,6 +8,7 @@ import com.mall.trade.entity.TradeOrder;
 import com.mall.trade.entity.TradeRefund;
 import com.mall.trade.mapper.TradeOrderMapper;
 import com.mall.trade.mapper.TradeRefundMapper;
+import com.mall.trade.mq.TradeEventPublisher;
 import com.mall.trade.service.TradeRefundService;
 import com.mall.trade.service.TradeOrderService;
 import com.mall.member.service.MemberService;
@@ -26,6 +27,7 @@ public class TradeRefundServiceImpl implements TradeRefundService {
     private final TradeOrderMapper orderMapper;
     private final MemberService memberService;
     private final TradeOrderService tradeOrderService;
+    private final TradeEventPublisher tradeEventPublisher;
 
     @Override @Transactional(rollbackFor = Exception.class)
     public TradeRefund apply(String orderNo, Long userId, String reason, Integer refundType, List<String> evidenceUrls) {
@@ -45,6 +47,7 @@ public class TradeRefundServiceImpl implements TradeRefundService {
         refund.setOrderNo(orderNo); refund.setUserId(userId); refund.setRefundAmount(order.getPayAmount());
         refund.setRefundReason(reason); refund.setRefundType(type); refund.setOriginalOrderStatus(originalStatus);
         refund.setEvidenceUrls(joinEvidence(evidenceUrls)); refund.setRefundStatus(0); refundMapper.insert(refund);
+        tradeEventPublisher.publish("refund_applied", orderNo);
         return refund;
     }
 
@@ -104,6 +107,7 @@ public class TradeRefundServiceImpl implements TradeRefundService {
                 ? (refund.getOriginalOrderStatus() == null ? 1 : refund.getOriginalOrderStatus())
                 : target == 3 ? 6 : 5;
         if (orderMapper.transitionOwned(refund.getOrderNo(), refund.getUserId(), 5, orderTarget) != 1) throw new BusinessException("订单退款状态异常");
+        tradeEventPublisher.publish(target == 3 ? "refund_completed" : target == 2 ? "refund_rejected" : "refund_approved", refund.getOrderNo());
     }
 
     private String joinEvidence(List<String> evidenceUrls) {

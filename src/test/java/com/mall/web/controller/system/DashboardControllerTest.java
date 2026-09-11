@@ -30,7 +30,7 @@ class DashboardControllerTest {
                 .thenReturn(List.of(Map.of("hourKey", LocalDateTime.now().withMinute(0).withSecond(0).withNano(0)
                         .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH")), "count", 3L)));
 
-        DashboardController controller = new DashboardController(spuMapper, orderMapper, memberMapper, refundMapper);
+        DashboardController controller = new DashboardController(spuMapper, orderMapper, memberMapper, refundMapper, mock(DashboardRefreshHub.class));
 
         Map<String, Object> stats = controller.stats("today").getData();
 
@@ -46,7 +46,7 @@ class DashboardControllerTest {
         TradeRefundMapper refundMapper = mock(TradeRefundMapper.class);
         when(orderMapper.countByHourSince(any(LocalDateTime.class))).thenReturn(List.of());
 
-        DashboardController controller = new DashboardController(spuMapper, orderMapper, memberMapper, refundMapper);
+        DashboardController controller = new DashboardController(spuMapper, orderMapper, memberMapper, refundMapper, mock(DashboardRefreshHub.class));
 
         Map<String, Object> stats = controller.stats("24h").getData();
 

@@ -50,9 +50,13 @@
           <div class="panel-badges" aria-label="订单统计时间范围">
             <a-button size="small" :type="range === 'today' ? 'primary' : 'default'" @click="changeRange('today')">今日</a-button>
             <a-button size="small" :type="range === '24h' ? 'primary' : 'default'" @click="changeRange('24h')">过去 24 小时</a-button>
-            <span class="badge badge-live">实时</span>
+            <a-button size="small" :loading="refreshing" @click="fetchStats">刷新</a-button>
+            <span class="badge" :class="liveConnected ? 'badge-live' : 'badge-fallback'">{{ liveConnected ? '实时' : '轮询' }}</span>
           </div>
         </div>
+        <p class="dashboard-live-status" role="status" aria-live="polite">
+          {{ liveConnected ? '实时连接已建立' : '实时连接不可用，使用轮询兜底' }} · 最近更新 {{ lastUpdated || '--' }}
+        </p>
         <div class="panel-body">
           <div class="chart-placeholder">
             <div class="chart-bars">
@@ -114,6 +118,9 @@ import { useUserStore } from '@/store/user'
 import { getDashboardStats } from '@/api/dashboard'
 
 const userStore = useUserStore()
+const refreshing = ref(false)
+const liveConnected = ref(false)
+const lastUpdated = ref('')
 
 const today = new Date().toLocaleDateString('zh-CN', {
   year: 'numeric',
@@ -138,11 +145,15 @@ const hourlyCounts = ref(Array(24).fill(0))
 const chartLabels = ref(Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, '0')}:00`))
 const range = ref('today')
 let refreshTimer
+let reconnectTimer
+let streamController
+let mounted = false
 const hasOrders = computed(() => barHeights.value.some(height => height > 4))
 const rangeLabel = computed(() => range.value === '24h' ? '过去 24 小时' : '今日')
 
 function displayLabel(index) { return chartLabels.value[index]?.slice(-2) + ':00' }
 async function fetchStats() {
+  refreshing.value = true
   try {
     const res = await getDashboardStats(range.value)
     const d = res.data
@@ -155,16 +166,59 @@ async function fetchStats() {
     chartLabels.value = d.hourLabels || chartLabels.value
     const max = Math.max(...counts, 0)
     barHeights.value = Array.from({ length: 24 }, (_, hour) => max ? 14 + Math.round(((counts[hour] || 0) / max) * 78) : 4)
+    lastUpdated.value = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   } catch {
     // 保留已展示的数据，等待下一次轮询恢复。
+  } finally {
+    refreshing.value = false
   }
 }
 function changeRange(nextRange) { if (range.value !== nextRange) { range.value = nextRange; fetchStats() } }
+async function listenForRefresh() {
+  if (!mounted || streamController) return
+  const token = localStorage.getItem('token')
+  if (!token) return
+  streamController = new AbortController()
+  try {
+    const response = await fetch('/api/dashboard/stream', {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'text/event-stream' },
+      signal: streamController.signal
+    })
+    if (!response.ok || !response.body) throw new Error('dashboard stream unavailable')
+    liveConnected.value = true
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (mounted) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const records = buffer.split(/\r?\n\r?\n/)
+      buffer = records.pop() || ''
+      records.forEach(record => {
+        if (record.split(/\r?\n/).includes('event: refresh')) fetchStats()
+      })
+    }
+  } catch (error) {
+    if (error.name !== 'AbortError') liveConnected.value = false
+  } finally {
+    liveConnected.value = false
+    streamController = null
+    if (mounted) reconnectTimer = window.setTimeout(listenForRefresh, 5000)
+  }
+}
 onMounted(() => {
   fetchStats()
   refreshTimer = window.setInterval(fetchStats, 30000)
+  mounted = true
+  listenForRefresh()
 })
-onUnmounted(() => window.clearInterval(refreshTimer))
+onUnmounted(() => {
+  mounted = false
+  window.clearInterval(refreshTimer)
+  window.clearTimeout(reconnectTimer)
+  streamController?.abort()
+})
 </script>
 
 <style scoped>
@@ -398,9 +452,20 @@ onUnmounted(() => window.clearInterval(refreshTimer))
   background: rgba(45, 138, 86, 0.1);
   color: var(--color-success);
 }
+.badge-fallback {
+  background: rgba(200, 150, 62, 0.1);
+  color: var(--color-gold);
+}
 .badge-sub {
   background: rgba(11, 25, 44, 0.04);
   color: var(--color-slate-light);
+}
+
+.dashboard-live-status {
+  margin: -12px var(--space-5) 0;
+  color: var(--color-slate-light);
+  font-size: var(--text-xs);
+  text-align: right;
 }
 
 .panel-body {
