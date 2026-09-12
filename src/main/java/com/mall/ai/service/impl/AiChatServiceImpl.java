@@ -69,8 +69,18 @@ public class AiChatServiceImpl implements AiChatService {
             List<AiConversation> history = conversationMapper.selectRecent(memberId, conversationId, 10);
             long start = System.currentTimeMillis();
             String businessContext = businessContext(memberId, request.getMessage());
+            String selectedTool = businessTool(request.getMessage(), businessContext);
+            if (businessContext.isBlank()) {
+                Map<String, Object> decision = gatewayClient.plan(memberId, conversationId, request.getMessage(), history);
+                String plannedTool = plannedTool(decision);
+                String plannedContext = plannedTool.isBlank() ? "" : businessContext(memberId, request.getMessage(), plannedTool, plannedOrderNo(decision));
+                if (!plannedContext.isBlank()) {
+                    businessContext = plannedContext;
+                    selectedTool = plannedTool;
+                }
+            }
             gatewayClient.stream(memberId, conversationId, request.getMessage(), businessContext,
-                    businessTool(request.getMessage(), businessContext), history, event -> {
+                    selectedTool, history, event -> {
                 String error = readError(event);
                 if (error != null) {
                     failure.set(error);
@@ -126,11 +136,31 @@ public class AiChatServiceImpl implements AiChatService {
         return java.util.Arrays.stream(keywords).anyMatch(message::contains);
     }
 
+    private String plannedTool(Map<String, Object> decision) {
+        Object value = decision == null ? null : decision.get("tool");
+        return value instanceof String tool && isSupportedTool(tool) ? tool : "";
+    }
+
+    private String plannedOrderNo(Map<String, Object> decision) {
+        Object arguments = decision == null ? null : decision.get("arguments");
+        if (arguments instanceof Map<?, ?> values && values.get("order_no") instanceof String orderNo) return orderNo;
+        return null;
+    }
+
+    private boolean isSupportedTool(String tool) {
+        return switch (tool) {
+            case "query_order", "query_logistics", "query_refund", "query_product", "query_coupon", "query_member", "query_tax" -> true;
+            default -> false;
+        };
+    }
+
     private String businessContext(Long memberId, String message) {
-        Matcher matcher = ORDER_NO.matcher(message);
-        if (!matcher.find()) return recentContext(memberId, message);
-        String orderNo = matcher.group();
-        String tool = intent(message);
+        return businessContext(memberId, message, intent(message), null);
+    }
+
+    private String businessContext(Long memberId, String message, String tool, String plannedOrderNo) {
+        String orderNo = extractOrderNo(message, plannedOrderNo);
+        if (orderNo == null) return recentContext(memberId, message, tool);
         try {
             TradeOrder order = tradeOrderService.getOwnedByOrderNo(orderNo, memberId);
             if ("query_logistics".equals(tool)) {
@@ -155,8 +185,13 @@ public class AiChatServiceImpl implements AiChatService {
         }
     }
 
-    private String recentContext(Long memberId, String message) {
-        String tool = intent(message);
+    private String extractOrderNo(String message, String plannedOrderNo) {
+        Matcher matcher = ORDER_NO.matcher(message);
+        if (matcher.find()) return matcher.group();
+        return StringUtils.hasText(plannedOrderNo) && ORDER_NO.matcher(plannedOrderNo).matches() ? plannedOrderNo : null;
+    }
+
+    private String recentContext(Long memberId, String message, String tool) {
         if ("query_product".equals(tool)) {
             String keyword = message.replace("查询", "").replace("推荐", "").replace("商品", "")
                     .replace("产品", "").replace("找", "").replace("款式", "").replace("有哪些", "").replace("有什么", "").trim();

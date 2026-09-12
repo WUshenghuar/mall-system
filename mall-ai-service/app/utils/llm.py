@@ -4,7 +4,40 @@ from collections.abc import AsyncIterator
 import httpx
 
 from app.agent.agent import is_prompt_injection, local_agent
+from app.agent.tools import TOOL_DEFINITIONS, TOOL_NAMES
 from app.config import settings
+
+
+async def plan_tool(message: str, history: list[dict[str, str]]) -> dict:
+    if is_prompt_injection(message) or not settings.has_model:
+        return {"tool": "", "arguments": {}}
+    messages = [{"role": "system", "content": "你是平台客服意图路由器。只允许选择只读查询工具，不执行任何写操作；无法确定时不要选择工具。"}]
+    messages.extend(history[-10:])
+    messages.append({"role": "user", "content": message})
+    payload = {
+        "model": settings.model_name,
+        "messages": messages,
+        "tools": TOOL_DEFINITIONS,
+        "tool_choice": "auto",
+        "temperature": 0,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(
+                f"{settings.model_api_base}/chat/completions",
+                headers={"Authorization": f"Bearer {settings.model_api_key}"},
+                json=payload,
+            )
+            response.raise_for_status()
+        calls = response.json().get("choices", [{}])[0].get("message", {}).get("tool_calls", [])
+        function = calls[0].get("function", {}) if calls else {}
+        tool = function.get("name", "")
+        if tool not in TOOL_NAMES:
+            return {"tool": "", "arguments": {}}
+        arguments = json.loads(function.get("arguments") or "{}")
+        return {"tool": tool, "arguments": arguments} if isinstance(arguments, dict) else {"tool": "", "arguments": {}}
+    except Exception:
+        return {"tool": "", "arguments": {}}
 
 
 async def stream_reply(message: str, history: list[dict[str, str]], context: list[dict], business_context: str = "") -> AsyncIterator[str]:

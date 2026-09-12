@@ -246,6 +246,31 @@ class AiChatServiceImplTest {
     }
 
     @Test
+    void streamExecutesModelPlannedReadOnlyToolAfterOwnershipCheck() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        TradeOrderService orderService = mock(TradeOrderService.class);
+        LogisticsService logisticsService = mock(LogisticsService.class);
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(gateway.plan(anyLong(), anyString(), anyString(), any())).thenReturn(Map.of(
+                "tool", "query_logistics",
+                "arguments", Map.of("order_no", "T202609071234567890")));
+        TradeOrder order = new TradeOrder(); order.setOrderStatus(2); order.setPayAmount(new java.math.BigDecimal("19.90"));
+        when(orderService.getOwnedByOrderNo("T202609071234567890", 9L)).thenReturn(order);
+        TradeLogistics logistics = new TradeLogistics(); logistics.setLogisticsCompany("DHL"); logistics.setLogisticsNo("DHL-001");
+        when(logisticsService.getByOrderNo("T202609071234567890")).thenReturn(logistics);
+        AiChatRequest request = new AiChatRequest(); request.setMessage("帮我查这笔订单");
+
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orderService, logisticsService,
+                mock(TradeRefundService.class), mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class))
+                .stream(9L, "session-1", request, ignored -> { });
+
+        verify(gateway).plan(anyLong(), anyString(), anyString(), any());
+        verify(gateway).stream(anyLong(), anyString(), anyString(),
+                eq("订单T202609071234567890的物流：DHL，运单号：DHL-001。"), eq("query_logistics"), any(), any());
+    }
+
+    @Test
     void streamQueriesRecentOwnedOrdersWhenOrderNumberIsMissing() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         AiGatewayClient gateway = mock(AiGatewayClient.class);

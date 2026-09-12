@@ -32,6 +32,19 @@ public class AiGatewayClient {
     @Value("${ai.service.base-url:http://localhost:8101}") private String baseUrl;
     @Value("${ai.service.token:change-me-local-only}") private String serviceToken;
 
+    public Map<String, Object> plan(Long memberId, String conversationId, String message, List<AiConversation> history) {
+        try {
+            List<Map<String, String>> messages = history.stream()
+                    .map(item -> Map.of("role", "agent".equals(item.getRole()) ? "assistant" : item.getRole(), "content", item.getContent())).toList();
+            JsonNode response = requestJson("POST", "/internal/tool-plan", Map.of(
+                    "memberId", memberId, "conversationId", conversationId, "message", message, "history", messages));
+            return objectMapper.convertValue(response, new TypeReference<>() { });
+        } catch (Exception e) {
+            log.debug("AI tool planning unavailable; using deterministic routing", e);
+            return Map.of();
+        }
+    }
+
     public void stream(Long memberId, String conversationId, String message, String businessContext, String businessTool, List<AiConversation> history,
                        Consumer<String> eventConsumer) {
         try {

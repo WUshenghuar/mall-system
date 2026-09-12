@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from app.agent.agent import should_suggest_handoff
 from app.config import settings
 from app.rag.retriever import retrieve
-from app.utils.llm import stream_reply
+from app.utils.llm import plan_tool as plan_tool_request, stream_reply
 
 router = APIRouter()
 
@@ -40,6 +40,14 @@ class ChatRequest(BaseModel):
 
 def sse(payload: dict) -> str:
     return f"event: message\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+@router.post("/internal/tool-plan")
+async def tool_plan(request: ChatRequest, x_ai_service_token: str = Header(default="")):
+    if x_ai_service_token != settings.service_token:
+        raise HTTPException(status_code=401, detail="invalid AI service token")
+    history = [item.model_dump() for item in request.history]
+    return await plan_tool_request(request.message, history)
 
 
 @router.post("/internal/chat")
