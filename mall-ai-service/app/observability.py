@@ -1,6 +1,8 @@
 from collections import Counter, deque
+import re
 from threading import Lock
 from time import monotonic
+from uuid import uuid4
 
 
 class RequestMetrics:
@@ -21,7 +23,7 @@ class RequestMetrics:
             self._outcomes[outcome] += 1
             self._window.append(round((monotonic() - started) * 1000, 2))
 
-    def snapshot(self) -> dict:
+    def snapshot(self, p95_limit_ms: float = 2000, error_rate_limit: float = 0.05) -> dict:
         with self._lock:
             durations = sorted(self._window)
             outcomes = dict(self._outcomes)
@@ -35,19 +37,31 @@ class RequestMetrics:
             return durations[index]
 
         errors = outcomes.get("error", 0)
+        p95 = percentile(0.95)
+        error_rate = errors / total if total else 0.0
         return {
             "requests": total,
             "active": active,
             "outcomes": outcomes,
-            "errorRate": round(errors / total, 4) if total else 0.0,
+            "errorRate": round(error_rate, 4),
             "latencyMs": {
                 "p50": percentile(0.50),
-                "p95": percentile(0.95),
+                "p95": p95,
                 "p99": percentile(0.99),
                 "max": durations[-1] if durations else 0.0,
+            },
+            "sla": {
+                "status": "healthy" if p95 <= p95_limit_ms and error_rate <= error_rate_limit else "degraded",
+                "p95LimitMs": p95_limit_ms,
+                "errorRateLimit": error_rate_limit,
             },
             "windowSize": len(durations),
         }
 
 
 metrics = RequestMetrics()
+
+
+def trace_id(value: str = "") -> str:
+    candidate = value.strip()
+    return candidate if re.fullmatch(r"[A-Za-z0-9._:-]{1,64}", candidate) else uuid4().hex

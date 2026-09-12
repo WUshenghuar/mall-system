@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from app.agent.agent import should_suggest_handoff
 from app.config import settings
 from app.rag.retriever import retrieve
-from app.observability import metrics
+from app.observability import metrics, trace_id
 from app.utils.llm import plan_tool as plan_tool_request, stream_reply
 
 router = APIRouter()
@@ -59,15 +59,16 @@ async def tool_plan(request: ChatRequest, x_ai_service_token: str = Header(defau
 
 
 @router.post("/internal/chat")
-async def chat(request: ChatRequest, x_ai_service_token: str = Header(default="")):
+async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""), x_trace_id: str = Header(default="")):
     if x_ai_service_token != settings.service_token:
         raise HTTPException(status_code=401, detail="invalid AI service token")
+    request_trace_id = trace_id(x_trace_id if isinstance(x_trace_id, str) else "")
 
     async def events() -> AsyncIterator[str]:
         started = metrics.start()
         outcome = "completed"
         try:
-            yield sse({"type": "thinking"})
+            yield sse({"type": "thinking", "traceId": request_trace_id})
             if not settings.enabled:
                 outcome = "disabled"
                 yield sse({"type": "handoff_suggested"})
@@ -101,4 +102,4 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
         finally:
             metrics.finish(started, outcome)
 
-    return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+    return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Trace-Id": request_trace_id})

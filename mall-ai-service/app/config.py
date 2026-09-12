@@ -24,6 +24,8 @@ class Settings:
     embedding_model: str = _env("AI_EMBEDDING_MODEL")
     embedding_dimensions: int = int(_env("AI_EMBEDDING_DIMENSIONS") or "1536")
     embedding_min_score: float = float(_env("AI_EMBEDDING_MIN_SCORE") or "0.7")
+    sla_p95_ms: float = float(_env("AI_SLA_P95_MS") or "2000")
+    sla_error_rate: float = float(_env("AI_SLA_ERROR_RATE") or "0.05")
     elasticsearch_url: str = (_env("AI_ELASTICSEARCH_URL") or "http://elasticsearch:9200").rstrip("/")
 
     @property

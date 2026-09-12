@@ -36,4 +36,4 @@ async def health():
 async def internal_metrics(x_ai_service_token: str = Header(default="")):
     if x_ai_service_token != settings.service_token:
         raise HTTPException(status_code=401, detail="invalid AI service token")
-    return metrics.snapshot()
+    return metrics.snapshot(settings.sla_p95_ms, settings.sla_error_rate)
