@@ -10,7 +10,7 @@ class ChatState(TypedDict):
 
 def is_prompt_injection(message: str) -> bool:
     normalized = message.lower()
-    return any(token in normalized for token in ("忽略", "系统提示", "system prompt", "指令"))
+    return any(token in normalized for token in ("忽略", "系统提示", "system prompt", "指令", "绕过", "命令", "ignore previous"))
 
 
 def local_answer(message: str) -> str:

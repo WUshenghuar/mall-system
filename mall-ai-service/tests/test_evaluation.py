@@ -1,4 +1,4 @@
-from evaluate import evaluate
+from evaluate import CASES, evaluate
 from app.api.chat import ChatRequest
 from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits
 from app.utils.llm import stream_reply
@@ -7,8 +7,9 @@ import asyncio
 
 
 def test_deterministic_policy_evaluation_is_green():
+    assert len(CASES) >= 50
     result = evaluate()
-    assert result == {"passed": 6, "total": 6, "score": 100}
+    assert result == {"passed": len(CASES), "total": len(CASES), "score": 100}
 
 
 def test_knowledge_seed_covers_core_platform_faqs():

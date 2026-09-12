@@ -54,9 +54,9 @@ CBEC/
 - 实现订单、物流、退款、商品、会员优惠券、会员资料和税费币种七类受控只读工具；Java 侧校验 JWT、会员归属和资源权限，模型不直接访问业务数据库。
 - 增加平台人工接管工单：会员可从客服浮窗提交工单，B 端客服按权限认领并解决，状态通过条件更新避免并发重复认领。
 - 增加 Prompt Injection 前置拦截、`tool_call/sources/text/done` SSE 协议、知识来源展示与异常降级，保留退款/取消订单等高风险操作人工处理边界。
-- 提供 `evaluate.py` 确定性策略评测和 pytest 回归，覆盖问候、退款、物流、优惠券、商品与注入拦截场景，当前 6/6 通过。
+- 提供 `evaluate.py` 确定性策略评测和 pytest 回归，覆盖问候、退款、物流、优惠券、商品、未知问题升级与注入拦截场景，当前 64/64 通过。
 - 完成 C 端 AI 客服→转人工→B 端认领→解决的真实联调，并修复 loopback CORS 与工单历史请求覆盖新状态的异步竞态。
-- 通过全量 `mvn test` 86/86、AI Python 测试 10/10、B/C 两端生产构建，修复 Java 23 Windows Redis loopback 与 SSE 异步分发问题。
+- 通过全量 `mvn test` 86/86、AI Python 测试 13/13、B/C 两端生产构建，修复 Java 23 Windows Redis loopback 与 SSE 异步分发问题。
 
 ## 30 秒项目介绍
 
