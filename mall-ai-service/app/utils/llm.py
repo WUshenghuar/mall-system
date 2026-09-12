@@ -6,6 +6,7 @@ import httpx
 from app.agent.agent import is_english_message, is_prompt_injection, local_agent, should_suggest_handoff
 from app.agent.tools import TOOL_DEFINITIONS, TOOL_NAMES
 from app.config import settings
+from app.telemetry import span
 
 
 def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -23,6 +24,11 @@ def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
 
 
 async def plan_tool(message: str, history: list[dict[str, str]], tool_results: list[str] | None = None) -> dict:
+    with span("ai.tool_plan"):
+        return await _plan_tool(message, history, tool_results)
+
+
+async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: list[str] | None = None) -> dict:
     if is_prompt_injection(message) or not getattr(settings, "enabled", True) or not settings.has_model:
         return {"tool": "", "arguments": {}}
     messages = [{"role": "system", "content": "你是平台客服意图路由器。只允许选择只读查询工具，不执行任何写操作；无法确定时不要选择工具。"}]

@@ -10,6 +10,7 @@ from app.agent.agent import should_suggest_handoff
 from app.config import settings
 from app.rag.retriever import retrieve
 from app.observability import metrics, trace_id
+from app.telemetry import span
 from app.utils.llm import plan_tool as plan_tool_request, stream_reply
 
 router = APIRouter()
@@ -65,6 +66,11 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
     request_trace_id = trace_id(x_trace_id if isinstance(x_trace_id, str) else "")
 
     async def events() -> AsyncIterator[str]:
+        with span("ai.chat", {"ai.trace_id": request_trace_id}):
+            async for event in tracked_events():
+                yield event
+
+    async def tracked_events() -> AsyncIterator[str]:
         started = metrics.start()
         outcome = "completed"
         try:

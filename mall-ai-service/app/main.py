@@ -5,8 +5,10 @@ from app.api.knowledge import router as knowledge_router
 from app.config import settings
 from app.rag.retriever import ensure_seeded
 from app.observability import metrics
+from app.telemetry import configure_telemetry, telemetry_configured
 
 app = FastAPI(title="CBEC AI Customer Service", version="0.1.0")
+configure_telemetry()
 app.include_router(chat_router)
 app.include_router(knowledge_router)
 
@@ -29,6 +31,7 @@ async def health():
         "modelConfigured": settings.enabled and settings.has_model,
         "embeddingConfigured": settings.enabled and settings.has_embedding,
         "toolPlanningEnabled": settings.enabled and settings.has_model,
+        "telemetryConfigured": telemetry_configured(),
     }
 
 
