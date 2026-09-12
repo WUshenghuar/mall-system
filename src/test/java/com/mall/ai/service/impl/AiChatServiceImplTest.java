@@ -419,7 +419,7 @@ class AiChatServiceImplTest {
                 .stream(9L, "session-1", request, ignored -> { });
 
         verify(gateway).stream(anyLong(), anyString(), anyString(),
-                eq("你最近的订单T202609071234567890的物流：DHL，运单号：DHL-001。"), eq("query_logistics"), any(), any());
+                eq("Your latest order T202609071234567890 logistics: DHL, tracking number: DHL-001."), eq("query_logistics"), any(), any());
     }
 
     @Test

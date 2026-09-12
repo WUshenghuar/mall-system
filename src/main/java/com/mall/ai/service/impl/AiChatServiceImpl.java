@@ -240,27 +240,37 @@ public class AiChatServiceImpl implements AiChatService {
         if ("query_activity".equals(tool)) return recentContext(memberId, message, tool);
         String orderNo = extractOrderNo(message, plannedOrderNo);
         if (orderNo == null) return recentContext(memberId, message, tool);
+        boolean english = isEnglishMessage(message);
         try {
             TradeOrder order = tradeOrderService.getOwnedByOrderNo(orderNo, memberId);
             if ("query_logistics".equals(tool)) {
                 TradeLogistics logistics = logisticsService.getByOrderNo(orderNo);
-                return logistics == null ? "订单" + orderNo + "暂未录入物流信息。"
-                        : "订单" + orderNo + "的物流：" + logistics.getLogisticsCompany() + "，运单号：" + logistics.getLogisticsNo() + "。";
+                return logistics == null ? (english ? "No tracking information is available for order " + orderNo + "."
+                                : "订单" + orderNo + "暂未录入物流信息。")
+                        : (english ? "Order " + orderNo + " logistics: " + logistics.getLogisticsCompany() + ", tracking number: " + logistics.getLogisticsNo() + "."
+                                : "订单" + orderNo + "的物流：" + logistics.getLogisticsCompany() + "，运单号：" + logistics.getLogisticsNo() + "。");
             }
             if ("query_refund".equals(tool)) {
                 TradeRefund refund = tradeRefundService.selectMemberPage(memberId, 1, 100).getRecords().stream()
                         .filter(item -> orderNo.equals(item.getOrderNo())).findFirst().orElse(null);
-                return refund == null ? "订单" + orderNo + "当前没有退款申请，订单状态：" + orderStatus(order.getOrderStatus()) + "。"
-                        : "订单" + orderNo + "的退款状态：" + refundStatus(refund.getRefundStatus()) + "。";
+                return refund == null ? (english ? "Order " + orderNo + " has no refund request. Order status: " + orderStatusEnglish(order.getOrderStatus()) + "."
+                                : "订单" + orderNo + "当前没有退款申请，订单状态：" + orderStatus(order.getOrderStatus()) + "。")
+                        : (english ? "Order " + orderNo + " refund status: " + refundStatusEnglish(refund.getRefundStatus()) + "."
+                                : "订单" + orderNo + "的退款状态：" + refundStatus(refund.getRefundStatus()) + "。");
             }
             if ("query_tax".equals(tool)) {
-                return "订单" + orderNo + "币种：" + (order.getCurrency() == null ? "USD" : order.getCurrency())
-                        + "，税费：" + (order.getTaxAmount() == null ? "0.00" : order.getTaxAmount())
-                        + "，实付金额：" + order.getPayAmount() + "。";
+                return english ? "Order " + orderNo + " currency: " + (order.getCurrency() == null ? "USD" : order.getCurrency())
+                                + ", tax: " + (order.getTaxAmount() == null ? "0.00" : order.getTaxAmount())
+                                + ", paid amount: " + order.getPayAmount() + "."
+                        : "订单" + orderNo + "币种：" + (order.getCurrency() == null ? "USD" : order.getCurrency())
+                                + "，税费：" + (order.getTaxAmount() == null ? "0.00" : order.getTaxAmount())
+                                + "，实付金额：" + order.getPayAmount() + "。";
             }
-            return "订单" + orderNo + "当前状态：" + orderStatus(order.getOrderStatus()) + "，实付金额：" + order.getPayAmount() + "。";
+            return english ? "Order " + orderNo + " status: " + orderStatusEnglish(order.getOrderStatus()) + ", paid amount: " + order.getPayAmount() + "."
+                    : "订单" + orderNo + "当前状态：" + orderStatus(order.getOrderStatus()) + "，实付金额：" + order.getPayAmount() + "。";
         } catch (BusinessException ignored) {
-            return "未查询到你名下的该订单，请核对订单号。";
+            return english ? "That order was not found under your account. Please check the order number."
+                    : "未查询到你名下的该订单，请核对订单号。";
         }
     }
 
@@ -274,7 +284,7 @@ public class AiChatServiceImpl implements AiChatService {
         if ("query_activity".equals(tool)) {
             if (activityService == null) return "";
             List<Activity> activities = activityService.selectActive();
-            boolean english = containsAny(message, "activity", "promotion", "campaign", "sale", "deal");
+            boolean english = isEnglishMessage(message);
             if (activities.isEmpty()) return english ? "There are no active promotions right now." : "当前没有进行中的活动。";
             String title = english ? "Active promotions：\n" : "当前进行中的活动：\n";
             return title + activities.stream().map(activity -> {
@@ -291,17 +301,19 @@ public class AiChatServiceImpl implements AiChatService {
                     .replace("产品", "").replace("找", "").replace("款式", "").replace("有哪些", "").replace("有什么", "").trim();
             List<Spu> products = storeCatalogService.products(1, 3, null, keyword.isBlank() ? null : keyword)
                     .getRecords().stream().filter(Spu.class::isInstance).map(Spu.class::cast).toList();
-            return products.isEmpty() ? "暂时没有找到匹配的上架商品。"
-                    : "为你找到的上架商品：\n" + products.stream().map(Spu::getSpuName)
+            boolean english = isEnglishMessage(message);
+            return products.isEmpty() ? (english ? "No matching products are currently listed." : "暂时没有找到匹配的上架商品。")
+                    : (english ? "Matching products:\n" : "为你找到的上架商品：\n") + products.stream().map(Spu::getSpuName)
                     .collect(java.util.stream.Collectors.joining("\n"));
         }
         if ("query_coupon".equals(tool) && containsAny(message, "我的优惠券", "我的可用优惠券", "券包",
                 "my coupons", "my available coupons", "coupon wallet", "coupons do i have")) {
             List<MemberCouponVO> coupons = couponService.listMemberCoupons(memberId).stream()
                     .filter(item -> Integer.valueOf(0).equals(item.getStatus())).toList();
-            return coupons.isEmpty() ? "你目前没有可用优惠券。"
-                    : "你目前有以下可用优惠券：\n" + coupons.stream()
-                    .map(item -> item.getCouponName() + "（减" + item.getDiscount() + "）")
+            boolean english = isEnglishMessage(message);
+            return coupons.isEmpty() ? (english ? "You currently have no available coupons." : "你目前没有可用优惠券。")
+                    : (english ? "Your available coupons:\n" : "你目前有以下可用优惠券：\n") + coupons.stream()
+                    .map(item -> english ? item.getCouponName() + " (discount " + item.getDiscount() + ")" : item.getCouponName() + "（减" + item.getDiscount() + "）")
                     .collect(java.util.stream.Collectors.joining("\n"));
         }
         if ("query_coupon".equals(tool) && containsAny(message, "可用优惠券", "可领取优惠券", "优惠券有哪些", "有哪些优惠券",
@@ -319,16 +331,21 @@ public class AiChatServiceImpl implements AiChatService {
         if ("query_member".equals(tool)) {
             Member member = memberService.getById(memberId);
             if (member == null) return "暂未查询到你的会员资料。";
-            return "你的会员等级：" + levelName(member.getLevel()) + "，积分：" + (member.getPoints() == null ? 0 : member.getPoints())
-                    + "，累计消费：" + (member.getTotalAmount() == null ? "0.00" : member.getTotalAmount()) + "。";
+            return isEnglishMessage(message) ? "Your membership level: " + levelNameEnglish(member.getLevel()) + ", points: "
+                            + (member.getPoints() == null ? 0 : member.getPoints()) + ", total spend: "
+                            + (member.getTotalAmount() == null ? "0.00" : member.getTotalAmount()) + "."
+                    : "你的会员等级：" + levelName(member.getLevel()) + "，积分：" + (member.getPoints() == null ? 0 : member.getPoints())
+                            + "，累计消费：" + (member.getTotalAmount() == null ? "0.00" : member.getTotalAmount()) + "。";
         }
         if ("query_refund".equals(tool)) {
             if (!containsAny(message, "我的", "查询", "进度", "状态", "申请", "my refund", "refund status", "refund progress",
                     "check my refund", "return status", "request a refund", "i want a refund", "my return")) return "";
             List<TradeRefund> refunds = tradeRefundService.selectMemberPage(memberId, 1, 3).getRecords();
-            if (refunds.isEmpty()) return "你目前没有退款申请。";
-            return "你最近的退款申请：\n" + refunds.stream()
-                    .map(item -> "订单" + item.getOrderNo() + "：" + refundStatus(item.getRefundStatus()))
+            boolean english = isEnglishMessage(message);
+            if (refunds.isEmpty()) return english ? "You currently have no refund requests." : "你目前没有退款申请。";
+            return (english ? "Your recent refund requests:\n" : "你最近的退款申请：\n") + refunds.stream()
+                    .map(item -> english ? "Order " + item.getOrderNo() + ": " + refundStatusEnglish(item.getRefundStatus())
+                            : "订单" + item.getOrderNo() + "：" + refundStatus(item.getRefundStatus()))
                     .collect(java.util.stream.Collectors.joining("\n"));
         }
         if ("query_logistics".equals(tool) && !containsAny(message, "我的", "包裹", "订单", "运单号", "my package", "my shipment",
@@ -338,15 +355,19 @@ public class AiChatServiceImpl implements AiChatService {
         if ("query_tax".equals(tool) && !containsAny(message, "我的订单", "订单税费", "税费", "my order", "order tax", "tax on my order",
                 "tariff for my order", "customs duty for my order")) return "";
         List<TradeOrder> orders = tradeOrderService.selectPage(1, 3, memberId, null).getRecords();
-        if (orders.isEmpty()) return "你目前还没有订单。";
+        boolean english = isEnglishMessage(message);
+        if (orders.isEmpty()) return english ? "You currently have no orders." : "你目前还没有订单。";
         if ("query_logistics".equals(tool)) {
             TradeOrder order = orders.get(0);
             TradeLogistics logistics = logisticsService.getByOrderNo(order.getOrderNo());
-            return logistics == null ? "你最近的订单是" + order.getOrderNo() + "，当前暂无物流信息。"
-                    : "你最近的订单" + order.getOrderNo() + "的物流：" + logistics.getLogisticsCompany() + "，运单号：" + logistics.getLogisticsNo() + "。";
+            return logistics == null ? (english ? "Your latest order is " + order.getOrderNo() + "; no tracking information is available yet."
+                            : "你最近的订单是" + order.getOrderNo() + "，当前暂无物流信息。")
+                    : (english ? "Your latest order " + order.getOrderNo() + " logistics: " + logistics.getLogisticsCompany() + ", tracking number: " + logistics.getLogisticsNo() + "."
+                            : "你最近的订单" + order.getOrderNo() + "的物流：" + logistics.getLogisticsCompany() + "，运单号：" + logistics.getLogisticsNo() + "。");
         }
-        return "你最近的订单：\n" + orders.stream()
-                .map(order -> "订单" + order.getOrderNo() + "：" + orderStatus(order.getOrderStatus()) + "，实付金额：" + order.getPayAmount())
+        return (english ? "Your recent orders:\n" : "你最近的订单：\n") + orders.stream()
+                .map(order -> english ? "Order " + order.getOrderNo() + ": " + orderStatusEnglish(order.getOrderStatus()) + ", paid amount: " + order.getPayAmount()
+                        : "订单" + order.getOrderNo() + "：" + orderStatus(order.getOrderStatus()) + "，实付金额：" + order.getPayAmount())
                 .collect(java.util.stream.Collectors.joining("\n"));
     }
 
@@ -354,12 +375,28 @@ public class AiChatServiceImpl implements AiChatService {
         return switch (status == null ? -1 : status) { case 0 -> "待支付"; case 1 -> "待发货"; case 2 -> "待收货"; case 3 -> "已完成"; case 4 -> "已取消"; case 5 -> "退款处理中"; case 6 -> "已退款"; default -> "处理中"; };
     }
 
+    private String orderStatusEnglish(Integer status) {
+        return switch (status == null ? -1 : status) { case 0 -> "pending payment"; case 1 -> "processing"; case 2 -> "awaiting delivery"; case 3 -> "completed"; case 4 -> "cancelled"; case 5 -> "refund processing"; case 6 -> "refunded"; default -> "processing"; };
+    }
+
     private String refundStatus(Integer status) {
         return switch (status == null ? -1 : status) { case 0 -> "待审批"; case 1 -> "已通过"; case 2 -> "已驳回"; case 3 -> "已退款"; case 4 -> "待平台收货"; default -> "处理中"; };
     }
 
+    private String refundStatusEnglish(Integer status) {
+        return switch (status == null ? -1 : status) { case 0 -> "pending review"; case 1 -> "approved"; case 2 -> "rejected"; case 3 -> "refunded"; case 4 -> "awaiting return"; default -> "processing"; };
+    }
+
     private String levelName(Integer level) {
         return switch (level == null ? 0 : level) { case 1 -> "Gold 会员"; case 2 -> "Platinum 会员"; default -> "基础会员"; };
+    }
+
+    private String levelNameEnglish(Integer level) {
+        return switch (level == null ? 0 : level) { case 1 -> "Gold"; case 2 -> "Platinum"; default -> "Basic"; };
+    }
+
+    private boolean isEnglishMessage(String message) {
+        return message.matches(".*[A-Za-z].*") && !message.matches(".*[\\u4e00-\\u9fff].*");
     }
 
     private String readText(String event) {
