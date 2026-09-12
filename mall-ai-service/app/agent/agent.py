@@ -18,7 +18,9 @@ def should_suggest_handoff(message: str) -> bool:
     normalized = message.lower()
     if is_prompt_injection(message):
         return False
-    if any(token in normalized for token in ("你好", "您好", "在吗", "谢谢", "能帮我吗", "我想咨询", "早上好")):
+    if any(token in normalized for token in ("你好", "您好", "在吗", "谢谢", "感谢", "嗨", "能帮我吗", "我想咨询", "早上好", "晚上好")):
+        return False
+    if "thank you" in normalized or "good morning" in normalized or "good evening" in normalized:
         return False
     return not {"hello", "hi", "thanks"}.intersection(re.findall(r"[a-z]+", normalized))
 

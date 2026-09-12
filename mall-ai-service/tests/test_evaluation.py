@@ -77,8 +77,9 @@ def test_retrieve_fuses_bm25_and_vector_results(monkeypatch):
         async def post(self, url, **kwargs):
             if "knn" not in kwargs["json"]:
                 assert kwargs["json"]["query"]["bool"]["must"][0]["multi_match"]["minimum_should_match"] == "30%"
+                assert kwargs["json"]["min_score"] == 3.0
             return Response(
-                [{"_id": "coupon", "_source": documents["coupon"]}, {"_id": "refund", "_source": documents["refund"]}]
+                [{"_id": "coupon", "_score": 10.0, "_source": documents["coupon"]}, {"_id": "refund", "_score": 5.0, "_source": documents["refund"]}]
                 if "knn" not in kwargs["json"]
                 else [{"_id": "refund", "_score": 0.9, "_source": documents["refund"]}]
             )

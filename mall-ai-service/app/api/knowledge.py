@@ -50,20 +50,22 @@ async def save_knowledge(
 ):
     verify_token(x_ai_service_token)
     document = {"id": doc_id, **payload.model_dump()}
-    if document["enabled"]:
-        DISABLED_IDS.discard(doc_id)
-    else:
-        DISABLED_IDS.add(doc_id)
     try:
-        try:
-            vector = await embed_text(f"{payload.title}\n{payload.content}")
-        except Exception:
-            vector = None
-        if vector is not None:
+        if settings.has_embedding:
+            try:
+                vector = await embed_text(f"{payload.title}\n{payload.content}")
+            except Exception as exc:
+                raise HTTPException(status_code=503, detail="embedding service unavailable") from exc
+            if vector is None:
+                raise HTTPException(status_code=503, detail="embedding service unavailable")
             document["embedding"] = vector
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.put(f"{settings.elasticsearch_url}/{INDEX}/_doc/{doc_id}?refresh=true", json=document)
             response.raise_for_status()
+        if document["enabled"]:
+            DISABLED_IDS.discard(doc_id)
+        else:
+            DISABLED_IDS.add(doc_id)
         return {key: value for key, value in document.items() if key != "embedding"}
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=503, detail="knowledge service unavailable") from exc
