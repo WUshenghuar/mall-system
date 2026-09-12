@@ -39,7 +39,7 @@ class ChatRequest(BaseModel):
     memberId: int
     conversationId: str = Field(min_length=1, max_length=64)
     message: str = Field(min_length=1, max_length=1000)
-    businessContext: str = Field(default="", max_length=1000)
+    businessContext: str = Field(default="", max_length=6000)
     businessTool: str = Field(default="", max_length=128)
     history: list[ChatMessage] = Field(default_factory=list)
 
