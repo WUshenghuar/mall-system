@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.core.Authentication;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +30,7 @@ class DashboardControllerTest {
         when(spuMapper.selectCount(null)).thenReturn(8L);
         when(memberMapper.selectCount(null)).thenReturn(3L);
         when(orderMapper.selectCount(any())).thenReturn(5L);
+        when(orderMapper.sumPaidAmountSince(any(LocalDateTime.class))).thenReturn(new BigDecimal("199.90"));
         when(refundMapper.selectCount(any())).thenReturn(2L);
         when(orderMapper.countByHourSince(any(LocalDateTime.class)))
                 .thenReturn(List.of(Map.of("hourKey", LocalDateTime.now().withMinute(0).withSecond(0).withNano(0)
@@ -40,7 +42,8 @@ class DashboardControllerTest {
 
         Map<String, Object> stats = controller.stats("today", staff).getData();
 
-        assertThat(stats).containsEntry("todayOrders", 5L).containsEntry("pendingRefund", 2L);
+        assertThat(stats).containsEntry("todayOrders", 5L).containsEntry("pendingRefund", 2L)
+                .containsEntry("paidAmount", new BigDecimal("199.90"));
         assertThat((List<Long>) stats.get("hourlyOrderCounts")).hasSize(24).contains(3L);
     }
 

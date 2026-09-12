@@ -18,6 +18,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -54,12 +55,14 @@ public class DashboardController {
         long pendingRefund = refundMapper.selectCount(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<com.mall.trade.entity.TradeRefund>()
                         .eq(com.mall.trade.entity.TradeRefund::getRefundStatus, 0));
+        BigDecimal paidAmount = tradeOrderMapper.sumPaidAmountSince(start);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("productCount", productCount);
         data.put("todayOrders", orderCount);
         data.put("memberCount", memberCount);
         data.put("pendingRefund", pendingRefund);
+        data.put("paidAmount", paidAmount == null ? BigDecimal.ZERO : paidAmount);
         List<Long> hourlyOrderCounts = new ArrayList<>();
         for (int hour = 0; hour < 24; hour++) hourlyOrderCounts.add(0L);
         List<String> hourLabels = new ArrayList<>();

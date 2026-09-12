@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -14,6 +15,9 @@ public interface TradeOrderMapper extends BaseMapper<TradeOrder> {
     @Select("SELECT DATE_FORMAT(create_time, '%Y-%m-%d %H') AS hourKey, COUNT(*) AS count FROM trade_order "
             + "WHERE create_time >= #{start} GROUP BY DATE_FORMAT(create_time, '%Y-%m-%d %H')")
     List<Map<String, Object>> countByHourSince(@Param("start") LocalDateTime start);
+    @Select("SELECT COALESCE(SUM(pay_amount), 0) FROM trade_order "
+            + "WHERE pay_time IS NOT NULL AND pay_time >= #{start} AND order_status <> 0")
+    BigDecimal sumPaidAmountSince(@Param("start") LocalDateTime start);
     @Update("UPDATE trade_order SET order_status = #{targetStatus}, update_time = NOW() "
             + "WHERE order_no = #{orderNo} AND user_id = #{userId} AND order_status = #{expectedStatus}")
     int transitionOwned(@Param("orderNo") String orderNo, @Param("userId") Long userId,

@@ -27,7 +27,7 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" :style="{ color: s.fg }" v-html="s.icon"></svg>
           </span>
         </div>
-        <div class="kpi-value">{{ s.value }}</div>
+        <div class="kpi-value">{{ s.key === 'paidAmount' ? 'USD ' + s.value : s.value }}</div>
         <div class="kpi-footer">
           <span class="kpi-trend" :class="s.trendDir">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -36,7 +36,7 @@
             </svg>
             <span>{{ s.trendText }}</span>
           </span>
-          <span class="kpi-period">{{ s.key === 'order' ? rangeLabel : '今日' }}</span>
+          <span class="kpi-period">{{ ['order', 'paidAmount'].includes(s.key) ? rangeLabel : '今日' }}</span>
         </div>
       </div>
     </div>
@@ -137,7 +137,9 @@ const stats = ref([
   { key: 'member',  label: '会员总数',    value: 0, bg: 'rgba(45,138,86,0.08)',   fg: '#2D8A56', trendDir: 'up',   trendText: '--',
     icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>' },
   { key: 'refund',  label: '待处理退款',  value: 0, bg: 'rgba(197,48,48,0.08)',   fg: '#C53030', trendDir: 'down', trendText: '--',
-    icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>' }
+    icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>' },
+  { key: 'paidAmount', label: '已支付金额', value: '0.00', bg: 'rgba(14,116,144,0.08)', fg: '#0E7490', trendDir: 'up', trendText: 'USD',
+    icon: '<circle cx="12" cy="12" r="9"/><path d="M15 8.5c-.7-.7-1.7-1-3-1-1.7 0-2.8.8-2.8 2s1.1 1.8 2.8 2 2.8.6 2.8 2-1.1 2-2.8 2c-1.3 0-2.3-.3-3-1"/><path d="M12 6v12"/>' }
 ])
 
 const barHeights = ref(Array(24).fill(4))
@@ -161,6 +163,7 @@ async function fetchStats() {
     stats.value[1].value = d.todayOrders ?? 0
     stats.value[2].value = d.memberCount ?? 0
     stats.value[3].value = d.pendingRefund ?? 0
+    stats.value[4].value = Number(d.paidAmount ?? 0).toFixed(2)
     const counts = d.hourlyOrderCounts || Array(24).fill(0)
     hourlyCounts.value = counts
     chartLabels.value = d.hourLabels || chartLabels.value
@@ -279,7 +282,7 @@ onUnmounted(() => {
 /* ── KPI card grid ── */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: var(--space-4);
 }
 
@@ -666,6 +669,7 @@ onUnmounted(() => {
 .kpi-card:nth-child(2) { animation: card-in 0.45s var(--ease-out) 0.12s both; }
 .kpi-card:nth-child(3) { animation: card-in 0.45s var(--ease-out) 0.19s both; }
 .kpi-card:nth-child(4) { animation: card-in 0.45s var(--ease-out) 0.26s both; }
+.kpi-card:nth-child(5) { animation: card-in 0.45s var(--ease-out) 0.33s both; }
 
 @keyframes card-in {
   from { opacity: 0; transform: translateY(16px); }
