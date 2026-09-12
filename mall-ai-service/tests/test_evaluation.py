@@ -28,6 +28,10 @@ def test_local_fallback_honors_disabled_knowledge():
         DISABLED_IDS.discard("coupon")
 
 
+def test_unmatched_question_has_no_knowledge_fallback():
+    assert fallback_hits("完全不相关的旅行天气问题xyz") == []
+
+
 def test_local_rag_combines_two_relevant_topics():
     async def collect():
         context = [{"content": "支付说明"}, {"content": "会员服务"}]

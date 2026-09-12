@@ -57,6 +57,8 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
                 yield sse({"type": "sources", "items": [{"title": title, "category": category}]})
             else:
                 context = await retrieve(request.message)
+                if not context:
+                    yield sse({"type": "handoff_suggested"})
             if context:
                 yield sse({"type": "sources", "items": [{"title": item["title"], "category": item["category"]} for item in context]})
             async for chunk in stream_reply(request.message, history, context, request.businessContext):
