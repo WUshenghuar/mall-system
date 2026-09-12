@@ -36,7 +36,7 @@ public class SecurityConfig {
                 .dispatcherTypeMatchers(DispatcherType.ERROR, DispatcherType.ASYNC).permitAll()
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/api/member/auth/register", "/api/member/auth/login").permitAll()
-                .requestMatchers("/api/store/**").permitAll()
+                .requestMatchers("/api/store/**", "/api/search/**").permitAll()
                 .requestMatchers("/api/trade/pay/notify/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
                 .anyRequest().authenticated()
