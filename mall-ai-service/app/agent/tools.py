@@ -7,6 +7,7 @@ TOOL_NAMES = {
     "query_member",
     "query_tax",
     "query_activity",
+    "query_return_eligibility",
 }
 
 TOOL_DEFINITIONS = [
@@ -72,6 +73,14 @@ TOOL_DEFINITIONS = [
             "name": "query_activity",
             "description": "只读查询平台当前正在进行的活动和活动时间",
             "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_return_eligibility",
+            "description": "只读查询当前登录会员订单是否可申请退款或退货退款",
+            "parameters": {"type": "object", "properties": {"order_no": {"type": "string"}}, "additionalProperties": False},
         },
     },
 ]

@@ -531,6 +531,26 @@ class AiChatServiceImplTest {
     }
 
     @Test
+    void streamChecksReturnEligibilityUsingTheSameOrderRulesAsRefundApply() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        TradeOrderService orders = mock(TradeOrderService.class);
+        TradeRefundService refunds = mock(TradeRefundService.class);
+        TradeOrder order = new TradeOrder(); order.setOrderStatus(2);
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(orders.getOwnedByOrderNo("T202609071234567890", 9L)).thenReturn(order);
+        when(refunds.selectMemberPage(9L, 1, 100)).thenReturn(new com.baomidou.mybatisplus.extension.plugins.pagination.Page<>());
+        AiChatRequest request = new AiChatRequest(); request.setMessage("这个订单能退吗 T202609071234567890");
+
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orders, mock(LogisticsService.class), refunds,
+                mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class))
+                .stream(9L, "session-1", request, ignored -> { });
+
+        verify(gateway).stream(anyLong(), anyString(), anyString(),
+                eq("订单T202609071234567890可申请退货退款。"), eq("query_return_eligibility"), any(), any());
+    }
+
+    @Test
     void streamQueriesOwnedMemberLevelAndPoints() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         AiGatewayClient gateway = mock(AiGatewayClient.class);

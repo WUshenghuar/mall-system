@@ -184,6 +184,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     private String intent(String message) {
         if (containsAny(message, "物流", "快递", "运单", "包裹", "配送", "追踪", "轨迹", "tracking", "track", "delivery", "shipment", "package")) return "query_logistics";
+        if (containsAny(message, "能退吗", "能不能退", "退款资格", "退货资格", "是否可退", "return eligibility", "can i return", "eligible for a refund")) return "query_return_eligibility";
         if (containsAny(message, "退款", "退货", "售后", "退钱", "refund", "return", "money back")) return "query_refund";
         if (containsAny(message, "会员", "积分", "等级", "成长", "成长值", "member", "membership", "points", "loyalty")) return "query_member";
         if (containsAny(message, "税费", "关税", "税金", "币种", "tax", "tariff", "duty", "currency")) return "query_tax";
@@ -227,7 +228,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     private boolean isSupportedTool(String tool) {
         return switch (tool) {
-            case "query_order", "query_logistics", "query_refund", "query_product", "query_coupon", "query_member", "query_tax", "query_activity" -> true;
+            case "query_order", "query_logistics", "query_refund", "query_product", "query_coupon", "query_member", "query_tax", "query_activity", "query_return_eligibility" -> true;
             default -> false;
         };
     }
@@ -239,6 +240,10 @@ public class AiChatServiceImpl implements AiChatService {
     private String businessContext(Long memberId, String message, String tool, String plannedOrderNo) {
         if ("query_activity".equals(tool)) return recentContext(memberId, message, tool);
         String orderNo = extractOrderNo(message, plannedOrderNo);
+        if ("query_return_eligibility".equals(tool) && orderNo == null) {
+            return isEnglishMessage(message) ? "Please provide your order number so I can check refund or return eligibility."
+                    : "请提供订单号，我才能查询退款或退货资格。";
+        }
         if (orderNo == null) return recentContext(memberId, message, tool);
         boolean english = isEnglishMessage(message);
         try {
@@ -257,6 +262,20 @@ public class AiChatServiceImpl implements AiChatService {
                                 : "订单" + orderNo + "当前没有退款申请，订单状态：" + orderStatus(order.getOrderStatus()) + "。")
                         : (english ? "Order " + orderNo + " refund status: " + refundStatusEnglish(refund.getRefundStatus()) + "."
                                 : "订单" + orderNo + "的退款状态：" + refundStatus(refund.getRefundStatus()) + "。");
+            }
+            if ("query_return_eligibility".equals(tool)) {
+                boolean activeRefund = tradeRefundService.selectMemberPage(memberId, 1, 100).getRecords().stream()
+                        .anyMatch(item -> orderNo.equals(item.getOrderNo()) && List.of(0, 1, 3, 4).contains(item.getRefundStatus()));
+                if (activeRefund) return english ? "Order " + orderNo + " already has an active after-sales request."
+                        : "订单" + orderNo + "已有处理中售后申请，不能重复提交。";
+                if (Integer.valueOf(1).equals(order.getOrderStatus())) return english ? "Order " + orderNo + " is eligible for a refund only."
+                        : "订单" + orderNo + "可申请仅退款。";
+                if (Integer.valueOf(2).equals(order.getOrderStatus()) || Integer.valueOf(3).equals(order.getOrderStatus())) {
+                    return english ? "Order " + orderNo + " is eligible for a return and refund."
+                            : "订单" + orderNo + "可申请退货退款。";
+                }
+                return english ? "Order " + orderNo + " is not currently eligible for a refund or return."
+                        : "订单" + orderNo + "当前状态不可申请退款或退货。";
             }
             if ("query_tax".equals(tool)) {
                 return english ? "Order " + orderNo + " currency: " + (order.getCurrency() == null ? "USD" : order.getCurrency())

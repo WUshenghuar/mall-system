@@ -22,6 +22,7 @@ BUSINESS_SOURCES = {
     "query_member": ("会员资料查询", "member"),
     "query_tax": ("税费与币种查询", "finance"),
     "query_activity": ("进行中活动查询", "marketing"),
+    "query_return_eligibility": ("退款/退货资格查询", "after_sales"),
 }
 
 

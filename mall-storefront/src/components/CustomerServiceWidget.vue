@@ -24,7 +24,7 @@ import { aiApi } from '../api'
 const router = useRouter(), open = ref(false), draft = ref(''), sending = ref(false), humanMode = ref(false), messages = ref([]), conversationId = ref(''), handoffTicket = ref(null), messageList = ref(null)
 let handoffTimer
 const quickQuestions = ['怎么查我的订单？', '退款规则是什么？', '物流在哪里看？', '优惠券怎么领？']
-const toolLabel = tool => ({ query_order: '订单查询', query_logistics: '物流查询', query_refund: '退款查询', query_product: '商品查询', query_coupon: '优惠券查询', query_member: '会员查询', query_tax: '税费查询', query_activity: '活动查询' }[tool] || '业务查询')
+const toolLabel = tool => ({ query_order: '订单查询', query_logistics: '物流查询', query_refund: '退款查询', query_product: '商品查询', query_coupon: '优惠券查询', query_member: '会员查询', query_tax: '税费查询', query_activity: '活动查询', query_return_eligibility: '退款/退货资格查询' }[tool] || '业务查询')
 const toolLabels = item => (item.tools?.length ? item.tools : item.tool ? [item.tool] : []).map(toolLabel).join('、')
 const handoffStatus = computed(() => ({ 0: '待接管', 1: '处理中', 2: '已解决' }[handoffTicket.value?.status] || '已提交'))
 function askQuickQuestion(question) { draft.value = question; send() }
