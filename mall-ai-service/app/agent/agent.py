@@ -32,7 +32,8 @@ def should_suggest_handoff(message: str) -> bool:
 def local_answer(message: str) -> str:
     normalized = message.lower()
     if is_prompt_injection(message):
-        return "我只能回答平台商品、订单、物流、退款进度、优惠券和会员相关的问题。"
+        return ("I can only answer questions about platform products, orders, delivery, refund status, coupons, and membership."
+                if is_english_message(message) else "我只能回答平台商品、订单、物流、退款进度、优惠券和会员相关的问题。")
     if is_english_message(message):
         if any(token in normalized for token in ("refund", "return", "money back")):
             return "I can help check your refund status and policy. Refund approval is handled by the platform after-sales process."
