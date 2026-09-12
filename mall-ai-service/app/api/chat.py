@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from app.agent.agent import should_suggest_handoff
 from app.config import settings
 from app.rag.retriever import retrieve
+from app.observability import metrics
 from app.utils.llm import plan_tool as plan_tool_request, stream_reply
 
 router = APIRouter()
@@ -63,13 +64,16 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
         raise HTTPException(status_code=401, detail="invalid AI service token")
 
     async def events() -> AsyncIterator[str]:
-        yield sse({"type": "thinking"})
-        if not settings.enabled:
-            yield sse({"type": "handoff_suggested"})
-            yield sse({"type": "text", "content": "AI 客服当前暂时停用，请点击转人工客服获取帮助。"})
-            yield sse({"type": "done"})
-            return
+        started = metrics.start()
+        outcome = "completed"
         try:
+            yield sse({"type": "thinking"})
+            if not settings.enabled:
+                outcome = "disabled"
+                yield sse({"type": "handoff_suggested"})
+                yield sse({"type": "text", "content": "AI 客服当前暂时停用，请点击转人工客服获取帮助。"})
+                yield sse({"type": "done"})
+                return
             history = [item.model_dump() for item in request.history]
             context = []
             if request.businessContext:
@@ -92,6 +96,9 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
                 yield sse({"type": "text", "content": chunk})
             yield sse({"type": "done"})
         except Exception:
+            outcome = "error"
             yield sse({"type": "error", "message": "客服服务暂不可用，请稍后重试"})
+        finally:
+            metrics.finish(started, outcome)
 
     return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})

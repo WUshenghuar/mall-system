@@ -1,9 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 
 from app.api.chat import router as chat_router
 from app.api.knowledge import router as knowledge_router
 from app.config import settings
 from app.rag.retriever import ensure_seeded
+from app.observability import metrics
 
 app = FastAPI(title="CBEC AI Customer Service", version="0.1.0")
 app.include_router(chat_router)
@@ -29,3 +30,10 @@ async def health():
         "embeddingConfigured": settings.enabled and settings.has_embedding,
         "toolPlanningEnabled": settings.enabled and settings.has_model,
     }
+
+
+@app.get("/internal/metrics")
+async def internal_metrics(x_ai_service_token: str = Header(default="")):
+    if x_ai_service_token != settings.service_token:
+        raise HTTPException(status_code=401, detail="invalid AI service token")
+    return metrics.snapshot()
