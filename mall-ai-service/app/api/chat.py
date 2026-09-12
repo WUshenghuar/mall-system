@@ -42,6 +42,7 @@ class ChatRequest(BaseModel):
     businessContext: str = Field(default="", max_length=6000)
     businessTool: str = Field(default="", max_length=128)
     history: list[ChatMessage] = Field(default_factory=list)
+    toolResults: list[str] = Field(default_factory=list, max_length=3)
 
 
 def sse(payload: dict) -> str:
@@ -53,7 +54,7 @@ async def tool_plan(request: ChatRequest, x_ai_service_token: str = Header(defau
     if x_ai_service_token != settings.service_token:
         raise HTTPException(status_code=401, detail="invalid AI service token")
     history = [item.model_dump() for item in request.history]
-    return await plan_tool_request(request.message, history)
+    return await plan_tool_request(request.message, history, request.toolResults)
 
 
 @router.post("/internal/chat")

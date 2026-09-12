@@ -22,11 +22,14 @@ def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
     return result
 
 
-async def plan_tool(message: str, history: list[dict[str, str]]) -> dict:
+async def plan_tool(message: str, history: list[dict[str, str]], tool_results: list[str] | None = None) -> dict:
     if is_prompt_injection(message) or not getattr(settings, "enabled", True) or not settings.has_model:
         return {"tool": "", "arguments": {}}
     messages = [{"role": "system", "content": "你是平台客服意图路由器。只允许选择只读查询工具，不执行任何写操作；无法确定时不要选择工具。"}]
     messages.extend(safe_history(history))
+    results = [item.strip()[:2000] for item in (tool_results or []) if isinstance(item, str) and item.strip()][:3]
+    if results:
+        messages.append({"role": "system", "content": "以下只读工具已执行，不要重复这些查询；仅在仍缺少必要信息时选择其它只读工具：\n" + "\n".join(results)})
     messages.append({"role": "user", "content": message})
     payload = {
         "model": settings.model_name,

@@ -42,11 +42,17 @@ public class AiGatewayClient {
     }
 
     public Map<String, Object> plan(Long memberId, String conversationId, String message, List<AiConversation> history) {
+        return plan(memberId, conversationId, message, history, List.of());
+    }
+
+    public Map<String, Object> plan(Long memberId, String conversationId, String message, List<AiConversation> history,
+                                    List<String> toolResults) {
         try {
             List<Map<String, String>> messages = history.stream()
                     .map(item -> Map.of("role", "agent".equals(item.getRole()) ? "assistant" : item.getRole(), "content", item.getContent())).toList();
             JsonNode response = requestJson("POST", "/internal/tool-plan", Map.of(
-                    "memberId", memberId, "conversationId", conversationId, "message", message, "history", messages));
+                    "memberId", memberId, "conversationId", conversationId, "message", message, "history", messages,
+                    "toolResults", toolResults == null ? List.of() : toolResults));
             return objectMapper.convertValue(response, new TypeReference<>() { });
         } catch (Exception e) {
             log.debug("AI tool planning unavailable; using deterministic routing", e);

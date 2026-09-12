@@ -96,16 +96,14 @@ public class AiChatServiceImpl implements AiChatService {
                 Map<String, Object> decision = gatewayClient.plan(memberId, conversationId, request.getMessage(), history);
                 List<String> contextParts = new ArrayList<>();
                 List<String> toolNames = new ArrayList<>();
-                for (Map<String, Object> plan : plannedTools(decision)) {
-                    String plannedTool = plannedTool(plan);
-                    String plannedContext = plannedTool.isBlank() ? "" : businessContext(memberId, request.getMessage(), plannedTool,
-                            plannedOrderNo(plan), plannedKeyword(plan));
-                    if (!plannedContext.isBlank()) {
-                        contextParts.add(plannedContext);
-                        toolNames.add(plannedTool);
-                        recordAudit(memberId, conversationId, requestId, "tool_plan", plannedTool, "accepted",
-                                (int) (System.currentTimeMillis() - start), "model_read_only_plan");
+                appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), decision, contextParts, toolNames, start);
+                if (!toolNames.isEmpty() && toolNames.size() < 3 && hasMultipleTopics(request.getMessage())) {
+                    List<String> toolResults = new ArrayList<>();
+                    for (int index = 0; index < contextParts.size(); index++) {
+                        toolResults.add(toolNames.get(index) + ": " + contextParts.get(index));
                     }
+                    Map<String, Object> followUp = gatewayClient.plan(memberId, conversationId, request.getMessage(), history, toolResults);
+                    appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), followUp, contextParts, toolNames, start);
                 }
                 if (!contextParts.isEmpty()) {
                     businessContext = String.join("\n", contextParts);
@@ -219,6 +217,35 @@ public class AiChatServiceImpl implements AiChatService {
         }
         if (plans.isEmpty() && decision != null && !plannedTool(decision).isBlank()) plans.add(decision);
         return plans;
+    }
+
+    private void appendPlannedContexts(Long memberId, String conversationId, String requestId, String message,
+                                       Map<String, Object> decision, List<String> contextParts, List<String> toolNames, long start) {
+        for (Map<String, Object> plan : plannedTools(decision)) {
+            if (toolNames.size() >= 3) break;
+            String plannedTool = plannedTool(plan);
+            if (plannedTool.isBlank() || toolNames.contains(plannedTool)) continue;
+            String plannedContext = businessContext(memberId, message, plannedTool, plannedOrderNo(plan), plannedKeyword(plan));
+            if (!plannedContext.isBlank()) {
+                contextParts.add(plannedContext);
+                toolNames.add(plannedTool);
+                recordAudit(memberId, conversationId, requestId, "tool_plan", plannedTool, "accepted",
+                        (int) (System.currentTimeMillis() - start), "model_read_only_plan");
+            }
+        }
+    }
+
+    private boolean hasMultipleTopics(String message) {
+        List<String[]> topics = List.of(
+                new String[]{"物流", "快递", "tracking", "delivery"},
+                new String[]{"退款", "退货", "refund", "return"},
+                new String[]{"商品", "产品", "product", "item"},
+                new String[]{"优惠券", "coupon", "discount"},
+                new String[]{"会员", "积分", "member", "points"},
+                new String[]{"活动", "促销", "activity", "promotion"},
+                new String[]{"税费", "tax", "duty"},
+                new String[]{"订单", "order"});
+        return topics.stream().filter(topic -> containsAny(message, topic)).count() > 1;
     }
 
     private String plannedOrderNo(Map<String, Object> decision) {

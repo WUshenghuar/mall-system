@@ -112,3 +112,33 @@ def test_model_tool_plan_filters_prompt_injection_history(monkeypatch):
     ]))
 
     assert result == {"tool": "", "arguments": {}}
+
+
+def test_model_tool_plan_receives_previous_tool_results(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": [{"message": {"tool_calls": []}}]}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, headers, json):
+            text = "\n".join(item["content"] for item in json["messages"])
+            assert "query_product: 已找到耳机" in text
+            assert "不要重复这些查询" in text
+            return Response()
+
+    monkeypatch.setattr(llm, "settings", SimpleNamespace(
+        has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
+    monkeypatch.setattr(llm.httpx, "AsyncClient", lambda **kwargs: Client())
+
+    result = asyncio.run(llm.plan_tool("还要查活动", [], ["query_product: 已找到耳机"]))
+
+    assert result == {"tool": "", "arguments": {}}
