@@ -176,17 +176,18 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     private String intent(String message) {
-        if (containsAny(message, "物流", "快递", "运单", "包裹", "配送", "追踪", "轨迹", "tracking", "track")) return "query_logistics";
-        if (containsAny(message, "退款", "退货", "售后", "退钱")) return "query_refund";
-        if (containsAny(message, "会员", "积分", "等级", "成长", "成长值")) return "query_member";
-        if (containsAny(message, "税费", "关税", "税金", "币种")) return "query_tax";
-        if (containsAny(message, "优惠券", "券包", "折扣券")) return "query_coupon";
-        if (containsAny(message, "商品", "产品", "推荐", "找", "款式", "规格")) return "query_product";
+        if (containsAny(message, "物流", "快递", "运单", "包裹", "配送", "追踪", "轨迹", "tracking", "track", "delivery", "shipment", "package")) return "query_logistics";
+        if (containsAny(message, "退款", "退货", "售后", "退钱", "refund", "return", "money back")) return "query_refund";
+        if (containsAny(message, "会员", "积分", "等级", "成长", "成长值", "member", "membership", "points", "loyalty")) return "query_member";
+        if (containsAny(message, "税费", "关税", "税金", "币种", "tax", "tariff", "duty", "currency")) return "query_tax";
+        if (containsAny(message, "优惠券", "券包", "折扣券", "coupon", "discount", "promo", "voucher")) return "query_coupon";
+        if (containsAny(message, "商品", "产品", "推荐", "找", "款式", "规格", "product", "item", "recommend", "style", "size")) return "query_product";
         return "query_order";
     }
 
     private boolean containsAny(String message, String... keywords) {
-        return java.util.Arrays.stream(keywords).anyMatch(message::contains);
+        String normalized = message.toLowerCase(java.util.Locale.ROOT);
+        return java.util.Arrays.stream(keywords).anyMatch(keyword -> normalized.contains(keyword.toLowerCase(java.util.Locale.ROOT)));
     }
 
     private String plannedTool(Map<String, Object> decision) {
@@ -270,7 +271,8 @@ public class AiChatServiceImpl implements AiChatService {
                     : "为你找到的上架商品：\n" + products.stream().map(Spu::getSpuName)
                     .collect(java.util.stream.Collectors.joining("\n"));
         }
-        if ("query_coupon".equals(tool) && containsAny(message, "我的优惠券", "可用优惠券", "优惠券有哪些", "券包")) {
+        if ("query_coupon".equals(tool) && containsAny(message, "我的优惠券", "可用优惠券", "优惠券有哪些", "券包",
+                "my coupons", "available coupons", "what coupons", "coupon wallet", "coupons do i have")) {
             List<MemberCouponVO> coupons = couponService.listMemberCoupons(memberId).stream()
                     .filter(item -> Integer.valueOf(0).equals(item.getStatus())).toList();
             return coupons.isEmpty() ? "你目前没有可用优惠券。"
@@ -278,6 +280,7 @@ public class AiChatServiceImpl implements AiChatService {
                     .map(item -> item.getCouponName() + "（减" + item.getDiscount() + "）")
                     .collect(java.util.stream.Collectors.joining("\n"));
         }
+        if ("query_coupon".equals(tool)) return "";
         if ("query_member".equals(tool)) {
             Member member = memberService.getById(memberId);
             if (member == null) return "暂未查询到你的会员资料。";
@@ -285,15 +288,20 @@ public class AiChatServiceImpl implements AiChatService {
                     + "，累计消费：" + (member.getTotalAmount() == null ? "0.00" : member.getTotalAmount()) + "。";
         }
         if ("query_refund".equals(tool)) {
-            if (!(message.contains("我的") || message.contains("查询") || message.contains("进度") || message.contains("状态") || message.contains("申请"))) return "";
+            if (!containsAny(message, "我的", "查询", "进度", "状态", "申请", "my refund", "refund status", "refund progress",
+                    "check my refund", "return status", "request a refund", "i want a refund", "my return")) return "";
             List<TradeRefund> refunds = tradeRefundService.selectMemberPage(memberId, 1, 3).getRecords();
             if (refunds.isEmpty()) return "你目前没有退款申请。";
             return "你最近的退款申请：\n" + refunds.stream()
                     .map(item -> "订单" + item.getOrderNo() + "：" + refundStatus(item.getRefundStatus()))
                     .collect(java.util.stream.Collectors.joining("\n"));
         }
-        if ("query_logistics".equals(tool) && !containsAny(message, "我的", "包裹", "订单", "运单号")) return "";
-        if ("query_order".equals(tool) && !containsAny(message, "我的订单", "查订单", "订单状态", "订单号")) return "";
+        if ("query_logistics".equals(tool) && !containsAny(message, "我的", "包裹", "订单", "运单号", "my package", "my shipment",
+                "tracking number", "track my", "where is my", "delivery status")) return "";
+        if ("query_order".equals(tool) && !containsAny(message, "我的订单", "查订单", "订单状态", "订单号", "my order", "check my order",
+                "order status", "order number", "order details")) return "";
+        if ("query_tax".equals(tool) && !containsAny(message, "我的订单", "订单税费", "税费", "my order", "order tax", "tax on my order",
+                "tariff for my order", "customs duty for my order")) return "";
         List<TradeOrder> orders = tradeOrderService.selectPage(1, 3, memberId, null).getRecords();
         if (orders.isEmpty()) return "你目前还没有订单。";
         if ("query_logistics".equals(tool)) {

@@ -396,6 +396,47 @@ class AiChatServiceImplTest {
     }
 
     @Test
+    void streamQueriesRecentOwnedLogisticsForEnglishMessage() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        TradeOrderService orderService = mock(TradeOrderService.class);
+        LogisticsService logisticsService = mock(LogisticsService.class);
+        IPage<TradeOrder> page = mock(IPage.class);
+        TradeOrder order = new TradeOrder(); order.setOrderNo("T202609071234567890"); order.setOrderStatus(2);
+        order.setPayAmount(new java.math.BigDecimal("19.90"));
+        TradeLogistics logistics = new TradeLogistics(); logistics.setLogisticsCompany("DHL"); logistics.setLogisticsNo("DHL-001");
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(orderService.selectPage(1, 3, 9L, null)).thenReturn(page);
+        when(page.getRecords()).thenReturn(List.of(order));
+        when(logisticsService.getByOrderNo("T202609071234567890")).thenReturn(logistics);
+        AiChatRequest request = new AiChatRequest(); request.setMessage("Where is my package?");
+
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orderService, logisticsService,
+                mock(TradeRefundService.class), mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class))
+                .stream(9L, "session-1", request, ignored -> { });
+
+        verify(gateway).stream(anyLong(), anyString(), anyString(),
+                eq("你最近的订单T202609071234567890的物流：DHL，运单号：DHL-001。"), eq("query_logistics"), any(), any());
+    }
+
+    @Test
+    void streamLeavesEnglishCouponPolicyForKnowledgeRetrieval() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        TradeOrderService orderService = mock(TradeOrderService.class);
+        CouponService couponService = mock(CouponService.class);
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        AiChatRequest request = new AiChatRequest(); request.setMessage("How do coupons work?");
+
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orderService, mock(LogisticsService.class),
+                mock(TradeRefundService.class), mock(StoreCatalogService.class), couponService, mock(MemberService.class))
+                .stream(9L, "session-1", request, ignored -> { });
+
+        verify(gateway).stream(anyLong(), anyString(), anyString(), eq(""), eq(""), any(), any());
+        verifyNoInteractions(orderService, couponService);
+    }
+
+    @Test
     void streamQueriesPublishedProductsAsReadOnlyContext() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         AiGatewayClient gateway = mock(AiGatewayClient.class);
