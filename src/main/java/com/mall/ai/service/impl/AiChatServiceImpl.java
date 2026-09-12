@@ -62,6 +62,16 @@ public class AiChatServiceImpl implements AiChatService {
         return conversationMapper.selectLatest(memberId, Math.min(Math.max(limit, 1), 20));
     }
 
+    @Override
+    public void feedback(Long memberId, Long messageId, Integer feedback) {
+        if (feedback == null || (feedback != 1 && feedback != -1)) {
+            throw new BusinessException("反馈值只能是有帮助或没帮助");
+        }
+        if (conversationMapper.updateFeedback(messageId, memberId, feedback) != 1) {
+            throw new BusinessException("只能评价自己的 AI 回复");
+        }
+    }
+
     private String businessTool(String message, String context) {
         if (context.isBlank()) return "";
         if (message.contains("物流") || message.contains("快递") || message.contains("运单")) return "query_logistics";

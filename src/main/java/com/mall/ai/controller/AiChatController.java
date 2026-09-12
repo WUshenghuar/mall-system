@@ -3,6 +3,7 @@ package com.mall.ai.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.result.Result;
 import com.mall.ai.dto.AiChatRequest;
+import com.mall.ai.dto.AiFeedbackRequest;
 import com.mall.ai.entity.AiConversation;
 import com.mall.ai.service.AiChatService;
 import com.mall.security.user.CurrentMember;
@@ -51,6 +52,12 @@ public class AiChatController {
     @GetMapping("/recent")
     public Result<List<AiConversation>> recent(Authentication auth) {
         return Result.success(aiChatService.recent(CurrentMember.id(auth), 20));
+    }
+
+    @PostMapping("/feedback")
+    public Result<Void> feedback(@Valid @RequestBody AiFeedbackRequest request, Authentication auth) {
+        aiChatService.feedback(CurrentMember.id(auth), request.getMessageId(), request.getFeedback());
+        return Result.success(null);
     }
 
     private void send(SseEmitter emitter, Map<String, Object> event) {

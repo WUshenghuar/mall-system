@@ -56,6 +56,7 @@ export const aiApi = {
     }
   },
   recent: () => request.get('/ai/recent'),
+  feedback: data => request.post('/ai/feedback', data),
   handoff: data => request.post('/ai/tickets', data),
   mine: params => request.get('/ai/tickets/mine', { params })
 }

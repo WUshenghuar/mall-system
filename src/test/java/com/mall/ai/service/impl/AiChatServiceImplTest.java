@@ -52,6 +52,19 @@ class AiChatServiceImplTest {
     }
 
     @Test
+    void recordsFeedbackOnlyForOwnedAssistantMessage() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        when(mapper.updateFeedback(7L, 9L, 1)).thenReturn(1);
+
+        new AiChatServiceImpl(mapper, mock(AiGatewayClient.class), new ObjectMapper(),
+                mock(TradeOrderService.class), mock(LogisticsService.class), mock(TradeRefundService.class),
+                mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class))
+                .feedback(9L, 7L, 1);
+
+        verify(mapper).updateFeedback(7L, 9L, 1);
+    }
+
+    @Test
     void streamPersistsBothSidesOfConversationAndForwardsTextEvent() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         AiGatewayClient gateway = mock(AiGatewayClient.class);
