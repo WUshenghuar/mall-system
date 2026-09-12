@@ -86,8 +86,18 @@ public class AiSupportTicketServiceImpl implements AiSupportTicketService {
     @Transactional
     public void reply(Long id, Long operatorId, String reply) {
         String content = StringUtils.hasText(reply) ? reply.trim() : "已收到你的问题，客服正在处理中。";
+        AiSupportTicket ticket = ticketMapper.selectById(id);
         if (ticketMapper.reply(id, operatorId, content) != 1) {
             throw new BusinessException("只能回复自己已认领的处理中工单");
+        }
+        if (ticket != null && StringUtils.hasText(ticket.getConversationId())) {
+            AiConversation message = new AiConversation();
+            message.setSessionId(ticket.getConversationId());
+            message.setUserId(ticket.getMemberId());
+            message.setRole("agent");
+            message.setContent(content);
+            message.setModel("human-agent");
+            conversationMapper.insert(message);
         }
     }
 

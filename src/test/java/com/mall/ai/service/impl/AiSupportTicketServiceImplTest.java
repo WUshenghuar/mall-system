@@ -4,6 +4,7 @@ import com.mall.ai.entity.AiConversation;
 import com.mall.ai.entity.AiSupportTicket;
 import com.mall.ai.mapper.AiConversationMapper;
 import com.mall.ai.mapper.AiSupportTicketMapper;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -100,6 +101,27 @@ class AiSupportTicketServiceImplTest {
 
         assertThatThrownBy(() -> service(mapper).reply(1L, 3L, "回复"))
                 .hasMessageContaining("自己已认领");
+    }
+
+    @Test
+    void appendsAgentReplyToLinkedConversation() {
+        AiSupportTicketMapper ticketMapper = mock(AiSupportTicketMapper.class);
+        AiConversationMapper conversationMapper = mock(AiConversationMapper.class);
+        AiSupportTicket ticket = new AiSupportTicket();
+        ticket.setMemberId(9L);
+        ticket.setConversationId("session-1");
+        when(ticketMapper.selectById(1L)).thenReturn(ticket);
+        when(ticketMapper.reply(1L, 3L, "已处理")).thenReturn(1);
+
+        new AiSupportTicketServiceImpl(conversationMapper, ticketMapper).reply(1L, 3L, "已处理");
+
+        ArgumentCaptor<AiConversation> captor = ArgumentCaptor.forClass(AiConversation.class);
+        verify(conversationMapper).insert(captor.capture());
+        AiConversation message = captor.getValue();
+        assertThat(message.getRole()).isEqualTo("agent");
+        assertThat(message.getSessionId()).isEqualTo("session-1");
+        assertThat(message.getContent()).isEqualTo("已处理");
+        assertThat(message.getModel()).isEqualTo("human-agent");
     }
 
     @Test

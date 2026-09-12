@@ -11,7 +11,7 @@ import lombok.EqualsAndHashCode;
 public class AiConversation extends BaseEntity {
     private String sessionId;
     private Long userId;
-    /** user / assistant */
+    /** user / assistant / agent */
     private String role;
     private String content;
     private Integer tokensUsed;

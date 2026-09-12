@@ -36,7 +36,7 @@
       <a-spin :spinning="conversationLoading">
         <a-empty v-if="!conversationMessages.length" description="暂无会话记录" />
         <div v-for="item in conversationMessages" :key="item.id" class="conversation-item" :class="item.role">
-          <a-tag :color="item.role === 'user' ? 'blue' : 'default'">{{ item.role === 'user' ? '会员' : 'AI 客服' }}</a-tag>
+          <a-tag :color="item.role === 'user' ? 'blue' : item.role === 'agent' ? 'gold' : 'default'">{{ item.role === 'user' ? '会员' : item.role === 'agent' ? '平台客服' : 'AI 客服' }}</a-tag>
           <span>{{ item.content }}</span>
         </div>
       </a-spin>

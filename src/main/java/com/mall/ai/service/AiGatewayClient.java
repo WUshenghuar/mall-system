@@ -36,7 +36,7 @@ public class AiGatewayClient {
                        Consumer<String> eventConsumer) {
         try {
             List<Map<String, String>> messages = history.stream()
-                    .map(item -> Map.of("role", item.getRole(), "content", item.getContent())).toList();
+                    .map(item -> Map.of("role", "agent".equals(item.getRole()) ? "assistant" : item.getRole(), "content", item.getContent())).toList();
             String body = objectMapper.writeValueAsString(Map.of("memberId", memberId, "conversationId", conversationId,
                     "message", message, "businessContext", businessContext, "businessTool", businessTool, "history", messages));
             HttpURLConnection connection = (HttpURLConnection) URI.create(baseUrl + "/internal/chat").toURL().openConnection();
