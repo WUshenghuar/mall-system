@@ -42,6 +42,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -407,6 +408,40 @@ class AiChatServiceImplTest {
         verify(gateway).stream(anyLong(), anyString(), anyString(),
                 eq("当前进行中的活动：\n秋季好物周（DISCOUNT，截止 2026-09-30T23:59）\n你的会员等级：Gold 会员，积分：88，累计消费：1200.00。"),
                 eq("query_activity,query_member"), any(), any());
+    }
+
+    @Test
+    void performsAtMostThreePlansForThreeBusinessTopics() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        ActivityService activities = mock(ActivityService.class);
+        StoreCatalogService catalog = mock(StoreCatalogService.class);
+        MemberService members = mock(MemberService.class);
+        IPage page = mock(IPage.class);
+        Activity activity = new Activity(); activity.setActivityName("秋季好物周"); activity.setActivityType("DISCOUNT");
+        activity.setEndTime(LocalDateTime.of(2026, 9, 30, 23, 59));
+        Spu product = new Spu(); product.setSpuName("跨境耳机");
+        Member member = new Member(); member.setLevel(1); member.setPoints(88); member.setTotalAmount(new java.math.BigDecimal("1200.00"));
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(gateway.plan(anyLong(), anyString(), anyString(), any())).thenReturn(Map.of("tool", "query_activity", "arguments", Map.of()));
+        when(gateway.plan(anyLong(), anyString(), anyString(), any(), anyList())).thenReturn(
+                Map.of("tool", "query_product", "arguments", Map.of("keyword", "耳机")),
+                Map.of("tool", "query_member", "arguments", Map.of()));
+        when(activities.selectActive()).thenReturn(List.of(activity));
+        when(catalog.products(1, 3, null, "耳机")).thenReturn(page);
+        when(page.getRecords()).thenReturn(List.of(product));
+        when(members.getById(9L)).thenReturn(member);
+
+        AiChatServiceImpl service = new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
+                mock(LogisticsService.class), mock(TradeRefundService.class), catalog, mock(CouponService.class), members);
+        service.setActivityService(activities);
+        service.stream(9L, "session-1", newRequest("物流、活动和耳机商品"), ignored -> { });
+
+        verify(gateway).plan(anyLong(), anyString(), anyString(), any());
+        verify(gateway, times(2)).plan(anyLong(), anyString(), anyString(), any(), anyList());
+        verify(gateway).stream(anyLong(), anyString(), anyString(),
+                eq("当前进行中的活动：\n秋季好物周（DISCOUNT，截止 2026-09-30T23:59）\n为你找到的上架商品：\n跨境耳机\n你的会员等级：Gold 会员，积分：88，累计消费：1200.00。"),
+                eq("query_activity,query_product,query_member"), any(), any());
     }
 
     @Test

@@ -96,14 +96,15 @@ public class AiChatServiceImpl implements AiChatService {
                 Map<String, Object> decision = gatewayClient.plan(memberId, conversationId, request.getMessage(), history);
                 List<String> contextParts = new ArrayList<>();
                 List<String> toolNames = new ArrayList<>();
-                appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), decision, contextParts, toolNames, start);
-                if (!toolNames.isEmpty() && toolNames.size() < 3 && hasMultipleTopics(request.getMessage())) {
+                int added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), decision, contextParts, toolNames, start);
+                int topicLimit = Math.min(3, topicCount(request.getMessage()));
+                for (int round = 1; added > 0 && round < 3 && toolNames.size() < topicLimit; round++) {
                     List<String> toolResults = new ArrayList<>();
                     for (int index = 0; index < contextParts.size(); index++) {
                         toolResults.add(toolNames.get(index) + ": " + contextParts.get(index));
                     }
                     Map<String, Object> followUp = gatewayClient.plan(memberId, conversationId, request.getMessage(), history, toolResults);
-                    appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), followUp, contextParts, toolNames, start);
+                    added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), followUp, contextParts, toolNames, start);
                 }
                 if (!contextParts.isEmpty()) {
                     businessContext = String.join("\n", contextParts);
@@ -219,8 +220,9 @@ public class AiChatServiceImpl implements AiChatService {
         return plans;
     }
 
-    private void appendPlannedContexts(Long memberId, String conversationId, String requestId, String message,
-                                       Map<String, Object> decision, List<String> contextParts, List<String> toolNames, long start) {
+    private int appendPlannedContexts(Long memberId, String conversationId, String requestId, String message,
+                                      Map<String, Object> decision, List<String> contextParts, List<String> toolNames, long start) {
+        int added = 0;
         for (Map<String, Object> plan : plannedTools(decision)) {
             if (toolNames.size() >= 3) break;
             String plannedTool = plannedTool(plan);
@@ -229,13 +231,15 @@ public class AiChatServiceImpl implements AiChatService {
             if (!plannedContext.isBlank()) {
                 contextParts.add(plannedContext);
                 toolNames.add(plannedTool);
+                added++;
                 recordAudit(memberId, conversationId, requestId, "tool_plan", plannedTool, "accepted",
                         (int) (System.currentTimeMillis() - start), "model_read_only_plan");
             }
         }
+        return added;
     }
 
-    private boolean hasMultipleTopics(String message) {
+    private int topicCount(String message) {
         List<String[]> topics = List.of(
                 new String[]{"物流", "快递", "tracking", "delivery"},
                 new String[]{"退款", "退货", "refund", "return"},
@@ -245,7 +249,7 @@ public class AiChatServiceImpl implements AiChatService {
                 new String[]{"活动", "促销", "activity", "promotion"},
                 new String[]{"税费", "tax", "duty"},
                 new String[]{"订单", "order"});
-        return topics.stream().filter(topic -> containsAny(message, topic)).count() > 1;
+        return (int) topics.stream().filter(topic -> containsAny(message, topic)).count();
     }
 
     private String plannedOrderNo(Map<String, Object> decision) {
