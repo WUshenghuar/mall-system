@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 import httpx
 
 from app.config import settings
-from app.rag.retriever import INDEX, ensure_seeded
+from app.rag.retriever import DISABLED_IDS, INDEX, ensure_seeded
 
 router = APIRouter()
 
@@ -12,6 +12,7 @@ class KnowledgePayload(BaseModel):
     title: str = Field(min_length=1, max_length=120)
     category: str = Field(min_length=1, max_length=64)
     content: str = Field(min_length=1, max_length=5000)
+    enabled: bool = True
 
 
 def verify_token(token: str) -> None:
@@ -39,7 +40,7 @@ async def list_knowledge(x_ai_service_token: str = Header(default="")):
         raise HTTPException(status_code=503, detail="knowledge service unavailable") from exc
 
 
-# ponytail: single-index upsert; add version/publish and soft-delete when governance requires it.
+# ponytail: single-index upsert plus enabled flag; add version/publish when governance requires it.
 @router.put("/internal/knowledge/{doc_id}")
 async def save_knowledge(
     payload: KnowledgePayload,
@@ -48,6 +49,10 @@ async def save_knowledge(
 ):
     verify_token(x_ai_service_token)
     document = {"id": doc_id, **payload.model_dump()}
+    if document["enabled"]:
+        DISABLED_IDS.discard(doc_id)
+    else:
+        DISABLED_IDS.add(doc_id)
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.put(f"{settings.elasticsearch_url}/{INDEX}/_doc/{doc_id}?refresh=true", json=document)

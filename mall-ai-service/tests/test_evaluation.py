@@ -1,6 +1,6 @@
 from evaluate import evaluate
 from app.api.chat import ChatRequest
-from app.rag.retriever import SEED_DOCS, fallback_hits
+from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits
 from app.utils.llm import stream_reply
 from pydantic import ValidationError
 import asyncio
@@ -18,6 +18,14 @@ def test_knowledge_seed_covers_core_platform_faqs():
 
 def test_rag_fallback_matches_multitopic_chinese_query():
     assert {item["id"] for item in fallback_hits("支付和会员服务怎么用？")} >= {"payment", "member"}
+
+
+def test_local_fallback_honors_disabled_knowledge():
+    DISABLED_IDS.add("coupon")
+    try:
+        assert "coupon" not in {item["id"] for item in fallback_hits("优惠券规则")}
+    finally:
+        DISABLED_IDS.discard("coupon")
 
 
 def test_local_rag_combines_two_relevant_topics():

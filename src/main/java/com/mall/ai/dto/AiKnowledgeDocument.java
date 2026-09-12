@@ -20,4 +20,6 @@ public class AiKnowledgeDocument {
     @NotBlank
     @Size(max = 5000)
     private String content;
+
+    private Boolean enabled = true;
 }

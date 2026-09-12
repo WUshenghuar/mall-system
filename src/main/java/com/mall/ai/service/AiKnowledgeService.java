@@ -28,6 +28,7 @@ public class AiKnowledgeService {
         document.setTitle(document.getTitle().trim());
         document.setCategory(document.getCategory().trim());
         document.setContent(document.getContent().trim());
+        document.setEnabled(!Boolean.FALSE.equals(document.getEnabled()));
         return gatewayClient.saveKnowledge(document);
     }
 }

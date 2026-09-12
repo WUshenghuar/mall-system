@@ -18,9 +18,9 @@
       <a-spin :spinning="knowledgeLoading">
         <div class="knowledge-toolbar"><span>保存后立即用于下一次问答</span><a-button type="primary" @click="newKnowledge">新增条目</a-button></div>
         <a-empty v-if="!knowledgeDocs.length" description="暂无知识条目" />
-        <div v-for="item in knowledgeDocs" :key="item.id" class="knowledge-item">
-          <div><div class="knowledge-title"><strong>{{ item.title }}</strong><a-tag>{{ item.category }}</a-tag></div><p>{{ item.content }}</p></div>
-          <a-button size="small" @click="editKnowledge(item)">编辑</a-button>
+        <div v-for="item in knowledgeDocs" :key="item.id" class="knowledge-item" :class="{ 'knowledge-disabled': item.enabled === false }">
+          <div><div class="knowledge-title"><strong>{{ item.title }}</strong><a-tag>{{ item.category }}</a-tag><a-tag :color="item.enabled === false ? 'default' : 'green'">{{ item.enabled === false ? '已停用' : '已启用' }}</a-tag></div><p>{{ item.content }}</p></div>
+          <a-space><a-button size="small" @click="editKnowledge(item)">编辑</a-button><a-button size="small" @click="toggleKnowledge(item)">{{ item.enabled === false ? '启用' : '停用' }}</a-button></a-space>
         </div>
       </a-spin>
     </a-modal>
@@ -30,6 +30,7 @@
         <a-form-item label="标题" required><a-input v-model:value="knowledgeForm.title" maxlength="120" /></a-form-item>
         <a-form-item label="分类" required><a-input v-model:value="knowledgeForm.category" maxlength="64" placeholder="如 after_sales、marketing" /></a-form-item>
         <a-form-item label="内容" required><a-textarea v-model:value="knowledgeForm.content" :rows="6" maxlength="5000" show-count /></a-form-item>
+        <a-form-item label="状态"><a-switch v-model:checked="knowledgeForm.enabled" checked-children="启用" un-checked-children="停用" /></a-form-item>
       </a-form>
     </a-modal>
     <a-modal v-model:open="conversationOpen" title="AI 会话记录" :footer="null" width="600px">
@@ -73,9 +74,10 @@ const columns = [
 async function fetchData() { loading.value = true; try { const res = await getSupportTicketPage({ page: pagination.value.current, size: pagination.value.pageSize, status: statusFilter.value || undefined }); list.value = res.data?.records || []; pagination.value.total = res.data?.total || 0 } finally { loading.value = false } }
 async function fetchFeedbackStats() { try { feedbackStats.value = (await getAiFeedbackStats()).data || feedbackStats.value } catch { /* 指标失败不影响工单处理 */ } }
 async function openKnowledge() { knowledgeOpen.value = true; knowledgeLoading.value = true; try { knowledgeDocs.value = (await getAiKnowledge()).data || [] } catch { message.error('知识库读取失败') } finally { knowledgeLoading.value = false } }
-function newKnowledge() { knowledgeEditingId.value = ''; knowledgeForm.value = { id: '', title: '', category: '', content: '' }; knowledgeEditorOpen.value = true }
-function editKnowledge(item) { knowledgeEditingId.value = item.id; knowledgeForm.value = { ...item }; knowledgeEditorOpen.value = true }
-async function saveKnowledge() { const form = knowledgeForm.value; if (!form.title.trim() || !form.category.trim() || !form.content.trim()) { message.warning('请填写完整知识条目'); return }; knowledgeSaving.value = true; try { await saveAiKnowledge({ ...form, id: form.id.trim() }); message.success('知识条目已保存'); knowledgeEditorOpen.value = false; openKnowledge() } catch { /* interceptor shows error */ } finally { knowledgeSaving.value = false } }
+function newKnowledge() { knowledgeEditingId.value = ''; knowledgeForm.value = { id: '', title: '', category: '', content: '', enabled: true }; knowledgeEditorOpen.value = true }
+function editKnowledge(item) { knowledgeEditingId.value = item.id; knowledgeForm.value = { ...item, enabled: item.enabled !== false }; knowledgeEditorOpen.value = true }
+async function toggleKnowledge(item) { try { await saveAiKnowledge({ ...item, enabled: item.enabled === false }); message.success(item.enabled === false ? '知识条目已启用' : '知识条目已停用'); openKnowledge() } catch { /* interceptor shows error */ } }
+async function saveKnowledge() { const form = knowledgeForm.value; if (!form.title.trim() || !form.category.trim() || !form.content.trim()) { message.warning('请填写完整知识条目'); return }; knowledgeSaving.value = true; try { await saveAiKnowledge({ ...form, id: form.id.trim(), enabled: form.enabled !== false }); message.success('知识条目已保存'); knowledgeEditorOpen.value = false; openKnowledge() } catch { /* interceptor shows error */ } finally { knowledgeSaving.value = false } }
 function onPage(p) { pagination.value.current = p.current; fetchData() }
 async function claim(id) { try { await claimSupportTicket(id); message.success('工单已认领'); fetchData() } catch { /* interceptor shows error */ } }
 async function openConversation(record) { conversationOpen.value = true; conversationMessages.value = []; conversationLoading.value = true; try { conversationMessages.value = (await getSupportTicketConversation(record.id)).data || [] } catch { message.error('会话读取失败') } finally { conversationLoading.value = false } }
@@ -94,6 +96,7 @@ onUnmounted(() => window.clearInterval(refreshTimer))
 .knowledge-item { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #f0f0f0; }
 .knowledge-title { display: flex; gap: 8px; align-items: center; }
 .knowledge-item p { max-width: 580px; margin: 6px 0 0; color: #64748b; line-height: 1.6; white-space: pre-wrap; }
+.knowledge-disabled { opacity: .65; }
 .message-cell { display: block; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conversation-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #f0f0f0; line-height: 1.6; }
 .conversation-item span { white-space: pre-wrap; overflow-wrap: anywhere; }
