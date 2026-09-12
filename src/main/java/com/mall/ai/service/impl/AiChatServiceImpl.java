@@ -32,6 +32,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -88,16 +89,26 @@ public class AiChatServiceImpl implements AiChatService {
             selectedTool = businessTool(request.getMessage(), businessContext);
             if (businessContext.isBlank()) {
                 Map<String, Object> decision = gatewayClient.plan(memberId, conversationId, request.getMessage(), history);
-                String plannedTool = plannedTool(decision);
-                String plannedContext = plannedTool.isBlank() ? "" : businessContext(memberId, request.getMessage(), plannedTool, plannedOrderNo(decision));
-                if (!plannedContext.isBlank()) {
-                    businessContext = plannedContext;
-                    selectedTool = plannedTool;
-                    recordAudit(memberId, conversationId, requestId, "tool_plan", selectedTool, "accepted", 0, "model_read_only_plan");
+                List<String> contextParts = new ArrayList<>();
+                List<String> toolNames = new ArrayList<>();
+                for (Map<String, Object> plan : plannedTools(decision)) {
+                    String plannedTool = plannedTool(plan);
+                    String plannedContext = plannedTool.isBlank() ? "" : businessContext(memberId, request.getMessage(), plannedTool, plannedOrderNo(plan));
+                    if (!plannedContext.isBlank()) {
+                        contextParts.add(plannedContext);
+                        toolNames.add(plannedTool);
+                        recordAudit(memberId, conversationId, requestId, "tool_plan", plannedTool, "accepted", 0, "model_read_only_plan");
+                    }
+                }
+                if (!contextParts.isEmpty()) {
+                    businessContext = String.join("\n", contextParts);
+                    selectedTool = String.join(",", toolNames.stream().distinct().toList());
                 }
             }
             if (!selectedTool.isBlank() && !businessContext.isBlank()) {
-                recordAudit(memberId, conversationId, requestId, "tool", selectedTool, "executed", 0, "read_only");
+                for (String tool : selectedTool.split(",")) {
+                    recordAudit(memberId, conversationId, requestId, "tool", tool, "executed", 0, "read_only");
+                }
             }
             gatewayClient.stream(memberId, conversationId, request.getMessage(), businessContext,
                     selectedTool, history, event -> {
@@ -181,6 +192,22 @@ public class AiChatServiceImpl implements AiChatService {
     private String plannedTool(Map<String, Object> decision) {
         Object value = decision == null ? null : decision.get("tool");
         return value instanceof String tool && isSupportedTool(tool) ? tool : "";
+    }
+
+    private List<Map<String, Object>> plannedTools(Map<String, Object> decision) {
+        List<Map<String, Object>> plans = new ArrayList<>();
+        if (decision != null && decision.get("tools") instanceof List<?> values) {
+            for (Object value : values) {
+                if (value instanceof Map<?, ?> raw) {
+                    Map<String, Object> plan = new java.util.HashMap<>();
+                    raw.forEach((key, item) -> { if (key instanceof String name) plan.put(name, item); });
+                    plans.add(plan);
+                }
+                if (plans.size() == 3) break;
+            }
+        }
+        if (plans.isEmpty() && decision != null && !plannedTool(decision).isBlank()) plans.add(decision);
+        return plans;
     }
 
     private String plannedOrderNo(Map<String, Object> decision) {

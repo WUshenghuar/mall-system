@@ -24,6 +24,10 @@ BUSINESS_SOURCES = {
 }
 
 
+def business_tool_names(value: str) -> list[str]:
+    return [name for name in (item.strip() for item in value.split(",")) if name in BUSINESS_SOURCES][:3]
+
+
 class ChatMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str
@@ -34,7 +38,7 @@ class ChatRequest(BaseModel):
     conversationId: str = Field(min_length=1, max_length=64)
     message: str = Field(min_length=1, max_length=1000)
     businessContext: str = Field(default="", max_length=1000)
-    businessTool: Literal["", "query_order", "query_logistics", "query_refund", "query_product", "query_coupon", "query_member", "query_tax"] = ""
+    businessTool: str = Field(default="", max_length=128)
     history: list[ChatMessage] = Field(default_factory=list)
 
 
@@ -61,9 +65,15 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
             history = [item.model_dump() for item in request.history]
             context = []
             if request.businessContext:
-                yield sse({"type": "tool_call", "name": request.businessTool or "read_only_business_lookup", "status": "completed"})
-                title, category = BUSINESS_SOURCES.get(request.businessTool, ("业务只读查询", "business"))
-                yield sse({"type": "sources", "items": [{"title": title, "category": category}]})
+                tool_names = business_tool_names(request.businessTool)
+                for name in tool_names or ["read_only_business_lookup"]:
+                    yield sse({"type": "tool_call", "name": name, "status": "completed"})
+                source_items = [
+                    {"title": BUSINESS_SOURCES.get(name, ("业务只读查询", "business"))[0],
+                     "category": BUSINESS_SOURCES.get(name, ("业务只读查询", "business"))[1]}
+                    for name in tool_names or [""]
+                ]
+                yield sse({"type": "sources", "items": source_items})
             else:
                 context = await retrieve(request.message)
                 if not context and should_suggest_handoff(request.message):

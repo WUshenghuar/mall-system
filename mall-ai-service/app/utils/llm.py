@@ -30,12 +30,24 @@ async def plan_tool(message: str, history: list[dict[str, str]]) -> dict:
             )
             response.raise_for_status()
         calls = response.json().get("choices", [{}])[0].get("message", {}).get("tool_calls", [])
-        function = calls[0].get("function", {}) if calls else {}
-        tool = function.get("name", "")
-        if tool not in TOOL_NAMES:
+        if not isinstance(calls, list):
             return {"tool": "", "arguments": {}}
-        arguments = json.loads(function.get("arguments") or "{}")
-        return {"tool": tool, "arguments": arguments} if isinstance(arguments, dict) else {"tool": "", "arguments": {}}
+        plans = []
+        for call in calls[:3]:
+            if not isinstance(call, dict):
+                continue
+            function = call.get("function", {})
+            if not isinstance(function, dict) or function.get("name") not in TOOL_NAMES:
+                continue
+            try:
+                arguments = json.loads(function.get("arguments") or "{}")
+            except (TypeError, json.JSONDecodeError):
+                continue
+            if isinstance(arguments, dict):
+                plans.append({"tool": function["name"], "arguments": arguments})
+        if len(plans) == 1:
+            return plans[0]
+        return {"tools": plans} if plans else {"tool": "", "arguments": {}}
     except Exception:
         return {"tool": "", "arguments": {}}
 
