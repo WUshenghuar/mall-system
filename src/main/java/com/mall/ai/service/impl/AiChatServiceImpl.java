@@ -22,6 +22,7 @@ import com.mall.member.entity.Member;
 import com.mall.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -45,7 +46,22 @@ public class AiChatServiceImpl implements AiChatService {
 
     @Override
     public void stream(Long memberId, String conversationId, AiChatRequest request, Consumer<String> eventConsumer) {
-        save(memberId, conversationId, "user", request.getMessage(), 0, 0);
+        String requestId = StringUtils.hasText(request.getRequestId()) ? request.getRequestId().trim() : null;
+        if (requestId != null) {
+            AiConversation previous = conversationMapper.selectAssistantByRequest(memberId, conversationId, requestId);
+            if (previous != null) {
+                replay(previous, eventConsumer);
+                return;
+            }
+            if (conversationMapper.insertUserIfAbsent(conversationId, requestId, memberId, request.getMessage()) != 1) {
+                previous = conversationMapper.selectAssistantByRequest(memberId, conversationId, requestId);
+                if (previous != null) replay(previous, eventConsumer);
+                else eventConsumer.accept("{\"type\":\"error\",\"message\":\"客服请求正在处理中，请稍后重试\"}");
+                return;
+            }
+        } else {
+            save(memberId, conversationId, null, "user", request.getMessage(), 0, 0);
+        }
         List<AiConversation> history = conversationMapper.selectRecent(memberId, conversationId, 10);
         StringBuilder answer = new StringBuilder();
         long start = System.currentTimeMillis();
@@ -55,7 +71,7 @@ public class AiChatServiceImpl implements AiChatService {
             answer.append(readText(event));
             eventConsumer.accept(event);
         });
-        save(memberId, conversationId, "assistant", answer.toString(), 0, (int) (System.currentTimeMillis() - start));
+        save(memberId, conversationId, requestId, "assistant", answer.toString(), 0, (int) (System.currentTimeMillis() - start));
     }
 
     @Override
@@ -184,9 +200,18 @@ public class AiChatServiceImpl implements AiChatService {
         }
     }
 
-    private void save(Long memberId, String conversationId, String role, String content, int tokens, int latencyMs) {
+    private void replay(AiConversation message, Consumer<String> eventConsumer) {
+        try {
+            eventConsumer.accept(objectMapper.writeValueAsString(Map.of("type", "text", "content", message.getContent())));
+            eventConsumer.accept(objectMapper.writeValueAsString(Map.of("type", "done")));
+        } catch (Exception e) {
+            throw new BusinessException("客服回复重放失败");
+        }
+    }
+
+    private void save(Long memberId, String conversationId, String requestId, String role, String content, int tokens, int latencyMs) {
         AiConversation message = new AiConversation();
-        message.setUserId(memberId); message.setSessionId(conversationId); message.setRole(role); message.setContent(content);
+        message.setUserId(memberId); message.setSessionId(conversationId); message.setRequestId(requestId); message.setRole(role); message.setContent(content);
         message.setTokensUsed(tokens); message.setLatencyMs(latencyMs); message.setModel("customer-service-p0");
         conversationMapper.insert(message);
     }

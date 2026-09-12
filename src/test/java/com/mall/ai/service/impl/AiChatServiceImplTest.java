@@ -32,6 +32,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class AiChatServiceImplTest {
@@ -50,6 +51,45 @@ class AiChatServiceImplTest {
 
         assertThat(result).containsExactly(message);
         verify(mapper).selectLatest(9L, 20);
+    }
+
+    @Test
+    void replaysCompletedRequestWithoutCallingGateway() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        AiConversation previous = new AiConversation();
+        previous.setContent("已完成的回答");
+        when(mapper.selectAssistantByRequest(9L, "session-1", "req-1")).thenReturn(previous);
+        AiChatRequest request = newRequest("重复请求");
+        request.setRequestId("req-1");
+        List<String> events = new ArrayList<>();
+
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
+                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class),
+                mock(CouponService.class), mock(MemberService.class)).stream(9L, "session-1", request, events::add);
+
+        assertThat(events).hasSize(2);
+        assertThat(events.get(0)).contains("已完成的回答");
+        assertThat(events.get(1)).contains("done");
+        verifyNoInteractions(gateway);
+    }
+
+    @Test
+    void returnsInProgressWhenSameRequestIsAlreadyBeingHandled() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        when(mapper.selectAssistantByRequest(9L, "session-1", "req-2")).thenReturn(null);
+        when(mapper.insertUserIfAbsent("session-1", "req-2", 9L, "重复请求")).thenReturn(0);
+        AiChatRequest request = newRequest("重复请求");
+        request.setRequestId("req-2");
+        List<String> events = new ArrayList<>();
+
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
+                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class),
+                mock(CouponService.class), mock(MemberService.class)).stream(9L, "session-1", request, events::add);
+
+        assertThat(events).containsExactly("{\"type\":\"error\",\"message\":\"客服请求正在处理中，请稍后重试\"}");
+        verifyNoInteractions(gateway);
     }
 
     @Test

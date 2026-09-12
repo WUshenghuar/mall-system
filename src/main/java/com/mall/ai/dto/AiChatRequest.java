@@ -8,6 +8,8 @@ import lombok.Data;
 public class AiChatRequest {
     @Size(max = 64)
     private String conversationId;
+    @Size(max = 64)
+    private String requestId;
     @NotBlank
     @Size(max = 1000)
     private String message;

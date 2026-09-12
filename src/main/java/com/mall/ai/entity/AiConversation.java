@@ -10,6 +10,7 @@ import lombok.EqualsAndHashCode;
 @TableName("ai_conversation")
 public class AiConversation extends BaseEntity {
     private String sessionId;
+    private String requestId;
     private Long userId;
     /** user / assistant / agent */
     private String role;

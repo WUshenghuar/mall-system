@@ -62,8 +62,9 @@ async function send() {
   if (humanMode.value) { await sendMemberMessage(content); return }
   messages.value.push({ role: 'user', content }, { role: 'assistant', content: '' }); draft.value = ''; sending.value = true; await scrollToBottom()
   const assistant = messages.value.at(-1)
+  const requestId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
   try {
-    await aiApi.streamChat({ conversationId: conversationId.value || undefined, message: content }, event => {
+    await aiApi.streamChat({ requestId, conversationId: conversationId.value || undefined, message: content }, event => {
       if (event.type === 'meta') conversationId.value = event.conversationId
       if (event.type === 'text') assistant.content += event.content
       if (event.type === 'error') assistant.content = event.message
