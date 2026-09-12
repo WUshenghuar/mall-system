@@ -102,7 +102,8 @@ public class AiChatServiceImpl implements AiChatService {
                     if (!plannedContext.isBlank()) {
                         contextParts.add(plannedContext);
                         toolNames.add(plannedTool);
-                        recordAudit(memberId, conversationId, requestId, "tool_plan", plannedTool, "accepted", 0, "model_read_only_plan");
+                        recordAudit(memberId, conversationId, requestId, "tool_plan", plannedTool, "accepted",
+                                (int) (System.currentTimeMillis() - start), "model_read_only_plan");
                     }
                 }
                 if (!contextParts.isEmpty()) {
@@ -112,7 +113,8 @@ public class AiChatServiceImpl implements AiChatService {
             }
             if (!selectedTool.isBlank() && !businessContext.isBlank()) {
                 for (String tool : selectedTool.split(",")) {
-                    recordAudit(memberId, conversationId, requestId, "tool", tool, "executed", 0, "read_only");
+                    recordAudit(memberId, conversationId, requestId, "tool", tool, "executed",
+                            (int) (System.currentTimeMillis() - start), "read_only");
                 }
             }
             gatewayClient.stream(memberId, conversationId, request.getMessage(), businessContext,
