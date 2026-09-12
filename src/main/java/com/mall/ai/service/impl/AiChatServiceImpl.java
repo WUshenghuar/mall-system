@@ -336,7 +336,7 @@ public class AiChatServiceImpl implements AiChatService {
                     .getRecords().stream().filter(Spu.class::isInstance).map(Spu.class::cast).toList();
             boolean english = isEnglishMessage(message);
             return products.isEmpty() ? (english ? "No matching products are currently listed." : "暂时没有找到匹配的上架商品。")
-                    : (english ? "Matching products:\n" : "为你找到的上架商品：\n") + products.stream().map(Spu::getSpuName)
+                    : (english ? "Matching products:\n" : "为你找到的上架商品：\n") + products.stream().map(product -> productLabel(product, english))
                     .collect(java.util.stream.Collectors.joining("\n"));
         }
         if ("query_coupon".equals(tool) && containsAny(message, "我的优惠券", "我的可用优惠券", "券包",
@@ -426,6 +426,14 @@ public class AiChatServiceImpl implements AiChatService {
 
     private String levelNameEnglish(Integer level) {
         return switch (level == null ? 0 : level) { case 1 -> "Gold"; case 2 -> "Platinum"; default -> "Basic"; };
+    }
+
+    private String productLabel(Spu product, boolean english) {
+        String name = StringUtils.hasText(product.getSpuName()) ? product.getSpuName() : "未命名商品";
+        if (product.getMinPrice() == null) return name;
+        String currency = StringUtils.hasText(product.getCurrency()) ? product.getCurrency() : "USD";
+        return english ? name + " (from " + currency + " " + product.getMinPrice() + ")"
+                : name + "（起 " + currency + " " + product.getMinPrice() + "）";
     }
 
     private boolean isEnglishMessage(String message) {

@@ -479,6 +479,25 @@ class AiChatServiceImplTest {
     }
 
     @Test
+    void streamIncludesPublishedProductPriceWhenCatalogProvidesIt() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        StoreCatalogService catalog = mock(StoreCatalogService.class);
+        IPage page = mock(IPage.class);
+        Spu product = new Spu(); product.setSpuName("跨境耳机"); product.setMinPrice(new java.math.BigDecimal("29.90")); product.setCurrency("USD");
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(catalog.products(1, 3, null, "耳机")).thenReturn(page);
+        when(page.getRecords()).thenReturn(List.of(product));
+
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class), mock(LogisticsService.class),
+                mock(TradeRefundService.class), catalog, mock(CouponService.class), mock(MemberService.class))
+                .stream(9L, "session-1", newRequest("查询耳机商品"), ignored -> { });
+
+        verify(gateway).stream(anyLong(), anyString(), anyString(),
+                eq("为你找到的上架商品：\n跨境耳机（起 USD 29.90）"), eq("query_product"), any(), any());
+    }
+
+    @Test
     void streamLeavesRefundRulesForKnowledgeRetrieval() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         AiGatewayClient gateway = mock(AiGatewayClient.class);
