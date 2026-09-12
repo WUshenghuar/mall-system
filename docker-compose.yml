@@ -45,6 +45,11 @@ services:
     ports: ["127.0.0.1:18120:9000", "127.0.0.1:18121:9001"]
     volumes: ["minio-data:/data"]
 
+  otel-collector:
+    image: otel/opentelemetry-collector:0.157.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes: ["./otel-collector-config.yaml:/etc/otelcol/config.yaml:ro"]
+
   ai-service:
     build:
       context: ./mall-ai-service
@@ -63,12 +68,13 @@ services:
       AI_SLA_ERROR_RATE: ${AI_SLA_ERROR_RATE:-0.05}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-cbec-ai-service}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT-http://otel-collector:4318/v1/traces}
       OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
       AI_ELASTICSEARCH_URL: http://elasticsearch:9200
     ports: ["127.0.0.1:18101:8101"]
     depends_on:
       - elasticsearch
+      - otel-collector
 
 volumes:
   mysql-data:
