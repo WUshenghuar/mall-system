@@ -498,6 +498,25 @@ class AiChatServiceImplTest {
     }
 
     @Test
+    void streamCleansEnglishProductSearchKeywords() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        StoreCatalogService catalog = mock(StoreCatalogService.class);
+        IPage page = mock(IPage.class);
+        Spu product = new Spu(); product.setSpuName("Red Dress"); product.setCurrency("USD");
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(catalog.products(1, 3, null, "red dress")).thenReturn(page);
+        when(page.getRecords()).thenReturn(List.of(product));
+
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class), mock(LogisticsService.class),
+                mock(TradeRefundService.class), catalog, mock(CouponService.class), mock(MemberService.class))
+                .stream(9L, "session-1", newRequest("Find red dress products"), ignored -> { });
+
+        verify(catalog).products(1, 3, null, "red dress");
+        verify(gateway).stream(anyLong(), anyString(), anyString(), eq("Matching products:\nRed Dress"), eq("query_product"), any(), any());
+    }
+
+    @Test
     void streamLeavesRefundRulesForKnowledgeRetrieval() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         AiGatewayClient gateway = mock(AiGatewayClient.class);

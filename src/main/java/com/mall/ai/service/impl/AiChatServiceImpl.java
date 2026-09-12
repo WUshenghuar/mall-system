@@ -330,8 +330,7 @@ public class AiChatServiceImpl implements AiChatService {
             }).collect(java.util.stream.Collectors.joining("\n"));
         }
         if ("query_product".equals(tool)) {
-            String keyword = StringUtils.hasText(plannedKeyword) ? plannedKeyword : message.replace("查询", "").replace("推荐", "").replace("商品", "")
-                    .replace("产品", "").replace("找", "").replace("款式", "").replace("有哪些", "").replace("有什么", "").trim();
+            String keyword = productKeyword(message, plannedKeyword);
             List<Spu> products = storeCatalogService.products(1, 3, null, keyword.isBlank() ? null : keyword)
                     .getRecords().stream().filter(Spu.class::isInstance).map(Spu.class::cast).toList();
             boolean english = isEnglishMessage(message);
@@ -402,6 +401,14 @@ public class AiChatServiceImpl implements AiChatService {
                 .map(order -> english ? "Order " + order.getOrderNo() + ": " + orderStatusEnglish(order.getOrderStatus()) + ", paid amount: " + order.getPayAmount()
                         : "订单" + order.getOrderNo() + "：" + orderStatus(order.getOrderStatus()) + "，实付金额：" + order.getPayAmount())
                 .collect(java.util.stream.Collectors.joining("\n"));
+    }
+
+    private String productKeyword(String message, String plannedKeyword) {
+        if (StringUtils.hasText(plannedKeyword)) return plannedKeyword;
+        return message.replace("查询", "").replace("推荐", "").replace("商品", "")
+                .replace("产品", "").replace("找", "").replace("款式", "").replace("有哪些", "").replace("有什么", "")
+                .replaceAll("(?i)\\b(?:what|which|are|is|there|any|available|products?|items?|find|search|for|recommend|show|me|please|can|you|have|looking|want|do|a|an|the)\\b", " ")
+                .replaceAll("[\\p{Punct}，。！？、]", " ").trim();
     }
 
     private String orderStatus(Integer status) {
