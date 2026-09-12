@@ -12,6 +12,7 @@ import com.mall.security.user.CurrentMember;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,22 +33,28 @@ import java.util.concurrent.CompletableFuture;
 public class AiChatController {
     private final AiChatService aiChatService;
     private final ObjectMapper objectMapper;
+    private final AsyncTaskExecutor aiChatExecutor;
 
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chat(@Valid @RequestBody AiChatRequest request, Authentication auth) {
         Long memberId = CurrentMember.id(auth);
         String conversationId = StringUtils.hasText(request.getConversationId()) ? request.getConversationId() : UUID.randomUUID().toString();
         SseEmitter emitter = new SseEmitter(60_000L);
-        CompletableFuture.runAsync(() -> {
-            try {
-                send(emitter, Map.of("type", "meta", "conversationId", conversationId));
-                aiChatService.stream(memberId, conversationId, request, event -> sendRaw(emitter, event));
-            } catch (Exception e) {
-                send(emitter, Map.of("type", "error", "message", e.getMessage() == null ? "客服服务暂不可用" : e.getMessage()));
-            } finally {
-                emitter.complete();
-            }
-        });
+        try {
+            CompletableFuture.runAsync(() -> {
+                try {
+                    send(emitter, Map.of("type", "meta", "conversationId", conversationId));
+                    aiChatService.stream(memberId, conversationId, request, event -> sendRaw(emitter, event));
+                } catch (Exception e) {
+                    send(emitter, Map.of("type", "error", "message", e.getMessage() == null ? "客服服务暂不可用" : e.getMessage()));
+                } finally {
+                    emitter.complete();
+                }
+            }, aiChatExecutor);
+        } catch (RuntimeException e) {
+            send(emitter, Map.of("type", "error", "message", "客服当前繁忙，请稍后重试"));
+            emitter.complete();
+        }
         return emitter;
     }
 
