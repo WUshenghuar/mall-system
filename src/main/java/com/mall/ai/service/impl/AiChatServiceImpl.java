@@ -276,9 +276,11 @@ public class AiChatServiceImpl implements AiChatService {
             String title = english ? "Active promotions：\n" : "当前进行中的活动：\n";
             return title + activities.stream().map(activity -> {
                 String name = StringUtils.hasText(activity.getActivityName()) ? activity.getActivityName() : "未命名活动";
-                String type = StringUtils.hasText(activity.getActivityType()) ? activity.getActivityType() : "DISCOUNT";
-                return english ? name + " (" + type + ", ends " + activity.getEndTime() + ")"
-                        : name + "（" + type + "，截止 " + activity.getEndTime() + "）";
+                String type = activity.getActivityType();
+                return english ? (StringUtils.hasText(type) ? name + " (" + type + ", ends " + activity.getEndTime() + ")"
+                                : name + " (ends " + activity.getEndTime() + ")")
+                        : (StringUtils.hasText(type) ? name + "（" + type + "，截止 " + activity.getEndTime() + "）"
+                                : name + "（截止 " + activity.getEndTime() + "）");
             }).collect(java.util.stream.Collectors.joining("\n"));
         }
         if ("query_product".equals(tool)) {

@@ -443,7 +443,7 @@ class AiChatServiceImplTest {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         AiGatewayClient gateway = mock(AiGatewayClient.class);
         ActivityService activities = mock(ActivityService.class);
-        Activity activity = new Activity(); activity.setActivityName("秋季折扣"); activity.setActivityType("DISCOUNT");
+        Activity activity = new Activity(); activity.setActivityName("秋季折扣");
         activity.setEndTime(java.time.LocalDateTime.of(2026, 9, 30, 23, 59));
         when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
         when(activities.selectActive()).thenReturn(List.of(activity));
@@ -455,7 +455,7 @@ class AiChatServiceImplTest {
         service.stream(9L, "session-1", newRequest("现在有什么活动"), ignored -> { });
 
         verify(gateway).stream(anyLong(), anyString(), anyString(),
-                eq("当前进行中的活动：\n秋季折扣（DISCOUNT，截止 2026-09-30T23:59）"), eq("query_activity"), any(), any());
+                eq("当前进行中的活动：\n秋季折扣（截止 2026-09-30T23:59）"), eq("query_activity"), any(), any());
     }
 
     @Test
