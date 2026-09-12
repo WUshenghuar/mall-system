@@ -115,6 +115,50 @@ class AiChatServiceImplTest {
     }
 
     @Test
+    void releasesRequestPlaceholderWhenGatewayEmitsErrorEvent() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        when(mapper.selectAssistantByRequest(9L, "session-1", "req-event-fail")).thenReturn(null);
+        when(mapper.insertUserIfAbsent("session-1", "req-event-fail", 9L, "事件失败")).thenReturn(1);
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        doAnswer(invocation -> {
+            Consumer<String> consumer = invocation.getArgument(6);
+            consumer.accept("{\"type\":\"error\",\"message\":\"客服服务暂不可用\"}");
+            return null;
+        }).when(gateway).stream(anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any());
+        AiChatRequest request = newRequest("事件失败");
+        request.setRequestId("req-event-fail");
+
+        assertThatThrownBy(() -> new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
+                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class),
+                mock(CouponService.class), mock(MemberService.class)).stream(9L, "session-1", request, ignored -> { }))
+                .isInstanceOf(BusinessException.class);
+
+        verify(mapper).discardUserRequest(9L, "session-1", "req-event-fail");
+        verify(mapper, org.mockito.Mockito.never()).insert(any(AiConversation.class));
+    }
+
+    @Test
+    void releasesRequestPlaceholderWhenBusinessContextFails() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        MemberService memberService = mock(MemberService.class);
+        when(mapper.selectAssistantByRequest(9L, "session-1", "req-context-fail")).thenReturn(null);
+        when(mapper.insertUserIfAbsent("session-1", "req-context-fail", 9L, "我的会员")).thenReturn(1);
+        doThrow(new BusinessException("会员服务暂不可用")).when(memberService).getById(9L);
+        AiChatRequest request = newRequest("我的会员");
+        request.setRequestId("req-context-fail");
+
+        assertThatThrownBy(() -> new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
+                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class),
+                mock(CouponService.class), memberService).stream(9L, "session-1", request, ignored -> { }))
+                .isInstanceOf(BusinessException.class);
+
+        verify(mapper).discardUserRequest(9L, "session-1", "req-context-fail");
+        verifyNoInteractions(gateway);
+    }
+
+    @Test
     void recordsFeedbackOnlyForOwnedAssistantMessage() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         when(mapper.updateFeedback(7L, 9L, 1)).thenReturn(1);

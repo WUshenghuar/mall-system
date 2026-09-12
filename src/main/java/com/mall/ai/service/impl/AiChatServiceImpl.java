@@ -26,6 +26,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -62,16 +63,23 @@ public class AiChatServiceImpl implements AiChatService {
         } else {
             save(memberId, conversationId, null, "user", request.getMessage(), 0, 0);
         }
-        List<AiConversation> history = conversationMapper.selectRecent(memberId, conversationId, 10);
         StringBuilder answer = new StringBuilder();
-        long start = System.currentTimeMillis();
-        String businessContext = businessContext(memberId, request.getMessage());
+        AtomicReference<String> failure = new AtomicReference<>();
         try {
+            List<AiConversation> history = conversationMapper.selectRecent(memberId, conversationId, 10);
+            long start = System.currentTimeMillis();
+            String businessContext = businessContext(memberId, request.getMessage());
             gatewayClient.stream(memberId, conversationId, request.getMessage(), businessContext,
                     businessTool(request.getMessage(), businessContext), history, event -> {
+                String error = readError(event);
+                if (error != null) {
+                    failure.set(error);
+                    return;
+                }
                 answer.append(readText(event));
                 eventConsumer.accept(event);
             });
+            if (failure.get() != null) throw new BusinessException(failure.get());
             save(memberId, conversationId, requestId, "assistant", answer.toString(), 0, (int) (System.currentTimeMillis() - start));
         } catch (RuntimeException e) {
             if (requestId != null) conversationMapper.discardUserRequest(memberId, conversationId, requestId);
@@ -202,6 +210,17 @@ public class AiChatServiceImpl implements AiChatService {
             return "text".equals(node.path("type").asText()) ? node.path("content").asText() : "";
         } catch (Exception ignored) {
             return "";
+        }
+    }
+
+    private String readError(String event) {
+        try {
+            JsonNode node = objectMapper.readTree(event);
+            if (!"error".equals(node.path("type").asText())) return null;
+            String message = node.path("message").asText();
+            return StringUtils.hasText(message) ? message : "客服服务暂不可用";
+        } catch (Exception ignored) {
+            return null;
         }
     }
 
