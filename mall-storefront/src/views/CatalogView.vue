@@ -11,9 +11,9 @@
     <div class="catalog-toolbar">
       <label class="search-box">
         <span class="sr-only">搜索商品</span>
-        <input v-model="keyword" placeholder="搜索商品" aria-label="搜索商品" @keyup.enter="load" />
+        <input v-model="keyword" placeholder="搜索商品" aria-label="搜索商品" @keyup.enter="load()" />
       </label>
-      <van-button type="primary" @click="load">搜索</van-button>
+      <van-button type="primary" @click="load()">搜索</van-button>
       <van-button v-if="keyword || categoryId !== null || minPrice !== '' || maxPrice !== '' || sortField !== 'sales'" plain @click="resetFilters">清除</van-button>
     </div>
     <nav class="catalog-filters" aria-label="商品分类">
@@ -23,17 +23,17 @@
       </button>
     </nav>
     <div class="catalog-refine">
-      <label>最低价 <input v-model="minPrice" type="number" min="0" step="0.01" placeholder="不限" @keyup.enter="load" /></label>
-      <label>最高价 <input v-model="maxPrice" type="number" min="0" step="0.01" placeholder="不限" @keyup.enter="load" /></label>
+      <label>最低价 <input v-model="minPrice" type="number" min="0" step="0.01" placeholder="不限" @keyup.enter="load()" /></label>
+      <label>最高价 <input v-model="maxPrice" type="number" min="0" step="0.01" placeholder="不限" @keyup.enter="load()" /></label>
       <label>排序
-        <select v-model="sortField" aria-label="商品排序" @change="load">
+        <select v-model="sortField" aria-label="商品排序" @change="load()">
           <option value="sales">按热度</option>
           <option value="newest">最新上架</option>
           <option value="priceAsc">价格从低到高</option>
           <option value="priceDesc">价格从高到低</option>
         </select>
       </label>
-      <van-button plain type="primary" @click="load">应用</van-button>
+      <van-button plain type="primary" @click="load()">应用</van-button>
     </div>
     <van-loading v-if="loading" class="page-loading" />
     <div class="product-grid">
@@ -64,20 +64,25 @@
         </div>
       </article>
     </div>
-    <section v-if="!loading && loadError" class="network-state"><van-empty image="network" description="暂时无法连接商品服务" /><p>请确认后端服务已启动后重试。</p><van-button type="primary" @click="load">重新连接</van-button></section>
+    <div v-if="!loading && products.length && hasMore" class="load-more"><van-button block plain type="primary" :loading="loadingMore" @click="loadMore">加载更多 · {{ products.length }}/{{ total }}</van-button></div>
+    <section v-if="!loading && loadError" class="network-state"><van-empty image="network" description="暂时无法连接商品服务" /><p>请确认后端服务已启动后重试。</p><van-button type="primary" @click="load()">重新连接</van-button></section>
     <van-empty v-else-if="!loading && !products.length" description="暂时没有匹配商品" />
   </section>
 </template>
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { storeApi } from '../api'
-const router=useRouter(),products=ref([]),categories=ref([]),keyword=ref(''),categoryId=ref(null),minPrice=ref(''),maxPrice=ref(''),sortField=ref('sales'),loading=ref(false),loadError=ref('')
-async function load(){if(minPrice.value !== '' && maxPrice.value !== '' && Number(minPrice.value)>Number(maxPrice.value)){showToast('最低价不能高于最高价');return};loading.value=true;loadError.value='';const params={keyword:keyword.value,categoryId:categoryId.value ?? undefined,minPrice:minPrice.value || undefined,maxPrice:maxPrice.value || undefined,sortField:sortField.value};try{let result;if(keyword.value.trim()){try{result=await storeApi.search(params)}catch{result=await storeApi.products(params)}}else{result=await storeApi.products(params)};products.value=(result.data.records||[]).map(item=>({...item,id:item.id ?? item.spuId}))}catch(e){products.value=[];loadError.value=String(e)}finally{loading.value=false}}
+const router=useRouter(),products=ref([]),categories=ref([]),keyword=ref(''),categoryId=ref(null),minPrice=ref(''),maxPrice=ref(''),sortField=ref('sales'),loading=ref(false),loadingMore=ref(false),loadError=ref(''),page=ref(1),total=ref(0),hasMore=computed(()=>products.value.length<total.value)
+async function load(reset=true){if(minPrice.value !== '' && maxPrice.value !== '' && Number(minPrice.value)>Number(maxPrice.value)){showToast('最低价不能高于最高价');return};const nextPage=reset?1:page.value+1;if(reset){loading.value=true;products.value=[]}else{loadingMore.value=true};loadError.value='';const params={page:nextPage,size:20,keyword:keyword.value,categoryId:categoryId.value ?? undefined,minPrice:minPrice.value || undefined,maxPrice:maxPrice.value || undefined,sortField:sortField.value};try{let result;if(keyword.value.trim()){try{result=await storeApi.search(params)}catch{result=await storeApi.products(params)}}else{result=await storeApi.products(params)};const items=(result.data.records||[]).map(item=>({...item,id:item.id ?? item.spuId}));products.value=reset?items:[...products.value,...items];page.value=nextPage;total.value=result.data.total ?? products.value.length}catch(e){if(reset){products.value=[];loadError.value=String(e)}else{showToast('加载更多失败')}}finally{loading.value=false;loadingMore.value=false}}
+async function loadMore(){if(hasMore.value&&!loading.value&&!loadingMore.value) await load(false)}
 async function loadCategories(){try{categories.value=(await storeApi.categories()).data||[]}catch{categories.value=[]}}
 function selectCategory(id){categoryId.value=id;load()}
 function resetFilters(){keyword.value='';categoryId.value=null;minPrice.value='';maxPrice.value='';sortField.value='sales';load()}
 function open(item){router.push(`/products/${item.id}`)}
 onMounted(() => { loadCategories(); load() })
 </script>
+<style scoped>
+.load-more{max-width:320px;margin:24px auto 8px;padding:0 16px}
+</style>
