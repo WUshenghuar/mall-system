@@ -38,10 +38,12 @@ def local_answer(message: str) -> str:
             return "I can help check your refund status and policy. Refund approval is handled by the platform after-sales process."
         if any(token in normalized for token in ("tracking", "shipment", "package", "delivery")):
             return "Please share your order number so I can help check the latest delivery status."
-        if any(token in normalized for token in ("coupon", "discount", "promo")):
-            return "You can claim available coupons on the Offers page and view them in your member center."
         if any(token in normalized for token in ("member", "membership", "points", "loyalty")):
             return "You can view your membership level and points in the member center."
+        if any(token in normalized for token in ("activity", "promotion", "campaign", "sale", "deal")):
+            return "You can view active promotions and their eligible products on the Offers page."
+        if any(token in normalized for token in ("coupon", "discount", "promo")):
+            return "You can claim available coupons on the Offers page and view them in your member center."
         if any(token in normalized for token in ("order", "product", "item")):
             return "I can help with products, orders, delivery, refunds, coupons, and membership services."
         return "Hi, I’m the HaiLu Market customer service assistant. I can help with products, orders, delivery, refunds, coupons, and membership services."
@@ -49,6 +51,8 @@ def local_answer(message: str) -> str:
         return "我可以协助查看退款进度和规则；退款审批由平台售后流程处理，客服不会直接执行退款。"
     if any(token in normalized for token in ("物流", "快递", "运单")):
         return "请告诉我订单号，下一阶段将为你接入实时物流查询。"
+    if any(token in normalized for token in ("活动", "促销", "限时", "秒杀")):
+        return "你可以在优惠页查看当前进行中的活动及活动商品。"
     if any(token in normalized for token in ("优惠券", "优惠")):
         return "优惠券可在优惠页领取，并在会员中心查看。每张券是否可领以页面状态为准。"
     return "你好，我是海路集市平台客服。你可以咨询商品、订单、物流、退款进度、优惠券或会员服务。"

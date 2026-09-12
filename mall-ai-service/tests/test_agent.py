@@ -18,6 +18,7 @@ def test_local_agent_supports_english_customer_service_questions():
     assert "refund" in local_answer("I need a refund").lower()
     assert "order number" in local_answer("Where is my package?").lower()
     assert "coupon" in local_answer("How do coupons work?").lower()
+    assert "promotions" in local_answer("What promotions are running?").lower()
 
 
 def test_prompt_injection_covers_bypass_and_command_phrases():

@@ -17,7 +17,9 @@ import com.mall.trade.service.TradeRefundService;
 import com.mall.product.service.StoreCatalogService;
 import com.mall.product.entity.Spu;
 import com.mall.marketing.entity.MemberCouponVO;
+import com.mall.marketing.entity.Activity;
 import com.mall.marketing.service.CouponService;
+import com.mall.marketing.service.ActivityService;
 import com.mall.member.entity.Member;
 import com.mall.member.service.MemberService;
 import org.junit.jupiter.api.Test;
@@ -434,6 +436,26 @@ class AiChatServiceImplTest {
 
         verify(gateway).stream(anyLong(), anyString(), anyString(), eq(""), eq(""), any(), any());
         verifyNoInteractions(orderService, couponService);
+    }
+
+    @Test
+    void streamQueriesActiveActivitiesAsReadOnlyContext() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        ActivityService activities = mock(ActivityService.class);
+        Activity activity = new Activity(); activity.setActivityName("秋季折扣"); activity.setActivityType("DISCOUNT");
+        activity.setEndTime(java.time.LocalDateTime.of(2026, 9, 30, 23, 59));
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(activities.selectActive()).thenReturn(List.of(activity));
+        AiChatServiceImpl service = new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
+                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class),
+                mock(CouponService.class), mock(MemberService.class));
+        service.setActivityService(activities);
+
+        service.stream(9L, "session-1", newRequest("现在有什么活动"), ignored -> { });
+
+        verify(gateway).stream(anyLong(), anyString(), anyString(),
+                eq("当前进行中的活动：\n秋季折扣（DISCOUNT，截止 2026-09-30T23:59）"), eq("query_activity"), any(), any());
     }
 
     @Test

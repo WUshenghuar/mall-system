@@ -21,7 +21,9 @@ import com.mall.trade.service.TradeRefundService;
 import com.mall.product.entity.Spu;
 import com.mall.product.service.StoreCatalogService;
 import com.mall.marketing.entity.MemberCouponVO;
+import com.mall.marketing.entity.Activity;
 import com.mall.marketing.service.CouponService;
+import com.mall.marketing.service.ActivityService;
 import com.mall.member.entity.Member;
 import com.mall.member.service.MemberService;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +56,8 @@ public class AiChatServiceImpl implements AiChatService {
     private final MemberService memberService;
     @Autowired(required = false)
     private AiAuditLogMapper auditLogMapper;
+    @Autowired(required = false)
+    private ActivityService activityService;
 
     @Override
     public void stream(Long memberId, String conversationId, AiChatRequest request, Consumer<String> eventConsumer) {
@@ -180,6 +184,7 @@ public class AiChatServiceImpl implements AiChatService {
         if (containsAny(message, "退款", "退货", "售后", "退钱", "refund", "return", "money back")) return "query_refund";
         if (containsAny(message, "会员", "积分", "等级", "成长", "成长值", "member", "membership", "points", "loyalty")) return "query_member";
         if (containsAny(message, "税费", "关税", "税金", "币种", "tax", "tariff", "duty", "currency")) return "query_tax";
+        if (containsAny(message, "活动", "促销", "限时", "秒杀", "activity", "promotion", "campaign", "sale", "deal")) return "query_activity";
         if (containsAny(message, "优惠券", "券包", "折扣券", "coupon", "discount", "promo", "voucher")) return "query_coupon";
         if (containsAny(message, "商品", "产品", "推荐", "找", "款式", "规格", "product", "item", "recommend", "style", "size")) return "query_product";
         return "query_order";
@@ -219,7 +224,7 @@ public class AiChatServiceImpl implements AiChatService {
 
     private boolean isSupportedTool(String tool) {
         return switch (tool) {
-            case "query_order", "query_logistics", "query_refund", "query_product", "query_coupon", "query_member", "query_tax" -> true;
+            case "query_order", "query_logistics", "query_refund", "query_product", "query_coupon", "query_member", "query_tax", "query_activity" -> true;
             default -> false;
         };
     }
@@ -229,6 +234,7 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     private String businessContext(Long memberId, String message, String tool, String plannedOrderNo) {
+        if ("query_activity".equals(tool)) return recentContext(memberId, message, tool);
         String orderNo = extractOrderNo(message, plannedOrderNo);
         if (orderNo == null) return recentContext(memberId, message, tool);
         try {
@@ -262,6 +268,19 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     private String recentContext(Long memberId, String message, String tool) {
+        if ("query_activity".equals(tool)) {
+            if (activityService == null) return "";
+            List<Activity> activities = activityService.selectActive();
+            boolean english = containsAny(message, "activity", "promotion", "campaign", "sale", "deal");
+            if (activities.isEmpty()) return english ? "There are no active promotions right now." : "当前没有进行中的活动。";
+            String title = english ? "Active promotions：\n" : "当前进行中的活动：\n";
+            return title + activities.stream().map(activity -> {
+                String name = StringUtils.hasText(activity.getActivityName()) ? activity.getActivityName() : "未命名活动";
+                String type = StringUtils.hasText(activity.getActivityType()) ? activity.getActivityType() : "DISCOUNT";
+                return english ? name + " (" + type + ", ends " + activity.getEndTime() + ")"
+                        : name + "（" + type + "，截止 " + activity.getEndTime() + "）";
+            }).collect(java.util.stream.Collectors.joining("\n"));
+        }
         if ("query_product".equals(tool)) {
             String keyword = message.replace("查询", "").replace("推荐", "").replace("商品", "")
                     .replace("产品", "").replace("找", "").replace("款式", "").replace("有哪些", "").replace("有什么", "").trim();
@@ -358,6 +377,10 @@ public class AiChatServiceImpl implements AiChatService {
 
     void setAuditLogMapper(AiAuditLogMapper auditLogMapper) {
         this.auditLogMapper = auditLogMapper;
+    }
+
+    void setActivityService(ActivityService activityService) {
+        this.activityService = activityService;
     }
 
     private void recordAudit(Long memberId, String conversationId, String requestId, String eventType,

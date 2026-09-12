@@ -6,6 +6,7 @@ TOOL_NAMES = {
     "query_coupon",
     "query_member",
     "query_tax",
+    "query_activity",
 }
 
 TOOL_DEFINITIONS = [
@@ -63,6 +64,14 @@ TOOL_DEFINITIONS = [
             "name": "query_tax",
             "description": "只读查询当前登录会员订单的税费和币种",
             "parameters": {"type": "object", "properties": {"order_no": {"type": "string"}}, "additionalProperties": False},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "query_activity",
+            "description": "只读查询平台当前正在进行的活动和活动时间",
+            "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
         },
     },
 ]

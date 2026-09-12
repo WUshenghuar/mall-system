@@ -28,6 +28,7 @@ def test_model_tool_plan_returns_only_allowed_function_call(monkeypatch):
             assert url == "https://model.test/v1/chat/completions"
             assert json["tool_choice"] == "auto"
             assert any(item["function"]["name"] == "query_logistics" for item in json["tools"])
+            assert any(item["function"]["name"] == "query_activity" for item in json["tools"])
             return Response()
 
     monkeypatch.setattr(llm, "settings", SimpleNamespace(

@@ -21,6 +21,7 @@ BUSINESS_SOURCES = {
     "query_coupon": ("优惠券查询", "marketing"),
     "query_member": ("会员资料查询", "member"),
     "query_tax": ("税费与币种查询", "finance"),
+    "query_activity": ("进行中活动查询", "marketing"),
 }
 
 
