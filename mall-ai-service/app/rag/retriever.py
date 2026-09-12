@@ -17,12 +17,12 @@ SEED_DOCS = [
 
 
 async def ensure_seeded() -> None:
-    mapping = {"mappings": {"properties": {"title": {"type": "text"}, "content": {"type": "text"}, "category": {"type": "keyword"}}}}
+    mapping = {"mappings": {"properties": {"id": {"type": "keyword"}, "title": {"type": "text"}, "content": {"type": "text"}, "category": {"type": "keyword"}}}}
     async with httpx.AsyncClient(timeout=10) as client:
         await client.put(f"{settings.elasticsearch_url}/{INDEX}", json=mapping)
         lines = []
         for document in SEED_DOCS:
-            lines.extend([json.dumps({"index": {"_index": INDEX, "_id": document["id"]}}), json.dumps(document)])
+            lines.extend([json.dumps({"create": {"_index": INDEX, "_id": document["id"]}}), json.dumps(document)])
         await client.post(f"{settings.elasticsearch_url}/_bulk", content="\n".join(lines) + "\n", headers={"Content-Type": "application/x-ndjson"})
 
 

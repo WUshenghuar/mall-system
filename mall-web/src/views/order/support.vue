@@ -1,6 +1,6 @@
 <template>
   <div class="sub-page support-page">
-    <div class="page-head"><div><h2 class="page-title">平台客服工单</h2><p class="page-desc">处理 C 端 AI 客服转交的会员问题</p></div><a-space class="feedback-stats"><a-statistic title="已评价" :value="feedbackStats.total" /><a-statistic title="有帮助率" :value="helpfulRate" suffix="%" /></a-space></div>
+    <div class="page-head"><div><h2 class="page-title">平台客服工单</h2><p class="page-desc">处理 C 端 AI 客服转交的会员问题</p></div><a-space class="feedback-stats"><a-button @click="openKnowledge">AI 知识库</a-button><a-statistic title="已评价" :value="feedbackStats.total" /><a-statistic title="有帮助率" :value="helpfulRate" suffix="%" /></a-space></div>
     <a-card :bordered="false">
       <a-tabs v-model:activeKey="statusFilter" @change="fetchData">
         <a-tab-pane key="" tab="全部" /><a-tab-pane key="0" tab="待接管" /><a-tab-pane key="1" tab="处理中" /><a-tab-pane key="2" tab="已解决" />
@@ -14,6 +14,24 @@
         </template>
       </a-table>
     </a-card>
+    <a-modal v-model:open="knowledgeOpen" title="AI 客服知识库" :footer="null" width="760px">
+      <a-spin :spinning="knowledgeLoading">
+        <div class="knowledge-toolbar"><span>保存后立即用于下一次问答</span><a-button type="primary" @click="newKnowledge">新增条目</a-button></div>
+        <a-empty v-if="!knowledgeDocs.length" description="暂无知识条目" />
+        <div v-for="item in knowledgeDocs" :key="item.id" class="knowledge-item">
+          <div><div class="knowledge-title"><strong>{{ item.title }}</strong><a-tag>{{ item.category }}</a-tag></div><p>{{ item.content }}</p></div>
+          <a-button size="small" @click="editKnowledge(item)">编辑</a-button>
+        </div>
+      </a-spin>
+    </a-modal>
+    <a-modal v-model:open="knowledgeEditorOpen" :title="knowledgeEditingId ? '编辑知识条目' : '新增知识条目'" :confirm-loading="knowledgeSaving" ok-text="保存" @ok="saveKnowledge">
+      <a-form layout="vertical">
+        <a-form-item label="标识"><a-input v-model:value="knowledgeForm.id" :disabled="Boolean(knowledgeEditingId)" placeholder="留空自动生成，如 refund-policy" /></a-form-item>
+        <a-form-item label="标题" required><a-input v-model:value="knowledgeForm.title" maxlength="120" /></a-form-item>
+        <a-form-item label="分类" required><a-input v-model:value="knowledgeForm.category" maxlength="64" placeholder="如 after_sales、marketing" /></a-form-item>
+        <a-form-item label="内容" required><a-textarea v-model:value="knowledgeForm.content" :rows="6" maxlength="5000" show-count /></a-form-item>
+      </a-form>
+    </a-modal>
     <a-modal v-model:open="conversationOpen" title="AI 会话记录" :footer="null" width="600px">
       <a-spin :spinning="conversationLoading">
         <a-empty v-if="!conversationMessages.length" description="暂无会话记录" />
@@ -35,13 +53,15 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { claimSupportTicket, getAiFeedbackStats, getSupportTicketConversation, getSupportTicketPage, replySupportTicket, resolveSupportTicket } from '@/api/ai'
+import { claimSupportTicket, getAiFeedbackStats, getAiKnowledge, getSupportTicketConversation, getSupportTicketPage, replySupportTicket, resolveSupportTicket, saveAiKnowledge } from '@/api/ai'
 
 const loading = ref(false), list = ref([]), statusFilter = ref('')
 const pagination = ref({ current: 1, pageSize: 10, total: 0 })
 const replyOpen = ref(false), replying = ref(false), replyTarget = ref(null), replyContent = ref('')
 const conversationOpen = ref(false), conversationLoading = ref(false), conversationMessages = ref([])
 const feedbackStats = ref({ total: 0, positive: 0, negative: 0 })
+const knowledgeOpen = ref(false), knowledgeLoading = ref(false), knowledgeSaving = ref(false), knowledgeEditorOpen = ref(false), knowledgeDocs = ref([]), knowledgeEditingId = ref('')
+const knowledgeForm = ref({ id: '', title: '', category: '', content: '' })
 const resolveOpen = ref(false), resolving = ref(false), resolveTarget = ref(null), resolveNote = ref('')
 let refreshTimer
 const helpfulRate = computed(() => { const total = Number(feedbackStats.value.total) || 0; return total ? Math.round((Number(feedbackStats.value.positive) || 0) * 100 / total) : 0 })
@@ -52,6 +72,10 @@ const columns = [
 ]
 async function fetchData() { loading.value = true; try { const res = await getSupportTicketPage({ page: pagination.value.current, size: pagination.value.pageSize, status: statusFilter.value || undefined }); list.value = res.data?.records || []; pagination.value.total = res.data?.total || 0 } finally { loading.value = false } }
 async function fetchFeedbackStats() { try { feedbackStats.value = (await getAiFeedbackStats()).data || feedbackStats.value } catch { /* 指标失败不影响工单处理 */ } }
+async function openKnowledge() { knowledgeOpen.value = true; knowledgeLoading.value = true; try { knowledgeDocs.value = (await getAiKnowledge()).data || [] } catch { message.error('知识库读取失败') } finally { knowledgeLoading.value = false } }
+function newKnowledge() { knowledgeEditingId.value = ''; knowledgeForm.value = { id: '', title: '', category: '', content: '' }; knowledgeEditorOpen.value = true }
+function editKnowledge(item) { knowledgeEditingId.value = item.id; knowledgeForm.value = { ...item }; knowledgeEditorOpen.value = true }
+async function saveKnowledge() { const form = knowledgeForm.value; if (!form.title.trim() || !form.category.trim() || !form.content.trim()) { message.warning('请填写完整知识条目'); return }; knowledgeSaving.value = true; try { await saveAiKnowledge({ ...form, id: form.id.trim() }); message.success('知识条目已保存'); knowledgeEditorOpen.value = false; openKnowledge() } catch { /* interceptor shows error */ } finally { knowledgeSaving.value = false } }
 function onPage(p) { pagination.value.current = p.current; fetchData() }
 async function claim(id) { try { await claimSupportTicket(id); message.success('工单已认领'); fetchData() } catch { /* interceptor shows error */ } }
 async function openConversation(record) { conversationOpen.value = true; conversationMessages.value = []; conversationLoading.value = true; try { conversationMessages.value = (await getSupportTicketConversation(record.id)).data || [] } catch { message.error('会话读取失败') } finally { conversationLoading.value = false } }
@@ -66,6 +90,10 @@ onUnmounted(() => window.clearInterval(refreshTimer))
 <style scoped>
 .support-page { max-width: 1200px; }
 .feedback-stats :deep(.ant-statistic) { min-width: 92px; }
+.knowledge-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; color: #64748b; }
+.knowledge-item { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #f0f0f0; }
+.knowledge-title { display: flex; gap: 8px; align-items: center; }
+.knowledge-item p { max-width: 580px; margin: 6px 0 0; color: #64748b; line-height: 1.6; white-space: pre-wrap; }
 .message-cell { display: block; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conversation-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #f0f0f0; line-height: 1.6; }
 .conversation-item span { white-space: pre-wrap; overflow-wrap: anywhere; }

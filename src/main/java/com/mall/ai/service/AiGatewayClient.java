@@ -1,6 +1,9 @@
 package com.mall.ai.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mall.ai.dto.AiKnowledgeDocument;
 import com.mall.ai.entity.AiConversation;
 import com.mall.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -9,10 +12,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
@@ -56,6 +61,55 @@ public class AiGatewayClient {
         } catch (Exception e) {
             log.warn("AI service request failed", e);
             throw new BusinessException("客服服务连接失败，请稍后重试");
+        }
+    }
+
+    public List<AiKnowledgeDocument> listKnowledge() {
+        try {
+            return objectMapper.convertValue(requestJson("GET", "/internal/knowledge", null).path("items"),
+                    new TypeReference<>() { });
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("AI knowledge list failed", e);
+            throw new BusinessException("客服知识库连接失败");
+        }
+    }
+
+    public AiKnowledgeDocument saveKnowledge(AiKnowledgeDocument document) {
+        try {
+            String id = URLEncoder.encode(document.getId(), StandardCharsets.UTF_8);
+            return objectMapper.convertValue(requestJson("PUT", "/internal/knowledge/" + id, document),
+                    AiKnowledgeDocument.class);
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("AI knowledge save failed", e);
+            throw new BusinessException("客服知识库连接失败");
+        }
+    }
+
+    private JsonNode requestJson(String method, String path, Object body) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection) URI.create(baseUrl + path).toURL().openConnection();
+        connection.setRequestMethod(method);
+        connection.setConnectTimeout((int) Duration.ofSeconds(10).toMillis());
+        connection.setReadTimeout((int) Duration.ofSeconds(10).toMillis());
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("X-AI-Service-Token", serviceToken);
+        if (body != null) {
+            connection.setDoOutput(true);
+            try (OutputStream output = connection.getOutputStream()) {
+                output.write(objectMapper.writeValueAsBytes(body));
+            }
+        }
+        try {
+            int status = connection.getResponseCode();
+            InputStream stream = status >= 400 ? connection.getErrorStream() : connection.getInputStream();
+            String response = stream == null ? "" : new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            if (status != 200) throw new BusinessException("客服知识库服务暂不可用");
+            return response.isBlank() ? objectMapper.createObjectNode() : objectMapper.readTree(response);
+        } finally {
+            connection.disconnect();
         }
     }
 }

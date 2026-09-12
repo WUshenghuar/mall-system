@@ -1,5 +1,13 @@
 import request from '@/utils/request'
 
+export function getAiKnowledge() {
+  return request.get('/ai/knowledge')
+}
+
+export function saveAiKnowledge(data) {
+  return request.post('/ai/knowledge', data)
+}
+
 export function getSupportTicketPage(params) {
   return request.get('/ai/tickets/page', { params })
 }
