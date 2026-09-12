@@ -11,8 +11,11 @@ import com.mall.ai.service.AiChatService;
 import com.mall.security.user.CurrentMember;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.MediaType;
 import org.springframework.core.task.AsyncTaskExecutor;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,13 +37,23 @@ import java.util.concurrent.atomic.AtomicReference;
 @RequestMapping("/api/ai")
 @RequiredArgsConstructor
 public class AiChatController {
+    private static final DefaultRedisScript<Long> RATE_LIMIT = new DefaultRedisScript<>(
+            "local current=redis.call('GET',KEYS[1]); if not current or current==ARGV[1] then "
+                    + "redis.call('SET',KEYS[1],ARGV[1],'EX',ARGV[2]); return 1 end; return 0", Long.class);
     private final AiChatService aiChatService;
     private final ObjectMapper objectMapper;
     private final AsyncTaskExecutor aiChatExecutor;
+    private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
 
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chat(@Valid @RequestBody AiChatRequest request, Authentication auth) {
         Long memberId = CurrentMember.id(auth);
+        if (!allow(memberId, request.getRequestId())) {
+            SseEmitter limited = new SseEmitter(60_000L);
+            send(limited, Map.of("type", "error", "message", "客服请求过于频繁，请稍后重试"));
+            limited.complete();
+            return limited;
+        }
         String conversationId = StringUtils.hasText(request.getConversationId()) ? request.getConversationId() : UUID.randomUUID().toString();
         SseEmitter emitter = new SseEmitter(60_000L);
         AtomicBoolean active = new AtomicBoolean(true);
@@ -77,6 +90,18 @@ public class AiChatController {
             emitter.complete();
         }
         return emitter;
+    }
+
+    private boolean allow(Long memberId, String requestId) {
+        StringRedisTemplate redis = redisTemplateProvider.getIfAvailable();
+        if (redis == null) return true;
+        try {
+            Long result = redis.execute(RATE_LIMIT, List.of("ai:chat:rate:" + memberId),
+                    StringUtils.hasText(requestId) ? requestId : "no-request-id", "2");
+            return Long.valueOf(1L).equals(result);
+        } catch (RuntimeException ignored) {
+            return true;
+        }
     }
 
     @GetMapping("/recent")
