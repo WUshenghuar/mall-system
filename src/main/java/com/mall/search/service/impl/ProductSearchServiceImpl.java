@@ -143,6 +143,8 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         document.put("spuName", spu.getSpuName());
         document.put("categoryId", spu.getCategoryId());
         document.put("brand", brandNames.get(spu.getBrandId()));
+        document.put("originCountry", spu.getOriginCountry());
+        document.put("createTime", spu.getCreateTime());
         document.put("salesCount", Optional.ofNullable(spu.getSalesCount()).orElse(0));
         document.put("status", spu.getStatus());
 
@@ -203,12 +205,19 @@ public class ProductSearchServiceImpl implements ProductSearchService {
     }
 
     private Map<String, Object> indexMapping() {
-        return Map.of("mappings", Map.of("properties", Map.of(
-                "spuId", Map.of("type", "long"), "spuName", Map.of("type", "text", "analyzer", "standard"),
-                "categoryId", Map.of("type", "long"), "categoryPath", Map.of("type", "keyword"),
-                "brand", Map.of("type", "keyword"), "minPrice", Map.of("type", "double"),
-                "currency", Map.of("type", "keyword"), "salesCount", Map.of("type", "long"),
-                "rating", Map.of("type", "double"), "status", Map.of("type", "byte"))));
+        return Map.of("mappings", Map.of("properties", Map.ofEntries(
+                Map.entry("spuId", Map.of("type", "long")),
+                Map.entry("spuName", Map.of("type", "text", "analyzer", "standard")),
+                Map.entry("categoryId", Map.of("type", "long")),
+                Map.entry("categoryPath", Map.of("type", "keyword")),
+                Map.entry("brand", Map.of("type", "keyword")),
+                Map.entry("originCountry", Map.of("type", "keyword")),
+                Map.entry("createTime", Map.of("type", "date")),
+                Map.entry("minPrice", Map.of("type", "double")),
+                Map.entry("currency", Map.of("type", "keyword")),
+                Map.entry("salesCount", Map.of("type", "long")),
+                Map.entry("rating", Map.of("type", "double")),
+                Map.entry("status", Map.of("type", "byte")))));
     }
 
     private boolean usesUnsupportedAnalyzer() {
@@ -220,10 +229,11 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         }
     }
 
-    private Map<String, Object> searchRequest(String keyword, Long categoryId, Double minPrice, Double maxPrice,
-                                              String sortField, String sortOrder, int page, int size) {
+    Map<String, Object> searchRequest(String keyword, Long categoryId, Double minPrice, Double maxPrice,
+                                      String sortField, String sortOrder, int page, int size) {
         Map<String, Object> bool = new LinkedHashMap<>();
         List<Map<String, Object>> filters = new ArrayList<>();
+        filters.add(Map.of("term", Map.of("status", 1)));
         if (keyword != null && !keyword.isBlank()) {
             bool.put("must", List.of(Map.of("match", Map.of("spuName", keyword))));
         }
@@ -239,8 +249,15 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         if (!filters.isEmpty()) {
             bool.put("filter", filters);
         }
-        String field = sortField == null ? "salesCount" : sortField;
-        String order = sortField == null || "desc".equalsIgnoreCase(sortOrder) ? "desc" : "asc";
+        String selectedSort = sortField == null ? "" : sortField;
+        String field = switch (selectedSort) {
+            case "priceAsc", "priceDesc" -> "minPrice";
+            case "newest" -> "createTime";
+            default -> "salesCount";
+        };
+        String order = "priceAsc".equals(selectedSort) ? "asc" : "desc";
+        if ("asc".equalsIgnoreCase(sortOrder)) order = "asc";
+        if ("desc".equalsIgnoreCase(sortOrder)) order = "desc";
         return Map.of("from", Math.max(page - 1, 0) * size, "size", size,
                 "query", Map.of("bool", bool), "sort", List.of(Map.of(field, Map.of("order", order))));
     }

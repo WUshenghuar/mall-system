@@ -23,6 +23,7 @@ request.interceptors.response.use(response => {
 
 export const storeApi = {
   products: params => request.get('/store/products', { params }),
+  search: params => request.get('/search/product', { params }),
   detail: id => request.get(`/store/products/${id}`),
   categories: () => request.get('/store/categories')
 }

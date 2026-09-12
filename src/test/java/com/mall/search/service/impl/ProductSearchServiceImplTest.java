@@ -9,6 +9,7 @@ import com.mall.product.mapper.SpuMapper;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +26,8 @@ class ProductSearchServiceImplTest {
         spu.setSpuName("测试商品");
         spu.setCategoryId(10L);
         spu.setBrandId(20L);
+        spu.setOriginCountry("CN");
+        spu.setCreateTime(LocalDateTime.of(2026, 9, 12, 10, 0));
         spu.setSalesCount(8);
         spu.setStatus(1);
         Sku expensiveSku = sku("USD", "39.90");
@@ -37,10 +40,24 @@ class ProductSearchServiceImplTest {
                 .containsEntry("spuName", "测试商品")
                 .containsEntry("categoryId", 10L)
                 .containsEntry("brand", "测试品牌")
+                .containsEntry("originCountry", "CN")
+                .containsEntry("createTime", LocalDateTime.of(2026, 9, 12, 10, 0))
                 .containsEntry("minPrice", 29.90d)
                 .containsEntry("currency", "USD")
                 .containsEntry("salesCount", 8)
                 .containsEntry("status", 1);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void shouldTranslateCatalogSortAndKeepPublishedFilter() {
+        Map<String, Object> request = service().searchRequest("商品", 10L,
+                10d, 50d, "priceAsc", null, 2, 20);
+        Map<String, Object> query = (Map<String, Object>) request.get("query");
+        Map<String, Object> bool = (Map<String, Object>) query.get("bool");
+        List<Map<String, Object>> filters = (List<Map<String, Object>>) bool.get("filter");
+        assertThat(filters).anySatisfy(filter -> assertThat(filter.toString()).contains("status=1"));
+        assertThat(request.get("sort")).asString().contains("minPrice", "asc");
     }
 
     @Test
