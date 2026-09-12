@@ -14,6 +14,10 @@ public interface AiSupportTicketMapper extends BaseMapper<AiSupportTicket> {
             + "WHERE id = #{id} AND status = 1 AND assigned_user_id = #{operatorId} AND deleted = 0")
     int reply(@Param("id") Long id, @Param("operatorId") Long operatorId, @Param("reply") String reply);
 
+    @Update("UPDATE ai_support_ticket SET latest_message = #{message}, update_time = NOW() "
+            + "WHERE id = #{id} AND member_id = #{memberId} AND status = 1 AND deleted = 0")
+    int memberMessage(@Param("id") Long id, @Param("memberId") Long memberId, @Param("message") String message);
+
     @Update("UPDATE ai_support_ticket SET status = 2, handled_note = #{note}, update_time = NOW() "
             + "WHERE id = #{id} AND status = 1 AND deleted = 0")
     int resolve(@Param("id") Long id, @Param("note") String note);

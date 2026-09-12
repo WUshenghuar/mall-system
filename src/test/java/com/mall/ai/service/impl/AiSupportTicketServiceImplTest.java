@@ -125,6 +125,27 @@ class AiSupportTicketServiceImplTest {
     }
 
     @Test
+    void appendsMemberMessageToLinkedConversation() {
+        AiSupportTicketMapper ticketMapper = mock(AiSupportTicketMapper.class);
+        AiConversationMapper conversationMapper = mock(AiConversationMapper.class);
+        AiSupportTicket ticket = new AiSupportTicket();
+        ticket.setMemberId(9L);
+        ticket.setConversationId("session-1");
+        when(ticketMapper.selectById(1L)).thenReturn(ticket);
+        when(ticketMapper.memberMessage(1L, 9L, "补充地址")).thenReturn(1);
+
+        new AiSupportTicketServiceImpl(conversationMapper, ticketMapper).memberMessage(1L, 9L, "补充地址");
+
+        ArgumentCaptor<AiConversation> captor = ArgumentCaptor.forClass(AiConversation.class);
+        verify(conversationMapper).insert(captor.capture());
+        AiConversation message = captor.getValue();
+        assertThat(message.getRole()).isEqualTo("user");
+        assertThat(message.getSessionId()).isEqualTo("session-1");
+        assertThat(message.getContent()).isEqualTo("补充地址");
+        assertThat(message.getModel()).isEqualTo("human-member");
+    }
+
+    @Test
     void rejectsClaimWhenAnotherAgentAlreadyWonRace() {
         AiSupportTicketMapper mapper = mock(AiSupportTicketMapper.class);
         when(mapper.claim(1L, 3L)).thenReturn(0);

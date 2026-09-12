@@ -64,6 +64,12 @@ public class AiSupportTicketController {
         return Result.success(null);
     }
 
+    @PostMapping("/{id}/message")
+    public Result<Void> memberMessage(@PathVariable Long id, @Valid @RequestBody MemberMessageReq req, Authentication auth) {
+        ticketService.memberMessage(id, CurrentMember.id(auth), req.getMessage());
+        return Result.success(null);
+    }
+
     @PostMapping("/{id}/resolve")
     @PreAuthorize("hasAuthority('order:support:handle')")
     public Result<Void> resolve(@PathVariable Long id, @Valid @RequestBody ResolveReq req) {
@@ -84,6 +90,11 @@ public class AiSupportTicketController {
 
     @Data
     public static class ReplyReq {
+        @NotBlank @Size(max = 1000) private String message;
+    }
+
+    @Data
+    public static class MemberMessageReq {
         @NotBlank @Size(max = 1000) private String message;
     }
 }
