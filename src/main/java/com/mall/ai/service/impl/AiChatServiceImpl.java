@@ -98,7 +98,8 @@ public class AiChatServiceImpl implements AiChatService {
                 List<String> toolNames = new ArrayList<>();
                 for (Map<String, Object> plan : plannedTools(decision)) {
                     String plannedTool = plannedTool(plan);
-                    String plannedContext = plannedTool.isBlank() ? "" : businessContext(memberId, request.getMessage(), plannedTool, plannedOrderNo(plan));
+                    String plannedContext = plannedTool.isBlank() ? "" : businessContext(memberId, request.getMessage(), plannedTool,
+                            plannedOrderNo(plan), plannedKeyword(plan));
                     if (!plannedContext.isBlank()) {
                         contextParts.add(plannedContext);
                         toolNames.add(plannedTool);
@@ -226,6 +227,15 @@ public class AiChatServiceImpl implements AiChatService {
         return null;
     }
 
+    private String plannedKeyword(Map<String, Object> decision) {
+        Object arguments = decision == null ? null : decision.get("arguments");
+        if (arguments instanceof Map<?, ?> values && values.get("keyword") instanceof String keyword && StringUtils.hasText(keyword)) {
+            String value = keyword.trim();
+            return value.substring(0, Math.min(value.length(), 128));
+        }
+        return null;
+    }
+
     private boolean isSupportedTool(String tool) {
         return switch (tool) {
             case "query_order", "query_logistics", "query_refund", "query_product", "query_coupon", "query_member", "query_tax", "query_activity", "query_return_eligibility" -> true;
@@ -234,17 +244,17 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     private String businessContext(Long memberId, String message) {
-        return businessContext(memberId, message, intent(message), null);
+        return businessContext(memberId, message, intent(message), null, null);
     }
 
-    private String businessContext(Long memberId, String message, String tool, String plannedOrderNo) {
+    private String businessContext(Long memberId, String message, String tool, String plannedOrderNo, String plannedKeyword) {
         if ("query_activity".equals(tool)) return recentContext(memberId, message, tool);
         String orderNo = extractOrderNo(message, plannedOrderNo);
         if ("query_return_eligibility".equals(tool) && orderNo == null) {
             return isEnglishMessage(message) ? "Please provide your order number so I can check refund or return eligibility."
                     : "请提供订单号，我才能查询退款或退货资格。";
         }
-        if (orderNo == null) return recentContext(memberId, message, tool);
+        if (orderNo == null) return recentContext(memberId, message, tool, plannedKeyword);
         boolean english = isEnglishMessage(message);
         try {
             TradeOrder order = tradeOrderService.getOwnedByOrderNo(orderNo, memberId);
@@ -300,6 +310,10 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     private String recentContext(Long memberId, String message, String tool) {
+        return recentContext(memberId, message, tool, null);
+    }
+
+    private String recentContext(Long memberId, String message, String tool, String plannedKeyword) {
         if ("query_activity".equals(tool)) {
             if (activityService == null) return "";
             List<Activity> activities = activityService.selectActive();
@@ -316,7 +330,7 @@ public class AiChatServiceImpl implements AiChatService {
             }).collect(java.util.stream.Collectors.joining("\n"));
         }
         if ("query_product".equals(tool)) {
-            String keyword = message.replace("查询", "").replace("推荐", "").replace("商品", "")
+            String keyword = StringUtils.hasText(plannedKeyword) ? plannedKeyword : message.replace("查询", "").replace("推荐", "").replace("商品", "")
                     .replace("产品", "").replace("找", "").replace("款式", "").replace("有哪些", "").replace("有什么", "").trim();
             List<Spu> products = storeCatalogService.products(1, 3, null, keyword.isBlank() ? null : keyword)
                     .getRecords().stream().filter(Spu.class::isInstance).map(Spu.class::cast).toList();

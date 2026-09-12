@@ -364,9 +364,9 @@ class AiChatServiceImplTest {
         when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
         when(gateway.plan(anyLong(), anyString(), anyString(), any())).thenReturn(Map.of("tools", List.of(
                 Map.of("tool", "query_member", "arguments", Map.of()),
-                Map.of("tool", "query_product", "arguments", Map.of()))));
+                Map.of("tool", "query_product", "arguments", Map.of("keyword", "耳机")))));
         when(members.getById(9L)).thenReturn(member);
-        when(catalog.products(1, 3, null, "耳机和账户权益")).thenReturn(page);
+        when(catalog.products(1, 3, null, "耳机")).thenReturn(page);
         when(page.getRecords()).thenReturn(List.of(product));
         AiChatRequest request = new AiChatRequest(); request.setMessage("耳机和账户权益");
 
