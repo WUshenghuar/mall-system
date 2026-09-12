@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 
-from app.agent.agent import is_prompt_injection, local_agent
+from app.agent.agent import is_prompt_injection, local_agent, should_suggest_handoff
 from app.agent.tools import TOOL_DEFINITIONS, TOOL_NAMES
 from app.config import settings
 
@@ -62,6 +62,13 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
         for index in range(0, len(business_context), 12):
             yield business_context[index:index + 12]
         return
+    if not context:
+        answer = local_agent.invoke({"message": message})["answer"]
+        if should_suggest_handoff(message):
+            answer = "我暂时没有查到可确认的相关平台资料，无法直接判断。你可以补充订单号或转人工客服。"
+        for index in range(0, len(answer), 12):
+            yield answer[index:index + 12]
+        return
     if not settings.has_model:
         domains = ("支付", "会员", "订单", "物流", "退款", "优惠券", "商品", "税费", "币种")
         answers = context[:2] if sum(domain in message for domain in domains) > 1 else context[:1]
@@ -71,7 +78,7 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
         return
 
     sources = "\n".join(item["content"] for item in context)
-    messages = [{"role": "system", "content": f"你是海路集市的平台客服。只回答平台业务问题，不执行退款、取消订单或修改账户等操作。优先依据以下平台资料回答：\n{sources}"}]
+    messages = [{"role": "system", "content": f"你是海路集市的平台客服。只回答平台业务问题，不执行退款、取消订单或修改账户等操作。只能依据以下平台资料回答；资料未覆盖的问题必须明确说无法确认并建议转人工，不得凭常识补充：\n{sources}"}]
     messages.extend(history[-10:])
     if not messages or messages[-1].get("content") != message:
         messages.append({"role": "user", "content": message})
