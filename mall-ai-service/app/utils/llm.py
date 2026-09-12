@@ -8,11 +8,25 @@ from app.agent.tools import TOOL_DEFINITIONS, TOOL_NAMES
 from app.config import settings
 
 
+def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
+    result = []
+    for item in history[-10:]:
+        if not isinstance(item, dict):
+            continue
+        role, content = item.get("role"), item.get("content")
+        if role not in {"user", "assistant"} or not isinstance(content, str) or not content.strip():
+            continue
+        if is_prompt_injection(content):
+            continue
+        result.append({"role": role, "content": content.strip()[:1000]})
+    return result
+
+
 async def plan_tool(message: str, history: list[dict[str, str]]) -> dict:
     if is_prompt_injection(message) or not getattr(settings, "enabled", True) or not settings.has_model:
         return {"tool": "", "arguments": {}}
     messages = [{"role": "system", "content": "你是平台客服意图路由器。只允许选择只读查询工具，不执行任何写操作；无法确定时不要选择工具。"}]
-    messages.extend(history[-10:])
+    messages.extend(safe_history(history))
     messages.append({"role": "user", "content": message})
     payload = {
         "model": settings.model_name,
@@ -85,7 +99,7 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
     if business_context:
         sources += ("\n真实业务查询结果（优先依据，不得改写其中的订单、金额、状态或时间）：\n" + business_context)
     messages = [{"role": "system", "content": f"你是海路集市的平台客服。使用用户提问的语言回答；只回答平台业务问题，不执行退款、取消订单或修改账户等操作。只能依据以下平台资料和真实业务查询结果回答；资料未覆盖的问题必须明确说无法确认并建议转人工，不得凭常识补充：\n{sources}"}]
-    messages.extend(history[-10:])
+    messages.extend(safe_history(history))
     if not messages or messages[-1].get("content") != message:
         messages.append({"role": "user", "content": message})
     headers = {"Authorization": f"Bearer {settings.model_api_key}"}
