@@ -68,6 +68,12 @@ public class AiChatController {
         return Result.success(aiChatService.feedbackStats());
     }
 
+    @GetMapping("/status")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('order:support:list')")
+    public Result<Map<String, Object>> runtimeStatus() {
+        return Result.success(aiChatService.runtimeStatus());
+    }
+
     @GetMapping("/audit")
     @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('order:support:list')")
     public Result<IPage<AiAuditLog>> audit(@org.springframework.web.bind.annotation.RequestParam(defaultValue = "1") Integer page,

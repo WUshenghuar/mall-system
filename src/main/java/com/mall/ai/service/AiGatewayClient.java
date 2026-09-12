@@ -32,6 +32,15 @@ public class AiGatewayClient {
     @Value("${ai.service.base-url:http://localhost:8101}") private String baseUrl;
     @Value("${ai.service.token:change-me-local-only}") private String serviceToken;
 
+    public Map<String, Object> runtimeStatus() {
+        try {
+            return objectMapper.convertValue(requestJson("GET", "/health", null), new TypeReference<>() { });
+        } catch (Exception e) {
+            log.debug("AI runtime status unavailable", e);
+            return Map.of("status", "unavailable", "modelConfigured", false, "embeddingConfigured", false, "toolPlanningEnabled", false);
+        }
+    }
+
     public Map<String, Object> plan(Long memberId, String conversationId, String message, List<AiConversation> history) {
         try {
             List<Map<String, String>> messages = history.stream()

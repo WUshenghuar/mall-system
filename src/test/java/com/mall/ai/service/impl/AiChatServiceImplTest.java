@@ -217,6 +217,18 @@ class AiChatServiceImplTest {
     }
 
     @Test
+    void exposesAiRuntimeStatusToOperations() {
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        Map<String, Object> status = Map.of("status", "ok", "modelConfigured", false, "embeddingConfigured", false);
+        when(gateway.runtimeStatus()).thenReturn(status);
+        AiChatServiceImpl service = new AiChatServiceImpl(mock(AiConversationMapper.class), gateway, new ObjectMapper(),
+                mock(TradeOrderService.class), mock(LogisticsService.class), mock(TradeRefundService.class),
+                mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class));
+
+        assertThat(service.runtimeStatus()).isEqualTo(status);
+    }
+
+    @Test
     void exposesFeedbackStatsForOperations() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         when(mapper.selectFeedbackStats()).thenReturn(Map.of("total", 4L, "positive", 3L, "negative", 1L));

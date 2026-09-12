@@ -14,5 +14,6 @@ public interface AiChatService {
     List<AiConversation> recent(Long memberId, int limit);
     void feedback(Long memberId, Long messageId, Integer feedback);
     Map<String, Object> feedbackStats();
+    Map<String, Object> runtimeStatus();
     IPage<AiAuditLog> auditPage(Integer page, Integer size, String eventType, String outcome);
 }

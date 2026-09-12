@@ -20,6 +20,10 @@ export function getAiAuditPage(params) {
   return request.get('/ai/audit', { params })
 }
 
+export function getAiRuntimeStatus() {
+  return request.get('/ai/status')
+}
+
 export function getSupportTicketConversation(id) {
   return request.get(`/ai/tickets/${id}/conversation`)
 }
