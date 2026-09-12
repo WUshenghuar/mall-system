@@ -25,7 +25,10 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.util.Map;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 @RestController
 @RequestMapping("/api/ai")
@@ -40,18 +43,36 @@ public class AiChatController {
         Long memberId = CurrentMember.id(auth);
         String conversationId = StringUtils.hasText(request.getConversationId()) ? request.getConversationId() : UUID.randomUUID().toString();
         SseEmitter emitter = new SseEmitter(60_000L);
+        AtomicBoolean active = new AtomicBoolean(true);
+        AtomicReference<Future<?>> taskRef = new AtomicReference<>();
+        Runnable cancel = () -> {
+            if (!active.getAndSet(false)) return;
+            Future<?> task = taskRef.get();
+            if (task != null && !task.isDone()) task.cancel(true);
+        };
+        emitter.onCompletion(cancel);
+        emitter.onTimeout(() -> { cancel.run(); emitter.complete(); });
+        emitter.onError(error -> { cancel.run(); emitter.complete(); });
         try {
-            CompletableFuture.runAsync(() -> {
+            taskRef.set(aiChatExecutor.submit(() -> {
+                if (!active.get()) return;
                 try {
                     send(emitter, Map.of("type", "meta", "conversationId", conversationId));
-                    aiChatService.stream(memberId, conversationId, request, event -> sendRaw(emitter, event));
+                    if (!active.get()) return;
+                    aiChatService.stream(memberId, conversationId, request, event -> {
+                        if (!active.get()) throw new CancellationException();
+                        sendRaw(emitter, event);
+                    });
+                    if (!active.get()) throw new CancellationException();
+                } catch (CancellationException ignored) {
                 } catch (Exception e) {
-                    send(emitter, Map.of("type", "error", "message", e.getMessage() == null ? "客服服务暂不可用" : e.getMessage()));
+                    if (active.get()) send(emitter, Map.of("type", "error", "message", e.getMessage() == null ? "客服服务暂不可用" : e.getMessage()));
                 } finally {
-                    emitter.complete();
+                    if (active.compareAndSet(true, false)) emitter.complete();
                 }
-            }, aiChatExecutor);
+            }));
         } catch (RuntimeException e) {
+            cancel.run();
             send(emitter, Map.of("type", "error", "message", "客服当前繁忙，请稍后重试"));
             emitter.complete();
         }
