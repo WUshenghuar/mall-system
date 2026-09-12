@@ -43,6 +43,10 @@ SEED_DOCS = [
 ]
 
 
+def is_english_query(query: str) -> bool:
+    return bool(re.search(r"[a-zA-Z]", query)) and not bool(re.search(r"[\u4e00-\u9fff]", query))
+
+
 async def ensure_seeded() -> None:
     properties = {"id": {"type": "keyword"}, "title": {"type": "text"}, "content": {"type": "text"}, "category": {"type": "keyword"}, "enabled": {"type": "boolean"}}
     vector_mapping = {"type": "dense_vector", "dims": settings.embedding_dimensions, "index": True, "similarity": "cosine"}
@@ -150,7 +154,7 @@ def hybrid_hits(bm25_hits: list[dict], vector_hits: list[dict]) -> list[dict]:
 
 
 def rerank_hits(query: str, hits: list[dict]) -> list[dict]:
-    terms = CHINESE_TERMS if not re.search(r"[a-zA-Z]", query) else ENGLISH_TERMS
+    terms = ENGLISH_TERMS if is_english_query(query) else CHINESE_TERMS
     keywords = {keyword for keywords in terms.values() for keyword in keywords if keyword in query.lower()}
     if not keywords:
         return hits
@@ -165,7 +169,7 @@ def rerank_hits(query: str, hits: list[dict]) -> list[dict]:
 
 
 def filter_relevant(query: str, hits: list[dict]) -> list[dict]:
-    terms = CHINESE_TERMS if not re.search(r"[a-zA-Z]", query) else ENGLISH_TERMS
+    terms = ENGLISH_TERMS if is_english_query(query) else CHINESE_TERMS
     scopes = {scope for scope, keywords in terms.items() if any(keyword in query.lower() for keyword in keywords)}
     if not scopes:
         return hits
@@ -176,7 +180,7 @@ def filter_relevant(query: str, hits: list[dict]) -> list[dict]:
 
 def fallback_hits(query: str) -> list[dict]:
     english_terms = {term for term in re.findall(r"[a-z][a-z0-9]+", query.lower())
-                     if term not in {"the", "is", "my", "do", "i", "a", "an", "to", "of", "can", "you", "what", "where", "how", "are", "and"}}
+                     if term not in {"the", "is", "my", "do", "i", "a", "an", "to", "of", "can", "you", "what", "where", "how", "are", "and"}} if is_english_query(query) else set()
     chinese_terms = {term for terms in CHINESE_TERMS.values() for term in terms if term in query} if not english_terms else set()
     ranked = []
     for document in SEED_DOCS:

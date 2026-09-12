@@ -1,7 +1,7 @@
 from evaluate import CASES, evaluate
 from app.api.chat import ChatRequest
 from app.rag import embedding
-from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits, hybrid_hits, rerank_hits, retrieve
+from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits, filter_relevant, hybrid_hits, rerank_hits, retrieve
 from app.utils.llm import stream_reply
 from pydantic import ValidationError
 import asyncio
@@ -68,6 +68,18 @@ def test_rerank_prefers_exact_title_match():
     )
 
     assert [hit["_id"] for hit in hits] == ["refund", "coupon"]
+
+
+def test_rag_keeps_chinese_domain_for_mixed_order_number_query():
+    documents = {item["id"]: item for item in SEED_DOCS}
+    hits = filter_relevant(
+        "查询我的物流订单 T202609071234567890",
+        [{"_id": "coupon", "_source": documents["coupon"]},
+         {"_id": "logistics", "_source": documents["logistics"]},
+         {"_id": "order", "_source": documents["order"]}],
+    )
+
+    assert [hit["_id"] for hit in hits] == ["logistics", "order"]
 
 
 def test_retrieve_fuses_bm25_and_vector_results(monkeypatch):
