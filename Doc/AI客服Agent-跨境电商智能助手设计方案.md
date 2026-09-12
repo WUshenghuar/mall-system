@@ -13,7 +13,7 @@ source: "[[AI应用开发工程师学习路线.md]]"
 > 基于 B2C 跨境电商后台管理系统（`mall-system`）的 AI 能力扩展
 > 定位：在现有 Spring Boot 后端上集成 AI Agent，实现智能客服、语义搜索、NL2SQL 分析
 
-> **当前状态（2026-09-05）：** 本文是 AI 目标架构设计，不是已交付能力。当前仓库为单 Maven 模块，尚无 `mall-ai` Java 业务模块；`mall-ai-service/` 只有 Python 包目录骨架。AI 实施必须先完成 C 端交易闭环，再按《AI客服Agent-跨境电商智能助手实施方案》落地。
+> **当前状态（2026-09-12）：** 本文仍是 AI 目标架构设计，不是全部已交付能力。当前仓库为单 Maven 模块；`com.mall.ai` 已交付 Java SSE 网关、会话/审计/人工接管与受控只读工具，`mall-ai-service/` 已交付 BM25、可选 Embedding/RRF、知识库接口、多工具规划、中英文安全兜底和评测。完整多轮 Function Calling、生产级 Rerank、LangFuse/OTel 与 SLA 仍未完成，实际基线以《当前实现基线与文档口径》为准。
 
 > **架构修订：** 文中 `mall-web`、`mall-admin` 和多个 Maven 子模块为历史方案命名；当前入口、端口和真实目录以《当前实现基线与文档口径》为准。
 

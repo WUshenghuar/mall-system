@@ -70,9 +70,11 @@ git checkout -- mall-storefront/src
 | `desktop-preview-shots.mjs` / `mobile-preview-shots.mjs` | 新增：截图验证 |
 | `CLAUDE.md` + `Doc/` 5 份 | 改：口径同步 |
 
-## 6. AI Agent 技术栈缺口核对（2026-09-06，以代码为准）
+## 6. AI Agent 技术栈缺口核对（2026-09-08，以代码为准）
 
-> 目标：把 C 端悬浮客服 + AI Agent 做成可运行的"对话闭环 → RAG → 工具 Agent → 安全治理"四阶段。以下结论逐层核对代码后得出，非文档规划。
+> P0 对话闭环已经落地；以下内容记录当前实现与剩余缺口，非文档规划。
+>
+> **口径提醒（2026-09-12）：** 本节标题日期早于后续增量实现；活动/可领取优惠券/退款退货资格、多工具规划、中英文业务上下文、Redis 限流、模型故障降级和 SSE 断开取消已在代码中交付。最新逐项基线以《当前实现基线与文档口径》为准。
 
 ### 6.1 已有（可复用，无需新增基础设施）
 
@@ -80,25 +82,25 @@ git checkout -- mall-storefront/src
 - B/C 前端（Vue 3 + axios + Pinia + Router）可扩展 SSE 消费；浏览器原生 `EventSource`/fetch stream 即可，无需新 npm 包。
 - AI 规划文档齐备：`Doc/AI客服Agent-跨境电商智能助手设计方案.md`（目标架构）与 `Doc/AI客服Agent-跨境电商智能助手实施方案.md`（分阶段落地）。
 
-### 6.2 缺口：三层实现代码全部为零
+### 6.2 当前实现与剩余缺口
 
 | 层 | 现状 | 需要新建 |
 |---|---|---|
-| Python AI 服务 `mall-ai-service/` | 仅空骨架（app/agent、api、models、rag、utils、tests 下只有 `__init__.py`/`.gitkeep`）；**无 requirements.txt / main.py / 配置** | `main.py`、`config.py`、LLM 客户端、LangGraph Agent 图、RAG、SSE 路由、LangFuse 埋点；依赖清单：fastapi、uvicorn、sse-starlette、langgraph、langchain、elasticsearch、litellm 或 openai、langfuse |
-| Java AI 模块 `src/main/java/com/mall/ai/` | 仅空包（controller/dto/entity/mapper/service 全是 .gitkeep） | `AiChatController`（`POST /api/ai/chat` SSE）、`AiChatService`（鉴权+转发+会话落库）、Entity/Mapper；需在 pom 增加 HTTP 客户端依赖（RestClient/WebClient）用于转发 Python |
-| 前端入口 `mall-storefront/` | 无任何 chat/SSE 引用 | 悬浮客服气泡组件（各页右下角 + 关键页主动唤起）、SSE 消费、流式打字机 UI |
+| Python AI 服务 `mall-ai-service/` | FastAPI `/internal/chat`、LangGraph 本地回复、BM25 检索、服务令牌校验和 SSE 事件已实现 | 向量 RAG、Rerank、完整工具执行器、LangFuse/OTel |
+| Java AI 模块 `src/main/java/com/mall/ai/` | `AiChatController`、业务上下文查询、会话落库和 SSE 转发已实现 | 知识库管理、完整 Function Calling、审计与人工接管 |
+| 前端入口 `mall-storefront/` | `CustomerServiceWidget` 已接入登录校验、流式消费、来源展示和降级提示 | 更丰富的客服状态、真机回归和生产观测 |
 
 ### 6.3 缺口：数据与外部依赖
 
-- 数据库：db 迁移脚本仅到 `V5__add_trade_refund.sql`，**无任何 ai_ 表**；需新增 V6+：`ai_conversation`、`ai_agent_checkpoint`、`ai_knowledge_doc`、`ai_audit_log`（建表 SQL 见设计方案文档第五章）。
-- ES：`dense_vector` 能力未启用；需建 `ai_knowledge` 索引（BM25 + 向量双路）——RAG 阶段再做，可后置。
+- 数据库：当前已支持 AI 会话落库；`ai_agent_checkpoint`、`ai_knowledge_doc`、`ai_audit_log` 等生产治理表仍未落地。
+- ES：当前 AI 知识检索为 BM25；`dense_vector`、Rerank 和知识库管理仍待 RAG 阶段实施。
 - LLM API Key：application.yml 与 mall-ai-service 均无模型配置；需接入 DeepSeek/OpenAI 等（DeepSeek 成本最低），敏感配置走环境变量不入库。
 - 可选外部件：Embedding API（RAG 阶段）、LiteLLM 网关（多模型路由，可省）、LangFuse（观测/评测，P0 后期）。
 
 ### 6.4 建议推进顺序（增量可验证）
 
-1. **对话闭环**（半天~1 天）：FastAPI + `/chat` SSE + 单模型直连 → Java `AiChatController` 透传 → storefront 悬浮气泡。验收：登录用户能多轮流式对话。
-2. **RAG**（2~3 天）：建表/建索引 → 文档分段 → Embedding → BM25+向量召回 + Rerank。验收：政策/商品类问题返回带来源。
+1. **对话闭环**：已完成；登录用户可通过 storefront 悬浮客服进行流式对话，并展示检索来源。
+2. **RAG**（后续）：文档分段 → Embedding → BM25+向量召回 + Rerank。验收：政策/商品类问题返回带来源。
 3. **工具 Agent**（2~3 天）：LangGraph 意图路由 → Function Calling 回调 Spring Boot 已有 API（订单/商品/物流/退货查询）。验收："查我的订单"返回真实数据。
 4. **安全治理 + 评测**（3~4 天）：Prompt 注入检测、越权校验、高风险操作确认、人工转接、审计；50+ 测试集 + LLM-as-Judge。
 
