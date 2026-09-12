@@ -1,6 +1,6 @@
 <template>
   <div class="sub-page support-page">
-    <div class="page-head"><div><h2 class="page-title">平台客服工单</h2><p class="page-desc">处理 C 端 AI 客服转交的会员问题</p></div><a-space class="feedback-stats"><a-tag :color="aiStatus.status === 'ok' ? (aiStatus.modelConfigured ? 'green' : 'gold') : 'red'">{{ aiStatusLabel }}</a-tag><a-button @click="openKnowledge">AI 知识库</a-button><a-button @click="openAudit">客服运行记录</a-button><a-statistic title="已评价" :value="feedbackStats.total" /><a-statistic title="有帮助率" :value="helpfulRate" suffix="%" /></a-space></div>
+    <div class="page-head"><div><h2 class="page-title">平台客服工单</h2><p class="page-desc">处理 C 端 AI 客服转交的会员问题</p></div><a-space class="feedback-stats"><a-tag :color="aiStatus.status === 'disabled' || aiStatus.enabled === false ? 'default' : aiStatus.status === 'ok' ? (aiStatus.modelConfigured ? 'green' : 'gold') : 'red'">{{ aiStatusLabel }}</a-tag><a-button @click="openKnowledge">AI 知识库</a-button><a-button @click="openAudit">客服运行记录</a-button><a-statistic title="已评价" :value="feedbackStats.total" /><a-statistic title="有帮助率" :value="helpfulRate" suffix="%" /></a-space></div>
     <a-card :bordered="false">
       <a-tabs v-model:activeKey="statusFilter" @change="fetchData">
         <a-tab-pane key="" tab="全部" /><a-tab-pane key="0" tab="待接管" /><a-tab-pane key="1" tab="处理中" /><a-tab-pane key="2" tab="已解决" />
@@ -78,7 +78,7 @@ const pagination = ref({ current: 1, pageSize: 10, total: 0 })
 const replyOpen = ref(false), replying = ref(false), replyTarget = ref(null), replyContent = ref('')
 const conversationOpen = ref(false), conversationLoading = ref(false), conversationMessages = ref([])
 const feedbackStats = ref({ total: 0, positive: 0, negative: 0 })
-const aiStatus = ref({ status: 'loading', modelConfigured: false, embeddingConfigured: false })
+const aiStatus = ref({ status: 'loading', enabled: true, modelConfigured: false, embeddingConfigured: false })
 const knowledgeOpen = ref(false), knowledgeLoading = ref(false), knowledgeSaving = ref(false), knowledgeEditorOpen = ref(false), knowledgeDocs = ref([]), knowledgeEditingId = ref('')
 const knowledgeForm = ref({ id: '', title: '', category: '', content: '' })
 const resolveOpen = ref(false), resolving = ref(false), resolveTarget = ref(null), resolveNote = ref('')
@@ -86,7 +86,7 @@ const auditOpen = ref(false), auditLoading = ref(false), auditList = ref([]), au
 const auditPagination = ref({ current: 1, pageSize: 20, total: 0 })
 let refreshTimer
 const helpfulRate = computed(() => { const total = Number(feedbackStats.value.total) || 0; return total ? Math.round((Number(feedbackStats.value.positive) || 0) * 100 / total) : 0 })
-const aiStatusLabel = computed(() => aiStatus.value.status !== 'ok' ? 'AI 服务不可用' : aiStatus.value.modelConfigured ? (aiStatus.value.embeddingConfigured ? 'AI：模型 + 向量' : 'AI：模型') : 'AI：本地兜底')
+const aiStatusLabel = computed(() => aiStatus.value.status === 'disabled' || aiStatus.value.enabled === false ? 'AI：已停用' : aiStatus.value.status !== 'ok' ? 'AI 服务不可用' : aiStatus.value.modelConfigured ? (aiStatus.value.embeddingConfigured ? 'AI：模型 + 向量' : 'AI：模型') : 'AI：本地兜底')
 const columns = [
   { title: '工单号', dataIndex: 'ticketNo', width: 190 }, { title: '会员 ID', dataIndex: 'memberId', width: 90 },
   { title: '问题摘要', dataIndex: 'subject', width: 180, ellipsis: true }, { title: '最新留言', key: 'message', ellipsis: true },
@@ -100,7 +100,7 @@ const auditColumns = [
 const outcomeLabel = value => ({ completed: '已完成', failed: '失败', started: '已开始', replayed: '幂等重放', executed: '已执行', accepted: '已接受', in_progress: '处理中' }[value] || value || '--')
 async function fetchData() { loading.value = true; try { const res = await getSupportTicketPage({ page: pagination.value.current, size: pagination.value.pageSize, status: statusFilter.value || undefined }); list.value = res.data?.records || []; pagination.value.total = res.data?.total || 0 } finally { loading.value = false } }
 async function fetchFeedbackStats() { try { feedbackStats.value = (await getAiFeedbackStats()).data || feedbackStats.value } catch { /* 指标失败不影响工单处理 */ } }
-async function fetchAiStatus() { try { aiStatus.value = (await getAiRuntimeStatus()).data || aiStatus.value } catch { aiStatus.value = { status: 'unavailable', modelConfigured: false, embeddingConfigured: false } } }
+async function fetchAiStatus() { try { aiStatus.value = (await getAiRuntimeStatus()).data || aiStatus.value } catch { aiStatus.value = { status: 'unavailable', enabled: false, modelConfigured: false, embeddingConfigured: false } } }
 async function openKnowledge() { knowledgeOpen.value = true; knowledgeLoading.value = true; try { knowledgeDocs.value = (await getAiKnowledge()).data || [] } catch { message.error('知识库读取失败') } finally { knowledgeLoading.value = false } }
 async function openAudit() { auditOpen.value = true; auditPagination.value.current = 1; await fetchAudit() }
 async function fetchAudit() { auditLoading.value = true; try { const res = await getAiAuditPage({ page: auditPagination.value.current, size: auditPagination.value.pageSize, eventType: auditEventType.value, outcome: auditOutcome.value }); auditList.value = res.data?.records || []; auditPagination.value.total = res.data?.total || 0 } catch { message.error('运行记录读取失败') } finally { auditLoading.value = false } }

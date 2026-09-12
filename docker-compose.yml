@@ -50,6 +50,7 @@ services:
       context: ./mall-ai-service
     environment:
       AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN:-change-me-local-only}
+      AI_ENABLED: ${AI_ENABLED:-true}
       AI_MODEL_API_BASE: ${AI_MODEL_API_BASE:-}
       AI_MODEL_API_KEY: ${AI_MODEL_API_KEY:-}
       AI_MODEL_NAME: ${AI_MODEL_NAME:-}

@@ -22,9 +22,10 @@ async def seed_knowledge():
 @app.get("/health")
 async def health():
     return {
-        "status": "ok",
+        "status": "ok" if settings.enabled else "disabled",
         "service": "cbec-ai-customer-service",
-        "modelConfigured": settings.has_model,
-        "embeddingConfigured": settings.has_embedding,
-        "toolPlanningEnabled": settings.has_model,
+        "enabled": settings.enabled,
+        "modelConfigured": settings.enabled and settings.has_model,
+        "embeddingConfigured": settings.enabled and settings.has_embedding,
+        "toolPlanningEnabled": settings.enabled and settings.has_model,
     }

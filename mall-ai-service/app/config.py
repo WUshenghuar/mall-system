@@ -14,6 +14,7 @@ _EMBEDDING_API_KEY = _env("AI_EMBEDDING_API_KEY")
 
 @dataclass(frozen=True)
 class Settings:
+    enabled: bool = _env("AI_ENABLED").lower() not in {"0", "false", "no", "off"}
     service_token: str = _env("AI_SERVICE_TOKEN") or "change-me-local-only"
     model_api_base: str = _MODEL_API_BASE
     model_api_key: str = _MODEL_API_KEY

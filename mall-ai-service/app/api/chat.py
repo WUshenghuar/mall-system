@@ -61,6 +61,11 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
 
     async def events() -> AsyncIterator[str]:
         yield sse({"type": "thinking"})
+        if not settings.enabled:
+            yield sse({"type": "handoff_suggested"})
+            yield sse({"type": "text", "content": "AI 客服当前暂时停用，请点击转人工客服获取帮助。"})
+            yield sse({"type": "done"})
+            return
         try:
             history = [item.model_dump() for item in request.history]
             context = []

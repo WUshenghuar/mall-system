@@ -9,7 +9,7 @@ from app.config import settings
 
 
 async def plan_tool(message: str, history: list[dict[str, str]]) -> dict:
-    if is_prompt_injection(message) or not settings.has_model:
+    if is_prompt_injection(message) or not getattr(settings, "enabled", True) or not settings.has_model:
         return {"tool": "", "arguments": {}}
     messages = [{"role": "system", "content": "你是平台客服意图路由器。只允许选择只读查询工具，不执行任何写操作；无法确定时不要选择工具。"}]
     messages.extend(history[-10:])
@@ -53,6 +53,9 @@ async def plan_tool(message: str, history: list[dict[str, str]]) -> dict:
 
 
 async def stream_reply(message: str, history: list[dict[str, str]], context: list[dict], business_context: str = "") -> AsyncIterator[str]:
+    if not getattr(settings, "enabled", True):
+        yield "AI 客服当前暂时停用，请转人工客服获取帮助。"
+        return
     if is_prompt_injection(message):
         answer = local_agent.invoke({"message": message})["answer"]
         for index in range(0, len(answer), 12):
