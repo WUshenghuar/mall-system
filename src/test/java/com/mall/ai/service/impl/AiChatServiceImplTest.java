@@ -99,6 +99,29 @@ class AiChatServiceImplTest {
     }
 
     @Test
+    void reclaimsStaleRequestPlaceholderForAThreadThatCanRetry() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        when(mapper.selectAssistantByRequest(9L, "session-1", "req-stale")).thenReturn(null);
+        when(mapper.insertUserIfAbsent("session-1", "req-stale", 9L, "超时重试")).thenReturn(0);
+        when(mapper.reclaimStaleUserRequest(9L, "session-1", "req-stale")).thenReturn(1);
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        doAnswer(invocation -> {
+            Consumer<String> consumer = invocation.getArgument(6);
+            consumer.accept("{\"type\":\"text\",\"content\":\"已恢复处理\"}");
+            return null;
+        }).when(gateway).stream(anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any());
+        AiChatRequest request = newRequest("超时重试"); request.setRequestId("req-stale");
+
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class), mock(LogisticsService.class),
+                mock(TradeRefundService.class), mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class))
+                .stream(9L, "session-1", request, ignored -> { });
+
+        verify(mapper).reclaimStaleUserRequest(9L, "session-1", "req-stale");
+        verify(gateway).stream(anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any());
+    }
+
+    @Test
     void releasesRequestPlaceholderWhenGatewayFails() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         AiGatewayClient gateway = mock(AiGatewayClient.class);

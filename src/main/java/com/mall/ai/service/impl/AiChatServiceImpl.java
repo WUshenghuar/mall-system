@@ -68,11 +68,11 @@ public class AiChatServiceImpl implements AiChatService {
             if (conversationMapper.insertUserIfAbsent(conversationId, requestId, memberId, request.getMessage()) != 1) {
                 previous = conversationMapper.selectAssistantByRequest(memberId, conversationId, requestId);
                 if (previous != null) replay(previous, eventConsumer);
-                else {
+                else if (conversationMapper.reclaimStaleUserRequest(memberId, conversationId, requestId) != 1) {
                     recordAudit(memberId, conversationId, requestId, "chat", null, "in_progress", 0, "duplicate_request");
                     eventConsumer.accept("{\"type\":\"error\",\"message\":\"客服请求正在处理中，请稍后重试\"}");
+                    return;
                 }
-                return;
             }
         } else {
             save(memberId, conversationId, null, "user", request.getMessage(), 0, 0);

@@ -28,6 +28,12 @@ public interface AiConversationMapper extends BaseMapper<AiConversation> {
     int discardUserRequest(@Param("userId") Long userId, @Param("sessionId") String sessionId,
                            @Param("requestId") String requestId);
 
+    @Update("UPDATE ai_conversation SET update_time = NOW() "
+            + "WHERE user_id = #{userId} AND session_id = #{sessionId} AND request_id = #{requestId} "
+            + "AND role = 'user' AND deleted = 0 AND update_time < DATE_SUB(NOW(), INTERVAL 2 MINUTE)")
+    int reclaimStaleUserRequest(@Param("userId") Long userId, @Param("sessionId") String sessionId,
+                                @Param("requestId") String requestId);
+
     @Select("SELECT * FROM (SELECT * FROM ai_conversation WHERE user_id = #{userId} "
             + "AND session_id = #{sessionId} AND deleted = 0 ORDER BY id DESC LIMIT #{limit}) history ORDER BY id")
     List<AiConversation> selectRecent(@Param("userId") Long userId, @Param("sessionId") String sessionId,
