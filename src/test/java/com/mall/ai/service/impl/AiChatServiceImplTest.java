@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.ai.dto.AiChatRequest;
 import com.mall.ai.entity.AiConversation;
 import com.mall.ai.mapper.AiConversationMapper;
+import com.mall.ai.mapper.AiAuditLogMapper;
 import com.mall.ai.service.AiGatewayClient;
 import com.mall.common.exception.BusinessException;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -170,6 +171,29 @@ class AiChatServiceImplTest {
                 .feedback(9L, 7L, 1);
 
         verify(mapper).updateFeedback(7L, 9L, 1);
+    }
+
+    @Test
+    void recordsChatLifecycleAuditWithoutMessageContent() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        AiAuditLogMapper audit = mock(AiAuditLogMapper.class);
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        doAnswer(invocation -> {
+            Consumer<String> consumer = invocation.getArgument(6);
+            consumer.accept("{\"type\":\"text\",\"content\":\"你好\"}");
+            return null;
+        }).when(gateway).stream(anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any());
+        AiChatServiceImpl service = new AiChatServiceImpl(mapper, gateway, new ObjectMapper(),
+                mock(TradeOrderService.class), mock(LogisticsService.class), mock(TradeRefundService.class),
+                mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class));
+        service.setAuditLogMapper(audit);
+
+        service.stream(9L, "session-1", newRequest("hello"), ignored -> { });
+
+        verify(audit, org.mockito.Mockito.times(2)).insert(eq(9L), eq("session-1"),
+                org.mockito.ArgumentMatchers.isNull(), eq("chat"), org.mockito.ArgumentMatchers.isNull(),
+                anyString(), anyInt(), anyString());
     }
 
     @Test

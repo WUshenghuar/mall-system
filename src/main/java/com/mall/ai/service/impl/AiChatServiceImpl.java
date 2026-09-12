@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.ai.dto.AiChatRequest;
 import com.mall.ai.entity.AiConversation;
+import com.mall.ai.mapper.AiAuditLogMapper;
 import com.mall.ai.mapper.AiConversationMapper;
 import com.mall.ai.service.AiChatService;
 import com.mall.ai.service.AiGatewayClient;
@@ -20,7 +21,9 @@ import com.mall.marketing.entity.MemberCouponVO;
 import com.mall.marketing.service.CouponService;
 import com.mall.member.entity.Member;
 import com.mall.member.service.MemberService;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -33,6 +36,7 @@ import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AiChatServiceImpl implements AiChatService {
     private static final Pattern ORDER_NO = Pattern.compile("T\\d{18}");
     private final AiConversationMapper conversationMapper;
@@ -44,6 +48,8 @@ public class AiChatServiceImpl implements AiChatService {
     private final StoreCatalogService storeCatalogService;
     private final CouponService couponService;
     private final MemberService memberService;
+    @Autowired(required = false)
+    private AiAuditLogMapper auditLogMapper;
 
     @Override
     public void stream(Long memberId, String conversationId, AiChatRequest request, Consumer<String> eventConsumer) {
@@ -51,25 +57,32 @@ public class AiChatServiceImpl implements AiChatService {
         if (requestId != null) {
             AiConversation previous = conversationMapper.selectAssistantByRequest(memberId, conversationId, requestId);
             if (previous != null) {
+                recordAudit(memberId, conversationId, requestId, "chat", null, "replayed", 0, "idempotent_replay");
                 replay(previous, eventConsumer);
                 return;
             }
             if (conversationMapper.insertUserIfAbsent(conversationId, requestId, memberId, request.getMessage()) != 1) {
                 previous = conversationMapper.selectAssistantByRequest(memberId, conversationId, requestId);
                 if (previous != null) replay(previous, eventConsumer);
-                else eventConsumer.accept("{\"type\":\"error\",\"message\":\"客服请求正在处理中，请稍后重试\"}");
+                else {
+                    recordAudit(memberId, conversationId, requestId, "chat", null, "in_progress", 0, "duplicate_request");
+                    eventConsumer.accept("{\"type\":\"error\",\"message\":\"客服请求正在处理中，请稍后重试\"}");
+                }
                 return;
             }
         } else {
             save(memberId, conversationId, null, "user", request.getMessage(), 0, 0);
         }
+        recordAudit(memberId, conversationId, requestId, "chat", null, "started", 0, "request_received");
         StringBuilder answer = new StringBuilder();
         AtomicReference<String> failure = new AtomicReference<>();
+        String selectedTool = "";
+        long start = System.currentTimeMillis();
         try {
             List<AiConversation> history = conversationMapper.selectRecent(memberId, conversationId, 10);
-            long start = System.currentTimeMillis();
+            start = System.currentTimeMillis();
             String businessContext = businessContext(memberId, request.getMessage());
-            String selectedTool = businessTool(request.getMessage(), businessContext);
+            selectedTool = businessTool(request.getMessage(), businessContext);
             if (businessContext.isBlank()) {
                 Map<String, Object> decision = gatewayClient.plan(memberId, conversationId, request.getMessage(), history);
                 String plannedTool = plannedTool(decision);
@@ -77,7 +90,11 @@ public class AiChatServiceImpl implements AiChatService {
                 if (!plannedContext.isBlank()) {
                     businessContext = plannedContext;
                     selectedTool = plannedTool;
+                    recordAudit(memberId, conversationId, requestId, "tool_plan", selectedTool, "accepted", 0, "model_read_only_plan");
                 }
+            }
+            if (!selectedTool.isBlank() && !businessContext.isBlank()) {
+                recordAudit(memberId, conversationId, requestId, "tool", selectedTool, "executed", 0, "read_only");
             }
             gatewayClient.stream(memberId, conversationId, request.getMessage(), businessContext,
                     selectedTool, history, event -> {
@@ -91,7 +108,11 @@ public class AiChatServiceImpl implements AiChatService {
             });
             if (failure.get() != null) throw new BusinessException(failure.get());
             save(memberId, conversationId, requestId, "assistant", answer.toString(), 0, (int) (System.currentTimeMillis() - start));
+            recordAudit(memberId, conversationId, requestId, "chat", selectedTool.isBlank() ? null : selectedTool,
+                    "completed", (int) (System.currentTimeMillis() - start), "stream_completed");
         } catch (RuntimeException e) {
+            recordAudit(memberId, conversationId, requestId, "chat", selectedTool.isBlank() ? null : selectedTool,
+                    "failed", (int) (System.currentTimeMillis() - start), "safe_failure");
             if (requestId != null) conversationMapper.discardUserRequest(memberId, conversationId, requestId);
             throw e;
         }
@@ -276,6 +297,20 @@ public class AiChatServiceImpl implements AiChatService {
             eventConsumer.accept(objectMapper.writeValueAsString(Map.of("type", "done")));
         } catch (Exception e) {
             throw new BusinessException("客服回复重放失败");
+        }
+    }
+
+    void setAuditLogMapper(AiAuditLogMapper auditLogMapper) {
+        this.auditLogMapper = auditLogMapper;
+    }
+
+    private void recordAudit(Long memberId, String conversationId, String requestId, String eventType,
+                             String toolName, String outcome, int latencyMs, String detail) {
+        if (auditLogMapper == null) return;
+        try {
+            auditLogMapper.insert(memberId, conversationId, requestId, eventType, toolName, outcome, latencyMs, detail);
+        } catch (RuntimeException e) {
+            log.warn("AI audit log write failed", e);
         }
     }
 
