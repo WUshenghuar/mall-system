@@ -48,6 +48,13 @@ public class AiSupportTicketController {
         return Result.success(null);
     }
 
+    @PostMapping("/{id}/reply")
+    @PreAuthorize("hasAuthority('order:support:handle')")
+    public Result<Void> reply(@PathVariable Long id, @Valid @RequestBody ReplyReq req, Authentication auth) {
+        ticketService.reply(id, ((LoginUser) auth.getPrincipal()).getUserId(), req.getMessage());
+        return Result.success(null);
+    }
+
     @PostMapping("/{id}/resolve")
     @PreAuthorize("hasAuthority('order:support:handle')")
     public Result<Void> resolve(@PathVariable Long id, @Valid @RequestBody ResolveReq req) {
@@ -64,5 +71,10 @@ public class AiSupportTicketController {
     @Data
     public static class ResolveReq {
         @Size(max = 500) private String note;
+    }
+
+    @Data
+    public static class ReplyReq {
+        @NotBlank @Size(max = 1000) private String message;
     }
 }

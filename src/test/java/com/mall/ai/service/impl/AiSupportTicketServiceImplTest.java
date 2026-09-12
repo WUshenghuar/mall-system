@@ -58,6 +58,25 @@ class AiSupportTicketServiceImplTest {
     }
 
     @Test
+    void repliesOnlyThroughAssignedTicket() {
+        AiSupportTicketMapper mapper = mock(AiSupportTicketMapper.class);
+        when(mapper.reply(1L, 3L, "已为你查询物流")).thenReturn(1);
+
+        new AiSupportTicketServiceImpl(mapper).reply(1L, 3L, "  已为你查询物流  ");
+
+        verify(mapper).reply(1L, 3L, "已为你查询物流");
+    }
+
+    @Test
+    void rejectsReplyWhenTicketIsNotAssignedToAgent() {
+        AiSupportTicketMapper mapper = mock(AiSupportTicketMapper.class);
+        when(mapper.reply(1L, 3L, "回复")).thenReturn(0);
+
+        assertThatThrownBy(() -> new AiSupportTicketServiceImpl(mapper).reply(1L, 3L, "回复"))
+                .hasMessageContaining("自己已认领");
+    }
+
+    @Test
     void rejectsClaimWhenAnotherAgentAlreadyWonRace() {
         AiSupportTicketMapper mapper = mock(AiSupportTicketMapper.class);
         when(mapper.claim(1L, 3L)).thenReturn(0);

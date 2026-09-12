@@ -9,5 +9,6 @@ public interface AiSupportTicketService {
     AiSupportTicket getOwnedById(Long id, Long memberId);
     IPage<AiSupportTicket> selectAdminPage(Integer page, Integer size, Integer status);
     void claim(Long id, Long operatorId);
+    void reply(Long id, Long operatorId, String reply);
     void resolve(Long id, String note);
 }

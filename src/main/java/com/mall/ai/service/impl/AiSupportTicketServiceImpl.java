@@ -72,6 +72,15 @@ public class AiSupportTicketServiceImpl implements AiSupportTicketService {
 
     @Override
     @Transactional
+    public void reply(Long id, Long operatorId, String reply) {
+        String content = StringUtils.hasText(reply) ? reply.trim() : "已收到你的问题，客服正在处理中。";
+        if (ticketMapper.reply(id, operatorId, content) != 1) {
+            throw new BusinessException("只能回复自己已认领的处理中工单");
+        }
+    }
+
+    @Override
+    @Transactional
     public void resolve(Long id, String note) {
         if (ticketMapper.resolve(id, StringUtils.hasText(note) ? note.trim() : "已处理") != 1) {
             throw new BusinessException("工单状态已变更，请刷新后重试");

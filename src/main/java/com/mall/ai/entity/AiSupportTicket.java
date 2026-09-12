@@ -14,6 +14,7 @@ public class AiSupportTicket extends BaseEntity {
     private String conversationId;
     private String subject;
     private String latestMessage;
+    private String agentReply;
     /** 0待接管 1处理中 2已解决 */
     private Integer status;
     private Long assignedUserId;
