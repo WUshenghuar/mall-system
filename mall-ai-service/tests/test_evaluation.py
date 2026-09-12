@@ -82,6 +82,15 @@ def test_rag_keeps_chinese_domain_for_mixed_order_number_query():
     assert [hit["_id"] for hit in hits] == ["logistics", "order"]
 
 
+def test_rerank_prefers_english_title_phrase():
+    hits = rerank_hits("red dress", [
+        {"_id": "content", "_source": {"title": "Summer collection", "content": "A red dress"}},
+        {"_id": "title", "_source": {"title": "Red Dress", "content": "A summer item"}},
+    ])
+
+    assert [hit["_id"] for hit in hits] == ["title", "content"]
+
+
 def test_retrieve_fuses_bm25_and_vector_results(monkeypatch):
     documents = {item["id"]: item for item in SEED_DOCS}
 

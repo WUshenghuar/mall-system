@@ -25,6 +25,7 @@ ENGLISH_TERMS = {
 }
 DOMAIN_CATEGORIES = {"refund": "after_sales", "coupon": "marketing", "logistics": "logistics", "order": "orders",
                      "payment": "payment", "member": "member", "tax": "finance"}
+ENGLISH_STOP_WORDS = {"the", "is", "my", "do", "i", "a", "an", "to", "of", "can", "you", "what", "where", "how", "are", "and"}
 SEED_DOCS = [
     {"id": "refund", "title": "退款规则", "category": "after_sales", "content": "待发货订单可申请仅退款。客服仅查询进度和规则，退款审批由平台售后流程处理。"},
     {"id": "coupon", "title": "优惠券规则", "category": "marketing", "content": "优惠券在优惠页领取，在会员中心查看。每人可领取次数、有效期和使用门槛以券面展示为准。"},
@@ -140,7 +141,7 @@ async def retrieve(query: str) -> list[dict]:
 
 
 def hybrid_hits(bm25_hits: list[dict], vector_hits: list[dict]) -> list[dict]:
-    # ponytail: reciprocal-rank fusion only; add a learned reranker when quality data exists.
+    # ponytail: deterministic fallback is enough until labeled relevance data supports a learned reranker.
     ranked: dict[str, dict] = {}
     for hits in (bm25_hits, vector_hits):
         for rank, hit in enumerate(hits):
@@ -154,16 +155,24 @@ def hybrid_hits(bm25_hits: list[dict], vector_hits: list[dict]) -> list[dict]:
 
 
 def rerank_hits(query: str, hits: list[dict]) -> list[dict]:
-    terms = ENGLISH_TERMS if is_english_query(query) else CHINESE_TERMS
-    keywords = {keyword for keywords in terms.values() for keyword in keywords if keyword in query.lower()}
+    lowered = query.lower()
+    english_tokens = re.findall(r"[a-z][a-z0-9]+", lowered)
+    english_terms = {term for term in english_tokens if term not in ENGLISH_STOP_WORDS}
+    chinese_text = "".join(re.findall(r"[\u4e00-\u9fff]", query))
+    chinese_terms = {term for terms in CHINESE_TERMS.values() for term in terms if term in query}
+    chinese_terms.update(chinese_text[index:index + 2] for index in range(len(chinese_text) - 1))
+    keywords = english_terms | chinese_terms
     if not keywords:
         return hits
+    phrase = "".join(term for term in english_tokens if term not in ENGLISH_STOP_WORDS) if english_terms else chinese_text
     scored = []
     for index, hit in enumerate(hits):
         source = hit.get("_source", {})
         title = str(source.get("title", "")).lower()
         content = str(source.get("content", "")).lower()
-        score = sum(3 if keyword in title else 1 for keyword in keywords if keyword in title or keyword in content)
+        score = sum(4 if keyword in title else 1 for keyword in keywords if keyword in title or keyword in content)
+        if phrase and phrase in re.sub(r"\s+", "", title):
+            score += 8
         scored.append((score, index, hit))
     return [hit for _, _, hit in sorted(scored, key=lambda item: (-item[0], item[1]))]
 
@@ -180,7 +189,7 @@ def filter_relevant(query: str, hits: list[dict]) -> list[dict]:
 
 def fallback_hits(query: str) -> list[dict]:
     english_terms = {term for term in re.findall(r"[a-z][a-z0-9]+", query.lower())
-                     if term not in {"the", "is", "my", "do", "i", "a", "an", "to", "of", "can", "you", "what", "where", "how", "are", "and"}} if is_english_query(query) else set()
+                     if term not in ENGLISH_STOP_WORDS} if is_english_query(query) else set()
     chinese_terms = {term for terms in CHINESE_TERMS.values() for term in terms if term in query} if not english_terms else set()
     ranked = []
     for document in SEED_DOCS:
