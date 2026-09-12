@@ -1,6 +1,7 @@
 from evaluate import CASES, evaluate
 from app.api.chat import ChatRequest
-from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits
+from app.rag import embedding
+from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits, hybrid_hits, retrieve
 from app.utils.llm import stream_reply
 from pydantic import ValidationError
 import asyncio
@@ -39,6 +40,89 @@ def test_local_rag_combines_two_relevant_topics():
         return "".join([chunk async for chunk in stream_reply("支付和会员服务", [], context)])
 
     assert asyncio.run(collect()) == "支付说明\n会员服务"
+
+
+def test_hybrid_rag_prioritizes_documents_recalled_by_both_paths():
+    documents = {item["id"]: item for item in SEED_DOCS}
+    hits = hybrid_hits(
+        [{"_id": "coupon", "_source": documents["coupon"]}, {"_id": "refund", "_source": documents["refund"]}],
+        [{"_id": "refund", "_source": documents["refund"]}, {"_id": "tax", "_source": documents["tax"]}],
+    )
+
+    assert [hit["_id"] for hit in hits] == ["refund", "coupon", "tax"]
+
+
+def test_retrieve_fuses_bm25_and_vector_results(monkeypatch):
+    documents = {item["id"]: item for item in SEED_DOCS}
+
+    class Response:
+        status_code = 200
+
+        def __init__(self, hits):
+            self.hits = hits
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"hits": {"hits": self.hits}}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, **kwargs):
+            if "knn" not in kwargs["json"]:
+                assert kwargs["json"]["query"]["bool"]["must"][0]["multi_match"]["minimum_should_match"] == "30%"
+            return Response(
+                [{"_id": "coupon", "_source": documents["coupon"]}, {"_id": "refund", "_source": documents["refund"]}]
+                if "knn" not in kwargs["json"]
+                else [{"_id": "refund", "_score": 0.9, "_source": documents["refund"]}]
+            )
+
+    async def fake_embed(query):
+        return [0.1, 0.2]
+
+    monkeypatch.setattr(embedding.httpx, "AsyncClient", lambda **kwargs: Client())
+    monkeypatch.setattr("app.rag.retriever.embed_text", fake_embed)
+
+    result = asyncio.run(retrieve("退货规则"))
+
+    assert [item["id"] for item in result] == ["refund", "coupon"]
+
+
+def test_retrieve_ignores_low_similarity_vector_results(monkeypatch):
+    class Response:
+        status_code = 200
+
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"hits": {"hits": [] if "knn" not in self.body else [{"_id": "coupon", "_score": 0.2, "_source": SEED_DOCS[1]}]}}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, **kwargs):
+            response = Response()
+            response.body = kwargs["json"]
+            return response
+
+    async def fake_embed(query):
+        return [0.1, 0.2]
+
+    monkeypatch.setattr(embedding.httpx, "AsyncClient", lambda **kwargs: Client())
+    monkeypatch.setattr("app.rag.retriever.embed_text", fake_embed)
+
+    assert asyncio.run(retrieve("完全不相关的旅行天气问题xyz")) == []
 
 
 def test_business_tool_schema_rejects_unknown_tool():

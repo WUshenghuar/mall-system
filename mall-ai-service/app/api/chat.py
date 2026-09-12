@@ -6,6 +6,7 @@ from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.agent.agent import should_suggest_handoff
 from app.config import settings
 from app.rag.retriever import retrieve
 from app.utils.llm import stream_reply
@@ -57,7 +58,7 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
                 yield sse({"type": "sources", "items": [{"title": title, "category": category}]})
             else:
                 context = await retrieve(request.message)
-                if not context:
+                if not context and should_suggest_handoff(request.message):
                     yield sse({"type": "handoff_suggested"})
             if context:
                 yield sse({"type": "sources", "items": [{"title": item["title"], "category": item["category"]} for item in context]})

@@ -1,3 +1,4 @@
+import re
 from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -11,6 +12,15 @@ class ChatState(TypedDict):
 def is_prompt_injection(message: str) -> bool:
     normalized = message.lower()
     return any(token in normalized for token in ("忽略", "系统提示", "system prompt", "指令", "绕过", "命令", "ignore previous"))
+
+
+def should_suggest_handoff(message: str) -> bool:
+    normalized = message.lower()
+    if is_prompt_injection(message):
+        return False
+    if any(token in normalized for token in ("你好", "您好", "在吗", "谢谢", "能帮我吗", "我想咨询", "早上好")):
+        return False
+    return not {"hello", "hi", "thanks"}.intersection(re.findall(r"[a-z]+", normalized))
 
 
 def local_answer(message: str) -> str:

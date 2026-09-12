@@ -3,6 +3,7 @@ import json
 import httpx
 
 from app.config import settings
+from app.rag.embedding import embed_text
 
 INDEX = "ai_knowledge"
 DISABLED_IDS: set[str] = set()
@@ -18,18 +19,49 @@ SEED_DOCS = [
 
 
 async def ensure_seeded() -> None:
-    mapping = {"mappings": {"properties": {"id": {"type": "keyword"}, "title": {"type": "text"}, "content": {"type": "text"}, "category": {"type": "keyword"}, "enabled": {"type": "boolean"}}}}
+    properties = {"id": {"type": "keyword"}, "title": {"type": "text"}, "content": {"type": "text"}, "category": {"type": "keyword"}, "enabled": {"type": "boolean"}}
+    vector_mapping = {"type": "dense_vector", "dims": settings.embedding_dimensions, "index": True, "similarity": "cosine"}
+    if settings.has_embedding:
+        properties["embedding"] = vector_mapping
+    mapping = {"mappings": {"properties": properties}}
     async with httpx.AsyncClient(timeout=10) as client:
-        await client.put(f"{settings.elasticsearch_url}/{INDEX}", json=mapping)
+        response = await client.put(f"{settings.elasticsearch_url}/{INDEX}", json=mapping)
+        if response.status_code not in (200, 201, 400):
+            response.raise_for_status()
+        if settings.has_embedding:
+            response = await client.put(f"{settings.elasticsearch_url}/{INDEX}/_mapping", json={"properties": {"embedding": vector_mapping}})
+            if response.status_code not in (200, 201, 400):
+                response.raise_for_status()
         lines = []
         for document in SEED_DOCS:
             seeded = {"enabled": True, **document}
             lines.extend([json.dumps({"create": {"_index": INDEX, "_id": document["id"]}}), json.dumps(seeded)])
-        await client.post(f"{settings.elasticsearch_url}/_bulk", content="\n".join(lines) + "\n", headers={"Content-Type": "application/x-ndjson"})
+        response = await client.post(f"{settings.elasticsearch_url}/_bulk", content="\n".join(lines) + "\n", headers={"Content-Type": "application/x-ndjson"})
+        response.raise_for_status()
+        if settings.has_embedding:
+            await _backfill_embeddings(client)
+
+
+async def _backfill_embeddings(client: httpx.AsyncClient) -> None:
+    try:
+        response = await client.post(f"{settings.elasticsearch_url}/{INDEX}/_search", json={
+            "size": 100, "_source": ["id", "title", "content"],
+            "query": {"bool": {"must_not": {"exists": {"field": "embedding"}}}},
+        })
+        response.raise_for_status()
+        for hit in response.json().get("hits", {}).get("hits", []):
+            source = hit.get("_source", {})
+            vector = await embed_text(f"{source.get('title', '')}\n{source.get('content', '')}")
+            if vector is None:
+                return
+            update = await client.post(f"{settings.elasticsearch_url}/{INDEX}/_update/{hit.get('_id')}?refresh=true", json={"doc": {"embedding": vector}})
+            update.raise_for_status()
+    except Exception:
+        return
 
 
 async def retrieve(query: str) -> list[dict]:
-    payload = {"size": 3, "query": {"bool": {"must": [{"multi_match": {"query": query, "fields": ["title^3", "content"]}}], "should": [{"term": {"enabled": True}}, {"bool": {"must_not": {"exists": {"field": "enabled"}}}}], "minimum_should_match": 1}}}
+    payload = {"size": 6, "query": {"bool": {"must": [{"multi_match": {"query": query, "fields": ["title^3", "content"], "minimum_should_match": "30%"}}], "should": [{"term": {"enabled": True}}, {"bool": {"must_not": {"exists": {"field": "enabled"}}}}], "minimum_should_match": 1}}}
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             response = await client.post(f"{settings.elasticsearch_url}/{INDEX}/_search", json=payload)
@@ -37,10 +69,36 @@ async def retrieve(query: str) -> list[dict]:
                 await ensure_seeded()
                 response = await client.post(f"{settings.elasticsearch_url}/{INDEX}/_search", json=payload)
             response.raise_for_status()
-        hits = [hit["_source"] for hit in response.json()["hits"]["hits"]]
-        return hits or fallback_hits(query)
+            bm25_hits = response.json().get("hits", {}).get("hits", [])
+            vector_hits = []
+            try:
+                vector = await embed_text(query)
+                if vector:
+                    vector_response = await client.post(f"{settings.elasticsearch_url}/{INDEX}/_search", json={"size": 6, "knn": {"field": "embedding", "query_vector": vector, "k": 6, "num_candidates": 20, "filter": {"bool": {"should": [{"term": {"enabled": True}}, {"bool": {"must_not": {"exists": {"field": "enabled"}}}}], "minimum_should_match": 1}}}})
+                    if vector_response.status_code < 400:
+                        vector_hits = [hit for hit in vector_response.json().get("hits", {}).get("hits", [])
+                                       if hit.get("_score") is not None and hit["_score"] >= settings.embedding_min_score]
+            except Exception:
+                vector_hits = []
+        hits = hybrid_hits(bm25_hits, vector_hits) if vector_hits else bm25_hits
+        hits = [hit.get("_source", {}) for hit in hits]
+        return hits[:3] or fallback_hits(query)
     except Exception:
         return fallback_hits(query)
+
+
+def hybrid_hits(bm25_hits: list[dict], vector_hits: list[dict]) -> list[dict]:
+    # ponytail: reciprocal-rank fusion only; add a learned reranker when quality data exists.
+    ranked: dict[str, dict] = {}
+    for hits in (bm25_hits, vector_hits):
+        for rank, hit in enumerate(hits):
+            source = hit.get("_source", {})
+            key = str(hit.get("_id") or source.get("id") or "")
+            if not key:
+                continue
+            entry = ranked.setdefault(key, {"hit": hit, "score": 0.0})
+            entry["score"] += 1 / (60 + rank + 1)
+    return [entry["hit"] for entry in sorted(ranked.values(), key=lambda item: item["score"], reverse=True)]
 
 
 def fallback_hits(query: str) -> list[dict]:

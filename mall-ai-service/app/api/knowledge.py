@@ -3,6 +3,7 @@ from pydantic import BaseModel, Field
 import httpx
 
 from app.config import settings
+from app.rag.embedding import embed_text
 from app.rag.retriever import DISABLED_IDS, INDEX, ensure_seeded
 
 router = APIRouter()
@@ -21,7 +22,7 @@ def verify_token(token: str) -> None:
 
 
 async def search_documents() -> list[dict]:
-    payload = {"size": 100, "query": {"match_all": {}}}
+    payload = {"size": 100, "_source": {"excludes": ["embedding"]}, "query": {"match_all": {}}}
     async with httpx.AsyncClient(timeout=10) as client:
         response = await client.post(f"{settings.elasticsearch_url}/{INDEX}/_search", json=payload)
         if response.status_code == 404:
@@ -54,9 +55,15 @@ async def save_knowledge(
     else:
         DISABLED_IDS.add(doc_id)
     try:
+        try:
+            vector = await embed_text(f"{payload.title}\n{payload.content}")
+        except Exception:
+            vector = None
+        if vector is not None:
+            document["embedding"] = vector
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.put(f"{settings.elasticsearch_url}/{INDEX}/_doc/{doc_id}?refresh=true", json=document)
             response.raise_for_status()
-        return document
+        return {key: value for key, value in document.items() if key != "embedding"}
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=503, detail="knowledge service unavailable") from exc
