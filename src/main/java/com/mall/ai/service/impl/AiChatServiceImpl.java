@@ -57,6 +57,11 @@ public class AiChatServiceImpl implements AiChatService {
         save(memberId, conversationId, "assistant", answer.toString(), 0, (int) (System.currentTimeMillis() - start));
     }
 
+    @Override
+    public List<AiConversation> recent(Long memberId, int limit) {
+        return conversationMapper.selectLatest(memberId, Math.min(Math.max(limit, 1), 20));
+    }
+
     private String businessTool(String message, String context) {
         if (context.isBlank()) return "";
         if (message.contains("物流") || message.contains("快递") || message.contains("运单")) return "query_logistics";

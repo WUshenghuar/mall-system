@@ -1,7 +1,9 @@
 package com.mall.ai.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mall.common.result.Result;
 import com.mall.ai.dto.AiChatRequest;
+import com.mall.ai.entity.AiConversation;
 import com.mall.ai.service.AiChatService;
 import com.mall.security.user.CurrentMember;
 import jakarta.validation.Valid;
@@ -10,12 +12,14 @@ import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -42,6 +46,11 @@ public class AiChatController {
             }
         });
         return emitter;
+    }
+
+    @GetMapping("/recent")
+    public Result<List<AiConversation>> recent(Authentication auth) {
+        return Result.success(aiChatService.recent(CurrentMember.id(auth), 20));
     }
 
     private void send(SseEmitter emitter, Map<String, Object> event) {

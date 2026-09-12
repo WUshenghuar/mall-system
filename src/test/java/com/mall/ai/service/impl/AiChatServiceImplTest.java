@@ -35,6 +35,23 @@ import static org.mockito.Mockito.when;
 
 class AiChatServiceImplTest {
     @Test
+    void recentLoadsOnlyLatestMemberConversation() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiConversation message = new AiConversation();
+        message.setSessionId("session-1");
+        message.setRole("assistant");
+        message.setContent("你好");
+        when(mapper.selectLatest(9L, 20)).thenReturn(List.of(message));
+
+        List<AiConversation> result = new AiChatServiceImpl(mapper, mock(AiGatewayClient.class), new ObjectMapper(),
+                mock(TradeOrderService.class), mock(LogisticsService.class), mock(TradeRefundService.class),
+                mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class)).recent(9L, 20);
+
+        assertThat(result).containsExactly(message);
+        verify(mapper).selectLatest(9L, 20);
+    }
+
+    @Test
     void streamPersistsBothSidesOfConversationAndForwardsTextEvent() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         AiGatewayClient gateway = mock(AiGatewayClient.class);

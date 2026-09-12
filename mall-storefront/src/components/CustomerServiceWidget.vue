@@ -31,6 +31,16 @@ async function handoff() {
   const latest = messages.value.filter(item => item.role === 'user').at(-1)?.content || '需要人工客服协助'
   try { handoffTicket.value = (await aiApi.handoff({ conversationId: conversationId.value || undefined, message: latest })).data; showToast('已提交平台人工客服工单') } catch (error) { showToast(error) }
 }
+async function loadRecent() {
+  if (!localStorage.getItem('member-token') || messages.value.length) return
+  try {
+    const records = (await aiApi.recent()).data || []
+    if (messages.value.length || !records.length) return
+    conversationId.value = records[0].sessionId || ''
+    messages.value = records.filter(item => item.content).map(item => ({ role: item.role, content: item.content }))
+    scrollToBottom()
+  } catch { /* 历史加载失败不影响新对话 */ }
+}
 async function loadHandoff() {
   if (!localStorage.getItem('member-token')) return
   try {
@@ -38,7 +48,7 @@ async function loadHandoff() {
     if (!handoffTicket.value) handoffTicket.value = records.find(ticket => ticket.status !== 2) || records[0] || null
   } catch { /* 客服状态读取失败不影响 AI 对话 */ }
 }
-watch(open, value => { if (value) loadHandoff() })
+watch(open, value => { if (value) { loadHandoff(); loadRecent() } })
 async function scrollToBottom() { await nextTick(); messageList.value?.scrollTo({ top: messageList.value.scrollHeight, behavior: 'smooth' }) }
 async function send() {
   const content = draft.value.trim()
