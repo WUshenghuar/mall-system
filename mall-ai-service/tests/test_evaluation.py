@@ -1,7 +1,7 @@
 from evaluate import CASES, evaluate
 from app.api.chat import ChatRequest
 from app.rag import embedding
-from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits, hybrid_hits, retrieve
+from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits, hybrid_hits, rerank_hits, retrieve
 from app.utils.llm import stream_reply
 from pydantic import ValidationError
 import asyncio
@@ -58,6 +58,16 @@ def test_hybrid_rag_prioritizes_documents_recalled_by_both_paths():
     )
 
     assert [hit["_id"] for hit in hits] == ["refund", "coupon", "tax"]
+
+
+def test_rerank_prefers_exact_title_match():
+    documents = {item["id"]: item for item in SEED_DOCS}
+    hits = rerank_hits(
+        "退款规则",
+        [{"_id": "coupon", "_source": documents["coupon"]}, {"_id": "refund", "_source": documents["refund"]}],
+    )
+
+    assert [hit["_id"] for hit in hits] == ["refund", "coupon"]
 
 
 def test_retrieve_fuses_bm25_and_vector_results(monkeypatch):

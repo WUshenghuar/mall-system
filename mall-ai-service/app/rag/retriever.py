@@ -128,6 +128,7 @@ async def retrieve(query: str) -> list[dict]:
             except Exception:
                 vector_hits = []
         hits = hybrid_hits(bm25_hits, vector_hits) if vector_hits else bm25_hits
+        hits = rerank_hits(query, hits)
         hits = [hit.get("_source", {}) for hit in hits]
         return hits[:3] or fallback_hits(query)
     except Exception:
@@ -146,6 +147,21 @@ def hybrid_hits(bm25_hits: list[dict], vector_hits: list[dict]) -> list[dict]:
             entry = ranked.setdefault(key, {"hit": hit, "score": 0.0})
             entry["score"] += 1 / (60 + rank + 1)
     return [entry["hit"] for entry in sorted(ranked.values(), key=lambda item: item["score"], reverse=True)]
+
+
+def rerank_hits(query: str, hits: list[dict]) -> list[dict]:
+    terms = CHINESE_TERMS if not re.search(r"[a-zA-Z]", query) else ENGLISH_TERMS
+    keywords = {keyword for keywords in terms.values() for keyword in keywords if keyword in query.lower()}
+    if not keywords:
+        return hits
+    scored = []
+    for index, hit in enumerate(hits):
+        source = hit.get("_source", {})
+        title = str(source.get("title", "")).lower()
+        content = str(source.get("content", "")).lower()
+        score = sum(3 if keyword in title else 1 for keyword in keywords if keyword in title or keyword in content)
+        scored.append((score, index, hit))
+    return [hit for _, _, hit in sorted(scored, key=lambda item: (-item[0], item[1]))]
 
 
 def filter_relevant(query: str, hits: list[dict]) -> list[dict]:
