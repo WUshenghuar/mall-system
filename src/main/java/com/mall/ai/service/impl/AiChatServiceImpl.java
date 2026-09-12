@@ -66,12 +66,17 @@ public class AiChatServiceImpl implements AiChatService {
         StringBuilder answer = new StringBuilder();
         long start = System.currentTimeMillis();
         String businessContext = businessContext(memberId, request.getMessage());
-        gatewayClient.stream(memberId, conversationId, request.getMessage(), businessContext,
-                businessTool(request.getMessage(), businessContext), history, event -> {
-            answer.append(readText(event));
-            eventConsumer.accept(event);
-        });
-        save(memberId, conversationId, requestId, "assistant", answer.toString(), 0, (int) (System.currentTimeMillis() - start));
+        try {
+            gatewayClient.stream(memberId, conversationId, request.getMessage(), businessContext,
+                    businessTool(request.getMessage(), businessContext), history, event -> {
+                answer.append(readText(event));
+                eventConsumer.accept(event);
+            });
+            save(memberId, conversationId, requestId, "assistant", answer.toString(), 0, (int) (System.currentTimeMillis() - start));
+        } catch (RuntimeException e) {
+            if (requestId != null) conversationMapper.discardUserRequest(memberId, conversationId, requestId);
+            throw e;
+        }
     }
 
     @Override

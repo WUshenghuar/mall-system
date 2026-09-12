@@ -22,6 +22,12 @@ public interface AiConversationMapper extends BaseMapper<AiConversation> {
     int insertUserIfAbsent(@Param("sessionId") String sessionId, @Param("requestId") String requestId,
                            @Param("userId") Long userId, @Param("content") String content);
 
+    @Update("UPDATE ai_conversation SET request_id = NULL, deleted = 1, update_time = NOW() "
+            + "WHERE user_id = #{userId} AND session_id = #{sessionId} AND request_id = #{requestId} "
+            + "AND role = 'user' AND deleted = 0")
+    int discardUserRequest(@Param("userId") Long userId, @Param("sessionId") String sessionId,
+                           @Param("requestId") String requestId);
+
     @Select("SELECT * FROM (SELECT * FROM ai_conversation WHERE user_id = #{userId} "
             + "AND session_id = #{sessionId} AND deleted = 0 ORDER BY id DESC LIMIT #{limit}) history ORDER BY id")
     List<AiConversation> selectRecent(@Param("userId") Long userId, @Param("sessionId") String sessionId,

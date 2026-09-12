@@ -5,6 +5,7 @@ import com.mall.ai.dto.AiChatRequest;
 import com.mall.ai.entity.AiConversation;
 import com.mall.ai.mapper.AiConversationMapper;
 import com.mall.ai.service.AiGatewayClient;
+import com.mall.common.exception.BusinessException;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.mall.trade.entity.TradeOrder;
 import com.mall.trade.service.LogisticsService;
@@ -24,12 +25,14 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -90,6 +93,25 @@ class AiChatServiceImplTest {
 
         assertThat(events).containsExactly("{\"type\":\"error\",\"message\":\"客服请求正在处理中，请稍后重试\"}");
         verifyNoInteractions(gateway);
+    }
+
+    @Test
+    void releasesRequestPlaceholderWhenGatewayFails() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        when(mapper.selectAssistantByRequest(9L, "session-1", "req-fail")).thenReturn(null);
+        when(mapper.insertUserIfAbsent("session-1", "req-fail", 9L, "失败重试")).thenReturn(1);
+        doThrow(new BusinessException("客服服务暂不可用")).when(gateway).stream(anyLong(), anyString(), anyString(),
+                anyString(), anyString(), any(), any());
+        AiChatRequest request = newRequest("失败重试");
+        request.setRequestId("req-fail");
+
+        assertThatThrownBy(() -> new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
+                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class),
+                mock(CouponService.class), mock(MemberService.class)).stream(9L, "session-1", request, ignored -> { }))
+                .isInstanceOf(BusinessException.class);
+
+        verify(mapper).discardUserRequest(9L, "session-1", "req-fail");
     }
 
     @Test
