@@ -3,7 +3,9 @@ package com.mall.ai.service.impl;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.mall.ai.entity.AiConversation;
 import com.mall.ai.entity.AiSupportTicket;
+import com.mall.ai.mapper.AiConversationMapper;
 import com.mall.ai.mapper.AiSupportTicketMapper;
 import com.mall.ai.service.AiSupportTicketService;
 import com.mall.common.exception.BusinessException;
@@ -13,10 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.UUID;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class AiSupportTicketServiceImpl implements AiSupportTicketService {
+    private final AiConversationMapper conversationMapper;
     private final AiSupportTicketMapper ticketMapper;
 
     @Override
@@ -62,6 +66,14 @@ public class AiSupportTicketServiceImpl implements AiSupportTicketService {
         return ticketMapper.selectPage(new Page<>(Math.max(page, 1), Math.min(Math.max(size, 1), 100)),
                 Wrappers.<AiSupportTicket>lambdaQuery().eq(status != null, AiSupportTicket::getStatus, status)
                         .orderByAsc(AiSupportTicket::getStatus).orderByDesc(AiSupportTicket::getCreateTime));
+    }
+
+    @Override
+    public List<AiConversation> conversation(Long ticketId) {
+        AiSupportTicket ticket = ticketMapper.selectById(ticketId);
+        if (ticket == null) throw new BusinessException("工单不存在");
+        if (!StringUtils.hasText(ticket.getConversationId())) return List.of();
+        return conversationMapper.selectRecent(ticket.getMemberId(), ticket.getConversationId(), 20);
     }
 
     @Override

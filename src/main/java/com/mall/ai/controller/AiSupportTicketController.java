@@ -1,6 +1,7 @@
 package com.mall.ai.controller;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.mall.ai.entity.AiConversation;
 import com.mall.ai.entity.AiSupportTicket;
 import com.mall.ai.service.AiSupportTicketService;
 import com.mall.common.result.Result;
@@ -14,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/ai/tickets")
@@ -39,6 +42,12 @@ public class AiSupportTicketController {
                                                 @RequestParam(defaultValue = "10") Integer size,
                                                 @RequestParam(required = false) Integer status) {
         return Result.success(ticketService.selectAdminPage(page, size, status));
+    }
+
+    @GetMapping("/{id}/conversation")
+    @PreAuthorize("hasAuthority('order:support:list')")
+    public Result<List<AiConversation>> conversation(@PathVariable Long id) {
+        return Result.success(ticketService.conversation(id));
     }
 
     @PostMapping("/{id}/claim")

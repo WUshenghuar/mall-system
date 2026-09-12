@@ -1,8 +1,12 @@
 package com.mall.ai.service.impl;
 
+import com.mall.ai.entity.AiConversation;
 import com.mall.ai.entity.AiSupportTicket;
+import com.mall.ai.mapper.AiConversationMapper;
 import com.mall.ai.mapper.AiSupportTicketMapper;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -14,13 +18,17 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AiSupportTicketServiceImplTest {
+    private AiSupportTicketServiceImpl service(AiSupportTicketMapper mapper) {
+        return new AiSupportTicketServiceImpl(mock(AiConversationMapper.class), mapper);
+    }
+
     @Test
     void createsTicketForMember() {
         AiSupportTicketMapper mapper = mock(AiSupportTicketMapper.class);
         when(mapper.selectOne(any())).thenReturn(null);
         doAnswer(invocation -> { ((AiSupportTicket) invocation.getArgument(0)).setId(1L); return 1; })
                 .when(mapper).insert(any(AiSupportTicket.class));
-        AiSupportTicketServiceImpl service = new AiSupportTicketServiceImpl(mapper);
+        AiSupportTicketServiceImpl service = service(mapper);
 
         AiSupportTicket ticket = service.create(9L, "session-1", "支付问题");
 
@@ -36,7 +44,7 @@ class AiSupportTicketServiceImplTest {
         AiSupportTicket existing = new AiSupportTicket(); existing.setId(8L); existing.setStatus(0);
         when(mapper.selectOne(any())).thenReturn(existing);
 
-        AiSupportTicket result = new AiSupportTicketServiceImpl(mapper).create(9L, "session-1", "补充信息");
+        AiSupportTicket result = service(mapper).create(9L, "session-1", "补充信息");
 
         assertThat(result.getId()).isEqualTo(8L);
         assertThat(result.getLatestMessage()).isEqualTo("补充信息");
@@ -48,7 +56,7 @@ class AiSupportTicketServiceImplTest {
         AiSupportTicketMapper mapper = mock(AiSupportTicketMapper.class);
         when(mapper.claim(1L, 3L)).thenReturn(1);
         when(mapper.resolve(eq(1L), eq("已处理"))).thenReturn(1);
-        AiSupportTicketServiceImpl service = new AiSupportTicketServiceImpl(mapper);
+        AiSupportTicketServiceImpl service = service(mapper);
 
         service.claim(1L, 3L);
         service.resolve(1L, "");
@@ -58,11 +66,29 @@ class AiSupportTicketServiceImplTest {
     }
 
     @Test
+    void loadsConversationLinkedToTicket() {
+        AiSupportTicketMapper ticketMapper = mock(AiSupportTicketMapper.class);
+        AiConversationMapper conversationMapper = mock(AiConversationMapper.class);
+        AiSupportTicket ticket = new AiSupportTicket();
+        ticket.setMemberId(9L);
+        ticket.setConversationId("session-1");
+        AiConversation message = new AiConversation();
+        message.setContent("退款进度");
+        when(ticketMapper.selectById(8L)).thenReturn(ticket);
+        when(conversationMapper.selectRecent(9L, "session-1", 20)).thenReturn(List.of(message));
+
+        List<AiConversation> result = new AiSupportTicketServiceImpl(conversationMapper, ticketMapper).conversation(8L);
+
+        assertThat(result).containsExactly(message);
+        verify(conversationMapper).selectRecent(9L, "session-1", 20);
+    }
+
+    @Test
     void repliesOnlyThroughAssignedTicket() {
         AiSupportTicketMapper mapper = mock(AiSupportTicketMapper.class);
         when(mapper.reply(1L, 3L, "已为你查询物流")).thenReturn(1);
 
-        new AiSupportTicketServiceImpl(mapper).reply(1L, 3L, "  已为你查询物流  ");
+        service(mapper).reply(1L, 3L, "  已为你查询物流  ");
 
         verify(mapper).reply(1L, 3L, "已为你查询物流");
     }
@@ -72,7 +98,7 @@ class AiSupportTicketServiceImplTest {
         AiSupportTicketMapper mapper = mock(AiSupportTicketMapper.class);
         when(mapper.reply(1L, 3L, "回复")).thenReturn(0);
 
-        assertThatThrownBy(() -> new AiSupportTicketServiceImpl(mapper).reply(1L, 3L, "回复"))
+        assertThatThrownBy(() -> service(mapper).reply(1L, 3L, "回复"))
                 .hasMessageContaining("自己已认领");
     }
 
@@ -81,7 +107,7 @@ class AiSupportTicketServiceImplTest {
         AiSupportTicketMapper mapper = mock(AiSupportTicketMapper.class);
         when(mapper.claim(1L, 3L)).thenReturn(0);
 
-        assertThatThrownBy(() -> new AiSupportTicketServiceImpl(mapper).claim(1L, 3L))
+        assertThatThrownBy(() -> service(mapper).claim(1L, 3L))
                 .hasMessageContaining("已被其他客服领取");
     }
 }
