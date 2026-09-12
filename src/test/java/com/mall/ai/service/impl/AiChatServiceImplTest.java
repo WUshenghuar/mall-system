@@ -8,6 +8,7 @@ import com.mall.ai.service.AiGatewayClient;
 import com.mall.common.exception.BusinessException;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.mall.trade.entity.TradeOrder;
+import com.mall.trade.entity.TradeLogistics;
 import com.mall.trade.service.LogisticsService;
 import com.mall.trade.service.TradeOrderService;
 import com.mall.trade.service.TradeRefundService;
@@ -221,6 +222,27 @@ class AiChatServiceImplTest {
                 .stream(9L, "session-1", request, ignored -> { });
 
         verify(gateway).stream(anyLong(), anyString(), anyString(), eq("订单T202609071234567890当前状态：待收货，实付金额：19.90。"), eq("query_order"), any(), any());
+    }
+
+    @Test
+    void streamRoutesPackageQuestionToLogisticsTool() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        TradeOrderService orderService = mock(TradeOrderService.class);
+        LogisticsService logisticsService = mock(LogisticsService.class);
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        TradeOrder order = new TradeOrder(); order.setOrderStatus(2); order.setPayAmount(new java.math.BigDecimal("19.90"));
+        when(orderService.getOwnedByOrderNo("T202609071234567890", 9L)).thenReturn(order);
+        TradeLogistics logistics = new TradeLogistics(); logistics.setLogisticsCompany("DHL"); logistics.setLogisticsNo("DHL-001");
+        when(logisticsService.getByOrderNo("T202609071234567890")).thenReturn(logistics);
+        AiChatRequest request = new AiChatRequest(); request.setMessage("我的包裹到哪了 T202609071234567890");
+
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orderService, logisticsService,
+                mock(TradeRefundService.class), mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class))
+                .stream(9L, "session-1", request, ignored -> { });
+
+        verify(gateway).stream(anyLong(), anyString(), anyString(),
+                eq("订单T202609071234567890的物流：DHL，运单号：DHL-001。"), eq("query_logistics"), any(), any());
     }
 
     @Test
