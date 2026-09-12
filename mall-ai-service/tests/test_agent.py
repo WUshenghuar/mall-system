@@ -71,6 +71,28 @@ def test_configured_model_formats_real_business_context(monkeypatch):
     assert asyncio.run(collect()) == "已整理：订单状态正常"
 
 
+def test_model_failure_before_first_token_uses_safe_business_fallback(monkeypatch):
+    monkeypatch.setattr(llm, "settings", SimpleNamespace(
+        enabled=True, has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        def stream(self, *args, **kwargs):
+            raise RuntimeError("provider unavailable")
+
+    monkeypatch.setattr(llm.httpx, "AsyncClient", lambda **kwargs: Client())
+
+    async def collect():
+        return "".join([chunk async for chunk in stream_reply("查订单", [], [], "订单T1当前状态：待收货")])
+
+    assert asyncio.run(collect()) == "订单T1当前状态：待收货"
+
+
 def test_model_is_not_called_without_trusted_knowledge(monkeypatch):
     monkeypatch.setattr(llm, "settings", SimpleNamespace(has_model=True))
 

@@ -90,12 +90,22 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
         messages.append({"role": "user", "content": message})
     headers = {"Authorization": f"Bearer {settings.model_api_key}"}
     payload = {"model": settings.model_name, "messages": messages, "stream": True, "temperature": 0.3}
-    async with httpx.AsyncClient(timeout=45) as client:
-        async with client.stream("POST", f"{settings.model_api_base}/chat/completions", headers=headers, json=payload) as response:
-            response.raise_for_status()
-            async for line in response.aiter_lines():
-                if not line.startswith("data: ") or line == "data: [DONE]":
-                    continue
-                delta = json.loads(line[6:]).get("choices", [{}])[0].get("delta", {}).get("content")
-                if delta:
-                    yield delta
+    emitted = False
+    try:
+        async with httpx.AsyncClient(timeout=45) as client:
+            async with client.stream("POST", f"{settings.model_api_base}/chat/completions", headers=headers, json=payload) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: ") or line == "data: [DONE]":
+                        continue
+                    delta = json.loads(line[6:]).get("choices", [{}])[0].get("delta", {}).get("content")
+                    if delta:
+                        emitted = True
+                        yield delta
+    except Exception:
+        if emitted:
+            raise
+    if not emitted:
+        answer = business_context or "\n".join(item["content"] for item in context[:2]) or local_agent.invoke({"message": message})["answer"]
+        for index in range(0, len(answer), 12):
+            yield answer[index:index + 12]
