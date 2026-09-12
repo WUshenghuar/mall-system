@@ -46,7 +46,7 @@ TOOL_DEFINITIONS = [
         "type": "function",
         "function": {
             "name": "query_coupon",
-            "description": "只读查询当前登录会员可用优惠券",
+            "description": "只读查询当前登录会员已有优惠券或平台当前可领取优惠券",
             "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
         },
     },

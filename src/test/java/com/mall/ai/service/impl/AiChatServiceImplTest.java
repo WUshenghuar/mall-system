@@ -17,6 +17,7 @@ import com.mall.trade.service.TradeRefundService;
 import com.mall.product.service.StoreCatalogService;
 import com.mall.product.entity.Spu;
 import com.mall.marketing.entity.MemberCouponVO;
+import com.mall.marketing.entity.Coupon;
 import com.mall.marketing.entity.Activity;
 import com.mall.marketing.service.CouponService;
 import com.mall.marketing.service.ActivityService;
@@ -507,6 +508,26 @@ class AiChatServiceImplTest {
                 .stream(9L, "session-1", request, ignored -> { });
 
         verify(gateway).stream(anyLong(), anyString(), anyString(), eq("你目前有以下可用优惠券：\n满100减20（减20）"), eq("query_coupon"), any(), any());
+    }
+
+    @Test
+    void streamQueriesClaimablePlatformCouponsSeparatelyFromMemberCoupons() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        CouponService coupons = mock(CouponService.class);
+        Coupon coupon = new Coupon(); coupon.setCouponName("新客券"); coupon.setDiscount(new java.math.BigDecimal("20"));
+        coupon.setValidEnd(java.time.LocalDateTime.of(2026, 9, 30, 23, 59));
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(coupons.listAvailable()).thenReturn(List.of(coupon));
+        AiChatRequest request = new AiChatRequest(); request.setMessage("现在有哪些优惠券");
+
+        new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class), mock(LogisticsService.class),
+                mock(TradeRefundService.class), mock(StoreCatalogService.class), coupons, mock(MemberService.class))
+                .stream(9L, "session-1", request, ignored -> { });
+
+        verify(coupons).listAvailable();
+        verify(gateway).stream(anyLong(), anyString(), anyString(),
+                eq("当前可领取的优惠券：\n新客券（优惠 20，截止 2026-09-30T23:59）"), eq("query_coupon"), any(), any());
     }
 
     @Test

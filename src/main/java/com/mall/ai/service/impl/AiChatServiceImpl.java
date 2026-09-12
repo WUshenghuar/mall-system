@@ -21,6 +21,7 @@ import com.mall.trade.service.TradeRefundService;
 import com.mall.product.entity.Spu;
 import com.mall.product.service.StoreCatalogService;
 import com.mall.marketing.entity.MemberCouponVO;
+import com.mall.marketing.entity.Coupon;
 import com.mall.marketing.entity.Activity;
 import com.mall.marketing.service.CouponService;
 import com.mall.marketing.service.ActivityService;
@@ -292,13 +293,24 @@ public class AiChatServiceImpl implements AiChatService {
                     : "为你找到的上架商品：\n" + products.stream().map(Spu::getSpuName)
                     .collect(java.util.stream.Collectors.joining("\n"));
         }
-        if ("query_coupon".equals(tool) && containsAny(message, "我的优惠券", "可用优惠券", "优惠券有哪些", "券包",
-                "my coupons", "available coupons", "what coupons", "coupon wallet", "coupons do i have")) {
+        if ("query_coupon".equals(tool) && containsAny(message, "我的优惠券", "我的可用优惠券", "券包",
+                "my coupons", "my available coupons", "coupon wallet", "coupons do i have")) {
             List<MemberCouponVO> coupons = couponService.listMemberCoupons(memberId).stream()
                     .filter(item -> Integer.valueOf(0).equals(item.getStatus())).toList();
             return coupons.isEmpty() ? "你目前没有可用优惠券。"
                     : "你目前有以下可用优惠券：\n" + coupons.stream()
                     .map(item -> item.getCouponName() + "（减" + item.getDiscount() + "）")
+                    .collect(java.util.stream.Collectors.joining("\n"));
+        }
+        if ("query_coupon".equals(tool) && containsAny(message, "可用优惠券", "可领取优惠券", "优惠券有哪些", "有哪些优惠券",
+                "available coupons", "what coupons are available", "claimable coupons")) {
+            List<Coupon> coupons = couponService.listAvailable();
+            boolean english = containsAny(message, "available coupons", "what coupons are available", "claimable coupons");
+            if (coupons.isEmpty()) return english ? "There are no claimable coupons right now." : "当前没有可领取的优惠券。";
+            String title = english ? "Currently claimable coupons：\n" : "当前可领取的优惠券：\n";
+            return title + coupons.stream().map(coupon -> english
+                    ? coupon.getCouponName() + " (discount " + coupon.getDiscount() + ", expires " + coupon.getValidEnd() + ")"
+                    : coupon.getCouponName() + "（优惠 " + coupon.getDiscount() + "，截止 " + coupon.getValidEnd() + "）")
                     .collect(java.util.stream.Collectors.joining("\n"));
         }
         if ("query_coupon".equals(tool)) return "";
