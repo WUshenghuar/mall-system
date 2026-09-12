@@ -33,6 +33,44 @@ def test_business_context_has_priority_over_model_reply():
     assert asyncio.run(collect()) == "订单T1当前状态：待收货。"
 
 
+def test_configured_model_formats_real_business_context(monkeypatch):
+    monkeypatch.setattr(llm, "settings", SimpleNamespace(
+        enabled=True, has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
+
+    class Stream:
+        def raise_for_status(self):
+            return None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def aiter_lines(self):
+            yield 'data: {"choices":[{"delta":{"content":"已整理：订单状态正常"}}]}'
+            yield "data: [DONE]"
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        def stream(self, method, url, headers, json):
+            assert "真实业务查询结果" in json["messages"][0]["content"]
+            assert "订单T1当前状态：待收货" in json["messages"][0]["content"]
+            return Stream()
+
+    monkeypatch.setattr(llm.httpx, "AsyncClient", lambda **kwargs: Client())
+
+    async def collect():
+        return "".join([chunk async for chunk in stream_reply("查订单", [], [], "订单T1当前状态：待收货")])
+
+    assert asyncio.run(collect()) == "已整理：订单状态正常"
+
+
 def test_model_is_not_called_without_trusted_knowledge(monkeypatch):
     monkeypatch.setattr(llm, "settings", SimpleNamespace(has_model=True))
 

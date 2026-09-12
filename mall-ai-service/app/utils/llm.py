@@ -61,11 +61,7 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
         for index in range(0, len(answer), 12):
             yield answer[index:index + 12]
         return
-    if business_context:
-        for index in range(0, len(business_context), 12):
-            yield business_context[index:index + 12]
-        return
-    if not context:
+    if not context and not business_context:
         answer = local_agent.invoke({"message": message})["answer"]
         if should_suggest_handoff(message):
             answer = ("I couldn't find verified platform information for that question. Please provide an order number or contact a human agent."
@@ -74,6 +70,10 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
             yield answer[index:index + 12]
         return
     if not settings.has_model:
+        if business_context:
+            for index in range(0, len(business_context), 12):
+                yield business_context[index:index + 12]
+            return
         domains = ("支付", "会员", "订单", "物流", "退款", "优惠券", "商品", "税费", "币种")
         answers = context[:2] if sum(domain in message for domain in domains) > 1 else context[:1]
         answer = "\n".join(item["content"] for item in answers) if answers else local_agent.invoke({"message": message})["answer"]
@@ -82,7 +82,9 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
         return
 
     sources = "\n".join(item["content"] for item in context)
-    messages = [{"role": "system", "content": f"你是海路集市的平台客服。使用用户提问的语言回答；只回答平台业务问题，不执行退款、取消订单或修改账户等操作。只能依据以下平台资料回答；资料未覆盖的问题必须明确说无法确认并建议转人工，不得凭常识补充：\n{sources}"}]
+    if business_context:
+        sources += ("\n真实业务查询结果（优先依据，不得改写其中的订单、金额、状态或时间）：\n" + business_context)
+    messages = [{"role": "system", "content": f"你是海路集市的平台客服。使用用户提问的语言回答；只回答平台业务问题，不执行退款、取消订单或修改账户等操作。只能依据以下平台资料和真实业务查询结果回答；资料未覆盖的问题必须明确说无法确认并建议转人工，不得凭常识补充：\n{sources}"}]
     messages.extend(history[-10:])
     if not messages or messages[-1].get("content") != message:
         messages.append({"role": "user", "content": message})
