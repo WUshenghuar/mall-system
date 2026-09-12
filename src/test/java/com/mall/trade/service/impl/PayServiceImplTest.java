@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -86,6 +87,28 @@ class PayServiceImplTest {
 
         verify(payMapper, times(1)).markSuccess(eq(1L), anyString());
         verify(orderService, times(1)).markPaid("T-1", 1);
+    }
+
+    @Test
+    void alipayRejectsAmountMismatchBeforeMarkingOrderPaid() throws Exception {
+        TradePayMapper payMapper = mock(TradePayMapper.class);
+        TradeOrderService orderService = mock(TradeOrderService.class);
+        TradePay pay = new TradePay();
+        pay.setId(1L); pay.setOrderNo("T-1"); pay.setPayType(1); pay.setPayStatus(0);
+        pay.setPayAmount(new BigDecimal("100.00"));
+        TradeOrder order = new TradeOrder(); order.setOrderNo("T-1");
+        order.setPayAmount(new BigDecimal("100.00"));
+        when(payMapper.selectOne(any())).thenReturn(pay);
+        when(orderService.getByOrderNo("T-1")).thenReturn(order);
+
+        KeyPair keyPair = KeyPairGenerator.getInstance("RSA").generateKeyPair();
+        PayServiceImpl service = new PayServiceImpl(payMapper, orderService);
+        ReflectionTestUtils.setField(service, "alipayPublicKey",
+                Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()));
+
+        assertThat(service.handleAlipayNotify(signedCallback(keyPair, "99.00"))).isFalse();
+        verify(payMapper, never()).markSuccess(any(), anyString());
+        verify(orderService, never()).markPaid(anyString(), any());
     }
 
     private Map<String, String> signedCallback(KeyPair keyPair, String amount) throws Exception {
