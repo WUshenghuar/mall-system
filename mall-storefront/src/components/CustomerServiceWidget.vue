@@ -9,7 +9,7 @@
         </nav>
         <div ref="messageList" class="service-messages" aria-live="polite">
           <p v-if="!messages.length" class="service-welcome">你好，我可以帮你了解商品、订单、物流、退款进度、优惠券和会员服务。</p>
-          <div v-for="(item, index) in messages" :key="index" class="service-turn" :class="item.role"><small v-if="item.role === 'agent'" class="service-agent-label">平台客服</small><p class="service-message">{{ item.content || '正在思考…' }}</p><small v-if="item.tool" class="service-sources">已执行：{{ toolLabel(item.tool) }}（只读）</small><small v-if="item.sources?.length" class="service-sources">依据：{{ item.sources.map(source => source.title).join('、') }}</small><small v-if="item.handoffSuggested" class="service-handoff-hint" role="status">暂未找到匹配的帮助内容</small><van-button v-if="item.handoffSuggested" plain size="small" type="warning" class="service-handoff-button" @click="handoff">转人工处理</van-button><button v-if="item.error && item.requestId" type="button" class="service-retry" :disabled="sending" @click="retry(item)">重试</button><div v-if="item.role === 'assistant' && item.id" class="service-feedback" aria-label="回答评价"><button type="button" class="message-feedback" :disabled="item.feedback === 1 || item.feedback === -1" @click="rate(item, 1)">{{ item.feedback === 1 ? '已反馈' : '有帮助' }}</button><button type="button" class="message-feedback" :disabled="item.feedback === 1 || item.feedback === -1" @click="rate(item, -1)">{{ item.feedback === -1 ? '已反馈' : '没帮助' }}</button></div></div>
+          <div v-for="(item, index) in messages" :key="index" class="service-turn" :class="item.role"><small v-if="item.role === 'agent'" class="service-agent-label">平台客服</small><p class="service-message">{{ item.content || '正在思考…' }}</p><small v-if="item.tools?.length || item.tool" class="service-sources">已执行：{{ toolLabels(item) }}（只读）</small><small v-if="item.sources?.length" class="service-sources">依据：{{ item.sources.map(source => source.title).join('、') }}</small><small v-if="item.handoffSuggested" class="service-handoff-hint" role="status">暂未找到匹配的帮助内容</small><van-button v-if="item.handoffSuggested" plain size="small" type="warning" class="service-handoff-button" @click="handoff">转人工处理</van-button><button v-if="item.error && item.requestId" type="button" class="service-retry" :disabled="sending" @click="retry(item)">重试</button><div v-if="item.role === 'assistant' && item.id" class="service-feedback" aria-label="回答评价"><button type="button" class="message-feedback" :disabled="item.feedback === 1 || item.feedback === -1" @click="rate(item, 1)">{{ item.feedback === 1 ? '已反馈' : '有帮助' }}</button><button type="button" class="message-feedback" :disabled="item.feedback === 1 || item.feedback === -1" @click="rate(item, -1)">{{ item.feedback === -1 ? '已反馈' : '没帮助' }}</button></div></div>
         </div>
         <form class="service-form" @submit.prevent="send()"><van-field v-model="draft" aria-label="客服问题" :placeholder="humanMode ? '给平台客服留言' : '输入你的问题'" maxlength="1000" :disabled="sending"/><van-button native-type="submit" type="primary" :loading="sending" :disabled="!draft.trim()">{{ humanMode ? '留言' : '发送' }}</van-button></form>
       </section>
@@ -25,6 +25,7 @@ const router = useRouter(), open = ref(false), draft = ref(''), sending = ref(fa
 let handoffTimer
 const quickQuestions = ['怎么查我的订单？', '退款规则是什么？', '物流在哪里看？', '优惠券怎么领？']
 const toolLabel = tool => ({ query_order: '订单查询', query_logistics: '物流查询', query_refund: '退款查询', query_product: '商品查询', query_coupon: '优惠券查询', query_member: '会员查询', query_tax: '税费查询' }[tool] || '业务查询')
+const toolLabels = item => (item.tools?.length ? item.tools : item.tool ? [item.tool] : []).map(toolLabel).join('、')
 const handoffStatus = computed(() => ({ 0: '待接管', 1: '处理中', 2: '已解决' }[handoffTicket.value?.status] || '已提交'))
 function askQuickQuestion(question) { draft.value = question; send() }
 async function handoff() {
@@ -82,7 +83,7 @@ async function send(retryItem = null) {
       if (event.type === 'meta') conversationId.value = event.conversationId
       if (event.type === 'text') assistant.content += event.content
       if (event.type === 'error') { assistant.content = event.message; assistant.error = true }
-      if (event.type === 'tool_call') assistant.tool = event.name
+      if (event.type === 'tool_call') { assistant.tools = [...new Set([...(assistant.tools || []), event.name])]; assistant.tool = event.name }
       if (event.type === 'sources') assistant.sources = event.items
       if (event.type === 'handoff_suggested') assistant.handoffSuggested = true
       scrollToBottom()
