@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 
 import httpx
 
@@ -17,6 +18,13 @@ SEED_DOCS = [
     {"id": "payment", "title": "支付说明", "category": "payment", "content": "结算页会在提交订单前重新核对价格、库存和优惠券。当前 Demo 使用模拟支付，真实支付需要配置平台商户参数。"},
     {"id": "member", "title": "会员服务", "category": "member", "content": "会员登录后可以查看等级、积分余额和积分流水，管理地址、优惠券、收藏商品和浏览足迹。客服只能查询当前登录会员可访问的数据。"},
     {"id": "tax", "title": "税费与币种", "category": "finance", "content": "结算会根据商品分类、原产国、目的国和生效税率计算税费，并在订单中保存税费和币种；当前单笔订单要求商品币种一致。"},
+    {"id": "refund-en", "title": "Refund policy", "category": "after_sales", "content": "Orders that have not shipped can request a refund. Refund approval is handled by the platform after-sales process."},
+    {"id": "coupon-en", "title": "Coupon policy", "category": "marketing", "content": "Claim available coupons on the Offers page and view them in the member center. Limits, expiry dates, and minimum spend are shown on each coupon."},
+    {"id": "logistics-en", "title": "Delivery tracking", "category": "logistics", "content": "To track a package, view the carrier and tracking number on the order details page after shipment. Cross-border delivery status follows the actual tracking events."},
+    {"id": "order-en", "title": "Order status", "category": "orders", "content": "An order moves through pending payment, processing, shipped, and completed. Pending-payment orders can be cancelled from order details."},
+    {"id": "payment-en", "title": "Payment information", "category": "payment", "content": "Before an order is submitted, checkout rechecks price, stock, and coupons. The current demo uses simulated payment."},
+    {"id": "member-en", "title": "Membership service", "category": "member", "content": "After signing in, members can view their level, points balance, and points history. Customer service can only query data for the signed-in member."},
+    {"id": "tax-en", "title": "Taxes and currency", "category": "finance", "content": "Checkout calculates tax from product category, origin, destination, and effective tax rates, then stores the tax and currency on the order."},
 ]
 
 
@@ -126,13 +134,19 @@ def hybrid_hits(bm25_hits: list[dict], vector_hits: list[dict]) -> list[dict]:
 
 
 def fallback_hits(query: str) -> list[dict]:
-    grams = {query[index:index + 2] for index in range(len(query) - 1)}
+    english_terms = {term for term in re.findall(r"[a-z][a-z0-9]+", query.lower())
+                     if term not in {"the", "is", "my", "do", "i", "a", "an", "to", "of", "can", "you", "what", "where", "how", "are", "and"}}
+    grams = {query[index:index + 2] for index in range(len(query) - 1)} if not english_terms else set()
     ranked = []
     for document in SEED_DOCS:
         title = document["title"]
         text = title + document["content"]
-        title_grams = {title[index:index + 2] for index in range(len(title) - 1)}
-        score = sum(10 for gram in title_grams if gram in query) + sum(gram in text for gram in grams)
+        if english_terms:
+            terms = set(re.findall(r"[a-z][a-z0-9]+", text.lower()))
+            score = sum(10 for term in english_terms if term in terms)
+        else:
+            title_grams = {title[index:index + 2] for index in range(len(title) - 1)}
+            score = sum(10 for gram in title_grams if gram in query) + sum(gram in text for gram in grams)
         if score and document["id"] not in DISABLED_IDS:
             ranked.append((score, document))
     return [document for _, document in sorted(ranked, key=lambda item: item[0], reverse=True)[:3]]

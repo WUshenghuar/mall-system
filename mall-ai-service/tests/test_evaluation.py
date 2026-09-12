@@ -22,6 +22,13 @@ def test_rag_fallback_matches_multitopic_chinese_query():
     assert {item["id"] for item in fallback_hits("支付和会员服务怎么用？")} >= {"payment", "member"}
 
 
+def test_rag_fallback_matches_english_faqs():
+    assert fallback_hits("How do I request a refund?")[0]["id"] == "refund-en"
+    assert fallback_hits("Where is my package?")[0]["id"] == "logistics-en"
+    assert fallback_hits("How do coupons work?")[0]["id"] == "coupon-en"
+    assert [item["id"] for item in fallback_hits("Where is my package?")] == ["logistics-en"]
+
+
 def test_local_fallback_honors_disabled_knowledge():
     DISABLED_IDS.add("coupon")
     try:
