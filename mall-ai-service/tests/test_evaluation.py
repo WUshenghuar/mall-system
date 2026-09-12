@@ -20,6 +20,7 @@ def test_knowledge_seed_covers_core_platform_faqs():
 
 def test_rag_fallback_matches_multitopic_chinese_query():
     assert {item["id"] for item in fallback_hits("支付和会员服务怎么用？")} >= {"payment", "member"}
+    assert [item["id"] for item in fallback_hits("退款规则是什么")] == ["refund"]
 
 
 def test_rag_fallback_matches_english_faqs():
@@ -99,7 +100,7 @@ def test_retrieve_fuses_bm25_and_vector_results(monkeypatch):
 
     result = asyncio.run(retrieve("退货规则"))
 
-    assert [item["id"] for item in result] == ["refund", "coupon"]
+    assert [item["id"] for item in result] == ["refund"]
 
 
 def test_retrieve_ignores_low_similarity_vector_results(monkeypatch):

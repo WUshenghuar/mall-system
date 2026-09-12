@@ -1,6 +1,7 @@
 import asyncio
 import json
 import re
+import re
 
 import httpx
 
@@ -10,6 +11,20 @@ from app.rag.embedding import embed_text
 INDEX = "ai_knowledge"
 BM25_MIN_SCORE = 3.0
 DISABLED_IDS: set[str] = set()
+CHINESE_TERMS = {
+    "refund": ("退款", "退货", "售后"), "coupon": ("优惠券", "优惠", "券包", "折扣券"),
+    "logistics": ("物流", "快递", "运单", "包裹", "配送", "追踪", "轨迹"),
+    "order": ("订单", "下单", "待支付", "待发货", "待收货"), "payment": ("支付", "付款", "结算"),
+    "member": ("会员", "积分", "等级", "成长"), "tax": ("税费", "关税", "税金", "币种"),
+}
+ENGLISH_TERMS = {
+    "refund": ("refund", "return", "money back"), "coupon": ("coupon", "discount", "promo", "voucher"),
+    "logistics": ("tracking", "track", "delivery", "shipment", "package"), "order": ("order",),
+    "payment": ("payment", "pay", "checkout"), "member": ("member", "membership", "points", "loyalty"),
+    "tax": ("tax", "tariff", "duty", "currency"),
+}
+DOMAIN_CATEGORIES = {"refund": "after_sales", "coupon": "marketing", "logistics": "logistics", "order": "orders",
+                     "payment": "payment", "member": "member", "tax": "finance"}
 SEED_DOCS = [
     {"id": "refund", "title": "退款规则", "category": "after_sales", "content": "待发货订单可申请仅退款。客服仅查询进度和规则，退款审批由平台售后流程处理。"},
     {"id": "coupon", "title": "优惠券规则", "category": "marketing", "content": "优惠券在优惠页领取，在会员中心查看。每人可领取次数、有效期和使用门槛以券面展示为准。"},
@@ -100,16 +115,16 @@ async def retrieve(query: str) -> list[dict]:
                 await ensure_seeded()
                 response = await client.post(f"{settings.elasticsearch_url}/{INDEX}/_search", json=payload)
             response.raise_for_status()
-            bm25_hits = [hit for hit in response.json().get("hits", {}).get("hits", [])
-                         if hit.get("_score") is not None and hit["_score"] >= BM25_MIN_SCORE]
+            bm25_hits = filter_relevant(query, [hit for hit in response.json().get("hits", {}).get("hits", [])
+                                                if hit.get("_score") is not None and hit["_score"] >= BM25_MIN_SCORE])
             vector_hits = []
             try:
                 vector = await embed_text(query)
                 if vector:
                     vector_response = await client.post(f"{settings.elasticsearch_url}/{INDEX}/_search", json={"size": 6, "knn": {"field": "embedding", "query_vector": vector, "k": 6, "num_candidates": 20, "filter": {"bool": {"should": [{"term": {"enabled": True}}, {"bool": {"must_not": {"exists": {"field": "enabled"}}}}], "minimum_should_match": 1}}}})
                     if vector_response.status_code < 400:
-                        vector_hits = [hit for hit in vector_response.json().get("hits", {}).get("hits", [])
-                                       if hit.get("_score") is not None and hit["_score"] >= settings.embedding_min_score]
+                        vector_hits = filter_relevant(query, [hit for hit in vector_response.json().get("hits", {}).get("hits", [])
+                                                              if hit.get("_score") is not None and hit["_score"] >= settings.embedding_min_score])
             except Exception:
                 vector_hits = []
         hits = hybrid_hits(bm25_hits, vector_hits) if vector_hits else bm25_hits
@@ -133,10 +148,20 @@ def hybrid_hits(bm25_hits: list[dict], vector_hits: list[dict]) -> list[dict]:
     return [entry["hit"] for entry in sorted(ranked.values(), key=lambda item: item["score"], reverse=True)]
 
 
+def filter_relevant(query: str, hits: list[dict]) -> list[dict]:
+    terms = CHINESE_TERMS if not re.search(r"[a-zA-Z]", query) else ENGLISH_TERMS
+    scopes = {scope for scope, keywords in terms.items() if any(keyword in query.lower() for keyword in keywords)}
+    if not scopes:
+        return hits
+    categories = {DOMAIN_CATEGORIES[scope] for scope in scopes}
+    return [hit for hit in hits if str(hit.get("_id", "")).removesuffix("-en") in scopes
+            or hit.get("_source", {}).get("category") in categories]
+
+
 def fallback_hits(query: str) -> list[dict]:
     english_terms = {term for term in re.findall(r"[a-z][a-z0-9]+", query.lower())
                      if term not in {"the", "is", "my", "do", "i", "a", "an", "to", "of", "can", "you", "what", "where", "how", "are", "and"}}
-    grams = {query[index:index + 2] for index in range(len(query) - 1)} if not english_terms else set()
+    chinese_terms = {term for terms in CHINESE_TERMS.values() for term in terms if term in query} if not english_terms else set()
     ranked = []
     for document in SEED_DOCS:
         title = document["title"]
@@ -144,9 +169,11 @@ def fallback_hits(query: str) -> list[dict]:
         if english_terms:
             terms = set(re.findall(r"[a-z][a-z0-9]+", text.lower()))
             score = sum(10 for term in english_terms if term in terms)
+        elif chinese_terms:
+            terms = CHINESE_TERMS.get(document["id"], ())
+            score = sum(10 for term in terms if term in chinese_terms)
         else:
-            title_grams = {title[index:index + 2] for index in range(len(title) - 1)}
-            score = sum(10 for gram in title_grams if gram in query) + sum(gram in text for gram in grams)
+            score = 0
         if score and document["id"] not in DISABLED_IDS:
             ranked.append((score, document))
     return [document for _, document in sorted(ranked, key=lambda item: item[0], reverse=True)[:3]]
