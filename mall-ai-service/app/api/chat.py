@@ -36,7 +36,7 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    memberId: int
+    memberId: int = Field(gt=0)
     conversationId: str = Field(min_length=1, max_length=64)
     message: str = Field(min_length=1, max_length=1000)
     businessContext: str = Field(default="", max_length=6000)

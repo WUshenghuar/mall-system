@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import app.api.chat as chat_module
 from app.api.chat import ChatRequest, business_tool_names, chat
+from pydantic import ValidationError
 
 def test_business_tool_names_filters_unknown_tools_and_caps_batch():
     assert business_tool_names("query_member,query_product,drop_database,query_tax,query_order") == [
@@ -14,6 +15,14 @@ def test_chat_request_accepts_combined_read_only_tool_context():
     request = ChatRequest(memberId=9, conversationId="context-test", message="查询订单", businessContext="结果\n" * 1500)
 
     assert len(request.businessContext) > 1000
+
+
+def test_chat_request_rejects_non_positive_member_id():
+    try:
+        ChatRequest(memberId=0, conversationId="invalid-member", message="查询订单")
+    except ValidationError:
+        return
+    raise AssertionError("non-positive member id was accepted")
 
 
 def test_disabled_chat_streams_handoff_without_dependencies(monkeypatch):
