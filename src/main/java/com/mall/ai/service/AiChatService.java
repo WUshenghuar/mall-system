@@ -1,6 +1,8 @@
 package com.mall.ai.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.mall.ai.dto.AiChatRequest;
+import com.mall.ai.entity.AiAuditLog;
 import com.mall.ai.entity.AiConversation;
 
 import java.util.List;
@@ -12,4 +14,5 @@ public interface AiChatService {
     List<AiConversation> recent(Long memberId, int limit);
     void feedback(Long memberId, Long messageId, Integer feedback);
     Map<String, Object> feedbackStats();
+    IPage<AiAuditLog> auditPage(Integer page, Integer size, String eventType, String outcome);
 }

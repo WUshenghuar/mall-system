@@ -16,6 +16,10 @@ export function getAiFeedbackStats() {
   return request.get('/ai/feedback/stats')
 }
 
+export function getAiAuditPage(params) {
+  return request.get('/ai/audit', { params })
+}
+
 export function getSupportTicketConversation(id) {
   return request.get(`/ai/tickets/${id}/conversation`)
 }

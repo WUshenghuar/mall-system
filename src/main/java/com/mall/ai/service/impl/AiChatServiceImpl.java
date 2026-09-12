@@ -2,7 +2,10 @@ package com.mall.ai.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.mall.ai.dto.AiChatRequest;
+import com.mall.ai.entity.AiAuditLog;
 import com.mall.ai.entity.AiConversation;
 import com.mall.ai.mapper.AiAuditLogMapper;
 import com.mall.ai.mapper.AiConversationMapper;
@@ -136,6 +139,19 @@ public class AiChatServiceImpl implements AiChatService {
     @Override
     public Map<String, Object> feedbackStats() {
         return conversationMapper.selectFeedbackStats();
+    }
+
+    @Override
+    public IPage<AiAuditLog> auditPage(Integer page, Integer size, String eventType, String outcome) {
+        int current = Math.min(Math.max(page == null ? 1 : page, 1), 10_000);
+        int pageSize = Math.min(Math.max(size == null ? 20 : size, 1), 100);
+        String selectedEvent = StringUtils.hasText(eventType) ? eventType.trim() : null;
+        String selectedOutcome = StringUtils.hasText(outcome) ? outcome.trim() : null;
+        Page<AiAuditLog> result = new Page<>(current, pageSize);
+        if (auditLogMapper == null) return result;
+        result.setRecords(auditLogMapper.selectPage((current - 1) * pageSize, pageSize, selectedEvent, selectedOutcome));
+        result.setTotal(auditLogMapper.count(selectedEvent, selectedOutcome));
+        return result;
     }
 
     private String businessTool(String message, String context) {

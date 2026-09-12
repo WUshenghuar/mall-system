@@ -3,6 +3,7 @@ package com.mall.ai.service.impl;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.ai.dto.AiChatRequest;
 import com.mall.ai.entity.AiConversation;
+import com.mall.ai.entity.AiAuditLog;
 import com.mall.ai.mapper.AiConversationMapper;
 import com.mall.ai.mapper.AiAuditLogMapper;
 import com.mall.ai.service.AiGatewayClient;
@@ -194,6 +195,25 @@ class AiChatServiceImplTest {
         verify(audit, org.mockito.Mockito.times(2)).insert(eq(9L), eq("session-1"),
                 org.mockito.ArgumentMatchers.isNull(), eq("chat"), org.mockito.ArgumentMatchers.isNull(),
                 anyString(), anyInt(), anyString());
+    }
+
+    @Test
+    void pagesAuditLogsForOperations() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiAuditLogMapper audit = mock(AiAuditLogMapper.class);
+        AiAuditLog record = new AiAuditLog(); record.setEventType("chat"); record.setOutcome("completed");
+        when(audit.selectPage(10, 10, "chat", "completed")).thenReturn(List.of(record));
+        when(audit.count("chat", "completed")).thenReturn(1L);
+        AiChatServiceImpl service = new AiChatServiceImpl(mapper, mock(AiGatewayClient.class), new ObjectMapper(),
+                mock(TradeOrderService.class), mock(LogisticsService.class), mock(TradeRefundService.class),
+                mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class));
+        service.setAuditLogMapper(audit);
+
+        var result = service.auditPage(2, 10, "chat", "completed");
+
+        assertThat(result.getCurrent()).isEqualTo(2);
+        assertThat(result.getTotal()).isEqualTo(1);
+        assertThat(result.getRecords()).containsExactly(record);
     }
 
     @Test

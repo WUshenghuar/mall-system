@@ -1,9 +1,11 @@
 package com.mall.ai.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mall.common.result.Result;
 import com.mall.ai.dto.AiChatRequest;
 import com.mall.ai.dto.AiFeedbackRequest;
+import com.mall.ai.entity.AiAuditLog;
 import com.mall.ai.entity.AiConversation;
 import com.mall.ai.service.AiChatService;
 import com.mall.security.user.CurrentMember;
@@ -64,6 +66,15 @@ public class AiChatController {
     @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('order:support:list')")
     public Result<Map<String, Object>> feedbackStats() {
         return Result.success(aiChatService.feedbackStats());
+    }
+
+    @GetMapping("/audit")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('order:support:list')")
+    public Result<IPage<AiAuditLog>> audit(@org.springframework.web.bind.annotation.RequestParam(defaultValue = "1") Integer page,
+                                           @org.springframework.web.bind.annotation.RequestParam(defaultValue = "20") Integer size,
+                                           @org.springframework.web.bind.annotation.RequestParam(required = false) String eventType,
+                                           @org.springframework.web.bind.annotation.RequestParam(required = false) String outcome) {
+        return Result.success(aiChatService.auditPage(page, size, eventType, outcome));
     }
 
     private void send(SseEmitter emitter, Map<String, Object> event) {
