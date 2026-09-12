@@ -60,6 +60,12 @@ public class AiChatController {
         return Result.success(null);
     }
 
+    @GetMapping("/feedback/stats")
+    @org.springframework.security.access.prepost.PreAuthorize("hasAuthority('order:support:list')")
+    public Result<Map<String, Object>> feedbackStats() {
+        return Result.success(aiChatService.feedbackStats());
+    }
+
     private void send(SseEmitter emitter, Map<String, Object> event) {
         try { sendRaw(emitter, objectMapper.writeValueAsString(event)); } catch (Exception ignored) { }
     }

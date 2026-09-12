@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
+import java.util.Map;
 
 public interface AiConversationMapper extends BaseMapper<AiConversation> {
     @Select("SELECT * FROM (SELECT * FROM ai_conversation WHERE user_id = #{userId} "
@@ -24,4 +25,10 @@ public interface AiConversationMapper extends BaseMapper<AiConversation> {
             + "WHERE id = #{messageId} AND user_id = #{userId} AND role = 'assistant' AND deleted = 0")
     int updateFeedback(@Param("messageId") Long messageId, @Param("userId") Long userId,
                        @Param("feedback") Integer feedback);
+
+    @Select("SELECT COUNT(*) AS total, "
+            + "COALESCE(SUM(CASE WHEN feedback = 1 THEN 1 ELSE 0 END), 0) AS positive, "
+            + "COALESCE(SUM(CASE WHEN feedback = -1 THEN 1 ELSE 0 END), 0) AS negative "
+            + "FROM ai_conversation WHERE role = 'assistant' AND feedback IS NOT NULL AND deleted = 0")
+    Map<String, Object> selectFeedbackStats();
 }

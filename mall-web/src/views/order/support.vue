@@ -1,6 +1,6 @@
 <template>
   <div class="sub-page support-page">
-    <div class="page-head"><div><h2 class="page-title">平台客服工单</h2><p class="page-desc">处理 C 端 AI 客服转交的会员问题</p></div></div>
+    <div class="page-head"><div><h2 class="page-title">平台客服工单</h2><p class="page-desc">处理 C 端 AI 客服转交的会员问题</p></div><a-space class="feedback-stats"><a-statistic title="已评价" :value="feedbackStats.total" /><a-statistic title="有帮助率" :value="helpfulRate" suffix="%" /></a-space></div>
     <a-card :bordered="false">
       <a-tabs v-model:activeKey="statusFilter" @change="fetchData">
         <a-tab-pane key="" tab="全部" /><a-tab-pane key="0" tab="待接管" /><a-tab-pane key="1" tab="处理中" /><a-tab-pane key="2" tab="已解决" />
@@ -33,22 +33,25 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { claimSupportTicket, getSupportTicketConversation, getSupportTicketPage, replySupportTicket, resolveSupportTicket } from '@/api/ai'
+import { claimSupportTicket, getAiFeedbackStats, getSupportTicketConversation, getSupportTicketPage, replySupportTicket, resolveSupportTicket } from '@/api/ai'
 
 const loading = ref(false), list = ref([]), statusFilter = ref('')
 const pagination = ref({ current: 1, pageSize: 10, total: 0 })
 const replyOpen = ref(false), replying = ref(false), replyTarget = ref(null), replyContent = ref('')
 const conversationOpen = ref(false), conversationLoading = ref(false), conversationMessages = ref([])
+const feedbackStats = ref({ total: 0, positive: 0, negative: 0 })
 const resolveOpen = ref(false), resolving = ref(false), resolveTarget = ref(null), resolveNote = ref('')
 let refreshTimer
+const helpfulRate = computed(() => { const total = Number(feedbackStats.value.total) || 0; return total ? Math.round((Number(feedbackStats.value.positive) || 0) * 100 / total) : 0 })
 const columns = [
   { title: '工单号', dataIndex: 'ticketNo', width: 190 }, { title: '会员 ID', dataIndex: 'memberId', width: 90 },
   { title: '问题摘要', dataIndex: 'subject', width: 180, ellipsis: true }, { title: '最新留言', key: 'message', ellipsis: true },
   { title: '客服回复', key: 'reply', ellipsis: true }, { title: '状态', key: 'status', width: 90 }, { title: '操作', key: 'action', width: 190 }
 ]
 async function fetchData() { loading.value = true; try { const res = await getSupportTicketPage({ page: pagination.value.current, size: pagination.value.pageSize, status: statusFilter.value || undefined }); list.value = res.data?.records || []; pagination.value.total = res.data?.total || 0 } finally { loading.value = false } }
+async function fetchFeedbackStats() { try { feedbackStats.value = (await getAiFeedbackStats()).data || feedbackStats.value } catch { /* 指标失败不影响工单处理 */ } }
 function onPage(p) { pagination.value.current = p.current; fetchData() }
 async function claim(id) { try { await claimSupportTicket(id); message.success('工单已认领'); fetchData() } catch { /* interceptor shows error */ } }
 async function openConversation(record) { conversationOpen.value = true; conversationMessages.value = []; conversationLoading.value = true; try { conversationMessages.value = (await getSupportTicketConversation(record.id)).data || [] } catch { message.error('会话读取失败') } finally { conversationLoading.value = false } }
@@ -56,12 +59,13 @@ function openReply(record) { replyTarget.value = record; replyContent.value = ''
 async function reply() { if (!replyTarget.value || !replyContent.value.trim()) { message.warning('请输入回复内容'); return }; replying.value = true; try { await replySupportTicket(replyTarget.value.id, replyContent.value.trim()); message.success('已发送回复'); replyOpen.value = false; fetchData() } catch { /* interceptor shows error */ } finally { replying.value = false } }
 function openResolve(record) { resolveTarget.value = record; resolveNote.value = ''; resolveOpen.value = true }
 async function resolve() { if (!resolveTarget.value) return; resolving.value = true; try { await resolveSupportTicket(resolveTarget.value.id, resolveNote.value.trim()); message.success('工单已解决'); resolveOpen.value = false; fetchData() } catch { /* interceptor shows error */ } finally { resolving.value = false } }
-onMounted(() => { fetchData(); refreshTimer = window.setInterval(fetchData, 15000) })
+onMounted(() => { fetchData(); fetchFeedbackStats(); refreshTimer = window.setInterval(() => { fetchData(); fetchFeedbackStats() }, 15000) })
 onUnmounted(() => window.clearInterval(refreshTimer))
 </script>
 
 <style scoped>
 .support-page { max-width: 1200px; }
+.feedback-stats :deep(.ant-statistic) { min-width: 92px; }
 .message-cell { display: block; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conversation-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #f0f0f0; line-height: 1.6; }
 .conversation-item span { white-space: pre-wrap; overflow-wrap: anywhere; }

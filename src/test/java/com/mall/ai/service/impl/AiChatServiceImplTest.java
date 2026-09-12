@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,6 +63,18 @@ class AiChatServiceImplTest {
                 .feedback(9L, 7L, 1);
 
         verify(mapper).updateFeedback(7L, 9L, 1);
+    }
+
+    @Test
+    void exposesFeedbackStatsForOperations() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        when(mapper.selectFeedbackStats()).thenReturn(Map.of("total", 4L, "positive", 3L, "negative", 1L));
+
+        Map<String, Object> result = new AiChatServiceImpl(mapper, mock(AiGatewayClient.class), new ObjectMapper(),
+                mock(TradeOrderService.class), mock(LogisticsService.class), mock(TradeRefundService.class),
+                mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class)).feedbackStats();
+
+        assertThat(result).containsEntry("positive", 3L).containsEntry("negative", 1L);
     }
 
     @Test

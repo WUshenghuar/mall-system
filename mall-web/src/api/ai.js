@@ -4,6 +4,10 @@ export function getSupportTicketPage(params) {
   return request.get('/ai/tickets/page', { params })
 }
 
+export function getAiFeedbackStats() {
+  return request.get('/ai/feedback/stats')
+}
+
 export function getSupportTicketConversation(id) {
   return request.get(`/ai/tickets/${id}/conversation`)
 }

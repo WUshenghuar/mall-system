@@ -24,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -70,6 +71,11 @@ public class AiChatServiceImpl implements AiChatService {
         if (conversationMapper.updateFeedback(messageId, memberId, feedback) != 1) {
             throw new BusinessException("只能评价自己的 AI 回复");
         }
+    }
+
+    @Override
+    public Map<String, Object> feedbackStats() {
+        return conversationMapper.selectFeedbackStats();
     }
 
     private String businessTool(String message, String context) {
