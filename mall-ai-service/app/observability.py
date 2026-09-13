@@ -4,6 +4,8 @@ from threading import Lock
 from time import monotonic
 from uuid import uuid4
 
+from app.telemetry import record_active, record_request
+
 
 class RequestMetrics:
     def __init__(self, window_size: int = 1000):
@@ -15,13 +17,17 @@ class RequestMetrics:
     def start(self) -> float:
         with self._lock:
             self._active += 1
+        record_active(1)
         return monotonic()
 
     def finish(self, started: float, outcome: str) -> None:
+        duration_ms = round((monotonic() - started) * 1000, 2)
         with self._lock:
             self._active = max(0, self._active - 1)
             self._outcomes[outcome] += 1
-            self._window.append(round((monotonic() - started) * 1000, 2))
+            self._window.append(duration_ms)
+        record_active(-1)
+        record_request(duration_ms, outcome)
 
     def snapshot(self, p95_limit_ms: float = 2000, error_rate_limit: float = 0.05) -> dict:
         with self._lock:

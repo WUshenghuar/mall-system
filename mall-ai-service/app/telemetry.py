@@ -1,39 +1,106 @@
-from contextlib import nullcontext
 import os
+from contextlib import nullcontext
 
 try:
+    from opentelemetry import metrics as otel_metrics
     from opentelemetry import trace
+    from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+    from opentelemetry.sdk.metrics import MeterProvider
+    from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 except ImportError:  # optional telemetry dependency
+    otel_metrics = None
     trace = None
 
 
 _configured = False
+_request_counter = None
+_request_duration = None
+_active_requests = None
+
+
+def _endpoint(signal_name: str) -> str:
+    specific = os.getenv(f"OTEL_EXPORTER_OTLP_{signal_name}_ENDPOINT", "").strip()
+    if specific:
+        return specific.rstrip("/")
+    endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip().rstrip("/")
+    for signal in ("traces", "metrics"):
+        if endpoint.endswith(f"/v1/{signal}"):
+            endpoint = endpoint[:-(len(signal) + 4)]
+            break
+    suffix = f"/v1/{signal_name.lower()}"
+    if endpoint and not endpoint.endswith(suffix):
+        endpoint += suffix
+    return endpoint
+
+
+def _headers() -> dict[str, str]:
+    result = {}
+    for item in os.getenv("OTEL_EXPORTER_OTLP_HEADERS", "").split(","):
+        if "=" not in item:
+            continue
+        key, value = item.split("=", 1)
+        if key.strip():
+            result[key.strip()] = value.strip()
+    return result
+
+
+def _metric_interval() -> int:
+    try:
+        return max(1000, int(os.getenv("OTEL_METRIC_EXPORT_INTERVAL", "10000")))
+    except ValueError:
+        return 10000
 
 
 def configure_telemetry() -> bool:
-    global _configured
+    global _active_requests, _configured, _request_counter, _request_duration
     if _configured or trace is None:
         return _configured
-    endpoint = os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "").strip()
-    if not endpoint:
-        endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip()
-        if endpoint:
-            endpoint = endpoint.rstrip("/") + "/v1/traces"
-    if not endpoint:
-        return False
-    provider = TracerProvider(resource=Resource.create({SERVICE_NAME: os.getenv("OTEL_SERVICE_NAME", "cbec-ai-service")}))
-    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
-    trace.set_tracer_provider(provider)
-    _configured = True
-    return True
+    resource = Resource.create({SERVICE_NAME: os.getenv("OTEL_SERVICE_NAME", "cbec-ai-service")})
+    headers = _headers()
+    configured = False
+    trace_endpoint = _endpoint("TRACES")
+    if trace_endpoint:
+        provider = TracerProvider(resource=resource)
+        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=trace_endpoint, headers=headers)))
+        trace.set_tracer_provider(provider)
+        configured = True
+
+    metric_endpoint = _endpoint("METRICS")
+    if otel_metrics is not None and metric_endpoint:
+        reader = PeriodicExportingMetricReader(
+            OTLPMetricExporter(endpoint=metric_endpoint, headers=headers),
+            export_interval_millis=_metric_interval(),
+        )
+        otel_metrics.set_meter_provider(MeterProvider(resource=resource, metric_readers=[reader]))
+        meter = otel_metrics.get_meter("cbec.ai")
+        _request_counter = meter.create_counter("ai_chat_requests", unit="{request}")
+        _request_duration = meter.create_histogram("ai_chat_request_duration", unit="ms")
+        _active_requests = meter.create_up_down_counter("ai_chat_active_requests", unit="{request}")
+        configured = True
+
+    _configured = configured
+    return configured
 
 
 def telemetry_configured() -> bool:
     return _configured
+
+
+def record_active(delta: int) -> None:
+    if _active_requests is not None:
+        _active_requests.add(delta)
+
+
+def record_request(duration_ms: float, outcome: str) -> None:
+    if _request_counter is None or _request_duration is None:
+        return
+    attributes = {"outcome": outcome}
+    _request_counter.add(1, attributes)
+    _request_duration.record(duration_ms, attributes)
 
 
 def span(name: str, attributes: dict | None = None):

@@ -97,8 +97,7 @@ public class AiChatServiceImpl implements AiChatService {
                 List<String> contextParts = new ArrayList<>();
                 List<String> toolNames = new ArrayList<>();
                 int added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), decision, contextParts, toolNames, start);
-                int topicLimit = Math.min(3, topicCount(request.getMessage()));
-                for (int round = 1; added > 0 && round < 3 && toolNames.size() < topicLimit; round++) {
+                for (int round = 1; added > 0 && round < 3; round++) {
                     List<String> toolResults = new ArrayList<>();
                     for (int index = 0; index < contextParts.size(); index++) {
                         toolResults.add(toolNames.get(index) + ": " + contextParts.get(index));
@@ -237,19 +236,6 @@ public class AiChatServiceImpl implements AiChatService {
             }
         }
         return added;
-    }
-
-    private int topicCount(String message) {
-        List<String[]> topics = List.of(
-                new String[]{"物流", "快递", "tracking", "delivery"},
-                new String[]{"退款", "退货", "refund", "return"},
-                new String[]{"商品", "产品", "product", "item"},
-                new String[]{"优惠券", "coupon", "discount"},
-                new String[]{"会员", "积分", "member", "points"},
-                new String[]{"活动", "促销", "activity", "promotion"},
-                new String[]{"税费", "tax", "duty"},
-                new String[]{"订单", "order"});
-        return (int) topics.stream().filter(topic -> containsAny(message, topic)).count();
     }
 
     private String plannedOrderNo(Map<String, Object> decision) {
