@@ -243,6 +243,10 @@ def test_model_failure_cooldown_skips_repeated_provider_call(monkeypatch):
     assert asyncio.run(collect()) == "订单T1状态正常"
 
 
+def test_text_chunks_caps_reply_size():
+    assert len("".join(llm.text_chunks("x" * 5000))) == llm.MAX_REPLY_CHARS
+
+
 def test_model_is_not_called_without_trusted_knowledge(monkeypatch):
     monkeypatch.setattr(llm, "settings", SimpleNamespace(has_model=True))
 

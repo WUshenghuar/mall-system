@@ -11,6 +11,7 @@ from app.telemetry import set_span_attributes, span
 
 
 _model_retry_at = 0.0
+MAX_REPLY_CHARS = 4000
 
 
 def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -90,32 +91,32 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
         return
     if is_prompt_injection(message):
         answer = local_agent.invoke({"message": message})["answer"]
-        for index in range(0, len(answer), 12):
-            yield answer[index:index + 12]
+        for chunk in text_chunks(answer):
+            yield chunk
         return
     if not context and not business_context:
         answer = local_agent.invoke({"message": message})["answer"]
         if should_suggest_handoff(message):
             answer = ("I couldn't find verified platform information for that question. Please provide an order number or contact a human agent."
                       if is_english_message(message) else "我暂时没有查到可确认的相关平台资料，无法直接判断。你可以补充订单号或转人工客服。")
-        for index in range(0, len(answer), 12):
-            yield answer[index:index + 12]
+        for chunk in text_chunks(answer):
+            yield chunk
         return
     if not settings.has_model:
         if business_context:
-            for index in range(0, len(business_context), 12):
-                yield business_context[index:index + 12]
+            for chunk in text_chunks(business_context):
+                yield chunk
             return
         domains = ("支付", "会员", "订单", "物流", "退款", "优惠券", "商品", "税费", "币种")
         answers = context[:2] if sum(domain in message for domain in domains) > 1 else context[:1]
         answer = "\n".join(item["content"] for item in answers) if answers else local_agent.invoke({"message": message})["answer"]
-        for index in range(0, len(answer), 12):
-            yield answer[index:index + 12]
+        for chunk in text_chunks(answer):
+            yield chunk
         return
     if monotonic() < _model_retry_at:
         answer = business_context or "\n".join(item["content"] for item in context[:2]) or local_agent.invoke({"message": message})["answer"]
-        for index in range(0, len(answer), 12):
-            yield answer[index:index + 12]
+        for chunk in text_chunks(answer):
+            yield chunk
         return
 
     sources = "\n".join(item["content"] for item in context)
@@ -130,6 +131,7 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
     if getattr(settings, "model_include_usage", False):
         payload["stream_options"] = {"include_usage": True}
     emitted = False
+    emitted_chars = 0
     try:
         with span("ai.model.stream", {"ai.model": settings.model_name, "gen_ai.system": "openai",
                                        "gen_ai.request.model": settings.model_name,
@@ -148,8 +150,15 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
                         choices = chunk.get("choices", [])
                         delta = choices[0].get("delta", {}).get("content") if isinstance(choices, list) and choices else None
                         if delta:
+                            remaining = MAX_REPLY_CHARS - emitted_chars
+                            if remaining <= 0:
+                                break
+                            delta = delta[:remaining]
                             emitted = True
+                            emitted_chars += len(delta)
                             yield delta
+                            if emitted_chars >= MAX_REPLY_CHARS:
+                                break
     except Exception:
         _mark_model_failure()
         if emitted:
@@ -157,8 +166,8 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
     if not emitted:
         _mark_model_failure()
         answer = business_context or "\n".join(item["content"] for item in context[:2]) or local_agent.invoke({"message": message})["answer"]
-        for index in range(0, len(answer), 12):
-            yield answer[index:index + 12]
+        for chunk in text_chunks(answer):
+            yield chunk
     else:
         _mark_model_success()
 
@@ -178,6 +187,12 @@ def usage_attributes(usage: dict) -> dict:
     if details:
         attributes["langfuse.observation.usage_details"] = json.dumps(details, separators=(",", ":"))
     return attributes
+
+
+def text_chunks(answer: str):
+    answer = answer[:MAX_REPLY_CHARS]
+    for index in range(0, len(answer), 12):
+        yield answer[index:index + 12]
 
 
 def _mark_model_failure() -> None:
