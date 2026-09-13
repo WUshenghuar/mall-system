@@ -1,4 +1,4 @@
-from evaluate import CASES, evaluate, evaluate_rerank, evaluate_retrieval, evaluate_with_judge, generated_answer, judge_answer, parse_judge_response
+from evaluate import CASES, evaluate, evaluate_rerank, evaluate_retrieval, evaluate_with_judge, generated_answer, judge_answer, parse_judge_response, redact_eval_text
 from app.api.chat import ChatRequest
 from app.rag import embedding, retriever
 from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits, filter_relevant, hybrid_hits, rerank_hits, retrieve
@@ -25,6 +25,7 @@ def test_rerank_regression_baseline_is_green():
 def test_judge_response_requires_bounded_json_contract():
     assert parse_judge_response('{"score":2,"grounded":true}') == {"score": 2, "grounded": True}
     assert parse_judge_response("```json\n{\"score\":3,\"grounded\":true}\n```") is None
+    assert redact_eval_text("订单 T202609071234567890，邮箱 a@example.com，电话 13800138000") == "订单 [ORDER_NO]，邮箱 [EMAIL]，电话 [NUMBER]"
 
 
 def test_judge_stays_offline_without_model(monkeypatch):
