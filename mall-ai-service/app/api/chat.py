@@ -94,7 +94,8 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
                 ]
                 yield sse({"type": "sources", "items": source_items})
             else:
-                context = await retrieve(request.message)
+                with span("ai.rag.retrieve", {"ai.query.length": len(request.message)}):
+                    context = await retrieve(request.message)
                 if not context and should_suggest_handoff(request.message):
                     yield sse({"type": "handoff_suggested"})
             if context:

@@ -10,5 +10,6 @@ def test_health_reports_ai_feature_flags():
     assert result["enabled"] is True
     assert isinstance(result["modelConfigured"], bool)
     assert isinstance(result["embeddingConfigured"], bool)
+    assert isinstance(result["rerankerConfigured"], bool)
     assert result["toolPlanningEnabled"] == result["modelConfigured"]
     assert isinstance(result["telemetryConfigured"], bool)

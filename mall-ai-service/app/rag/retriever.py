@@ -1,12 +1,13 @@
 import asyncio
 import json
-import re
+import math
 import re
 
 import httpx
 
 from app.config import settings
 from app.rag.embedding import embed_text
+from app.telemetry import span
 
 INDEX = "ai_knowledge"
 BM25_MIN_SCORE = 3.0
@@ -134,6 +135,7 @@ async def retrieve(query: str) -> list[dict]:
                 vector_hits = []
         hits = hybrid_hits(bm25_hits, vector_hits) if vector_hits else bm25_hits
         hits = rerank_hits(query, hits)
+        hits = await production_rerank(query, hits)
         hits = [hit.get("_source", {}) for hit in hits]
         return hits[:3] or fallback_hits(query)
     except Exception:
@@ -175,6 +177,51 @@ def rerank_hits(query: str, hits: list[dict]) -> list[dict]:
             score += 8
         scored.append((score, index, hit))
     return [hit for _, _, hit in sorted(scored, key=lambda item: (-item[0], item[1]))]
+
+
+async def production_rerank(query: str, hits: list[dict]) -> list[dict]:
+    if len(hits) < 2 or not getattr(settings, "has_reranker", False):
+        return hits
+    documents = [_candidate_text(hit) for hit in hits]
+    payload = {"model": settings.rerank_model, "query": query[:1000], "documents": documents,
+               "top_n": min(3, len(documents))}
+    try:
+        # ponytail: one bounded rerank call; timeout/fallback protects chat latency until a circuit breaker is needed.
+        with span("ai.rag.rerank", {"ai.rerank.candidates": len(hits)}):
+            async with httpx.AsyncClient(timeout=3) as client:
+                response = await client.post(
+                    f"{settings.rerank_api_base}/rerank",
+                    headers={"Authorization": f"Bearer {settings.rerank_api_key}"},
+                    json=payload,
+                )
+                response.raise_for_status()
+                results = response.json().get("results")
+        if not isinstance(results, list):
+            return hits
+        scored = []
+        seen = set()
+        for result in results:
+            if not isinstance(result, dict):
+                return hits
+            index, score = result.get("index"), result.get("relevance_score")
+            if (isinstance(index, bool) or not isinstance(index, int) or index < 0 or index >= len(hits)
+                    or index in seen or not isinstance(score, (int, float)) or not math.isfinite(float(score))):
+                return hits
+            seen.add(index)
+            scored.append((float(score), index))
+        if not scored:
+            return hits
+        ranked = [hits[index] for _, index in sorted(scored, key=lambda item: (-item[0], item[1]))]
+        ranked.extend(hit for index, hit in enumerate(hits) if index not in seen)
+        return ranked
+    except Exception:
+        return hits
+
+
+def _candidate_text(hit: dict) -> str:
+    source = hit.get("_source") if isinstance(hit, dict) else {}
+    source = source if isinstance(source, dict) else {}
+    return f"{source.get('title', '')}\n{source.get('content', '')}"[:4000]
 
 
 def filter_relevant(query: str, hits: list[dict]) -> list[dict]:

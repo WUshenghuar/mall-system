@@ -10,6 +10,8 @@ _MODEL_API_BASE = _env("AI_MODEL_API_BASE").rstrip("/")
 _MODEL_API_KEY = _env("AI_MODEL_API_KEY")
 _EMBEDDING_API_BASE = _env("AI_EMBEDDING_API_BASE").rstrip("/")
 _EMBEDDING_API_KEY = _env("AI_EMBEDDING_API_KEY")
+_RERANK_API_BASE = _env("AI_RERANK_API_BASE").rstrip("/")
+_RERANK_API_KEY = _env("AI_RERANK_API_KEY")
 
 
 @dataclass(frozen=True)
@@ -24,6 +26,9 @@ class Settings:
     embedding_model: str = _env("AI_EMBEDDING_MODEL")
     embedding_dimensions: int = int(_env("AI_EMBEDDING_DIMENSIONS") or "1536")
     embedding_min_score: float = float(_env("AI_EMBEDDING_MIN_SCORE") or "0.7")
+    rerank_api_base: str = _RERANK_API_BASE
+    rerank_api_key: str = _RERANK_API_KEY
+    rerank_model: str = _env("AI_RERANK_MODEL")
     sla_p95_ms: float = float(_env("AI_SLA_P95_MS") or "2000")
     sla_error_rate: float = float(_env("AI_SLA_ERROR_RATE") or "0.05")
     elasticsearch_url: str = (_env("AI_ELASTICSEARCH_URL") or "http://elasticsearch:9200").rstrip("/")
@@ -35,6 +40,10 @@ class Settings:
     @property
     def has_embedding(self) -> bool:
         return bool(self.embedding_api_base and self.embedding_api_key and self.embedding_model and self.embedding_dimensions > 0)
+
+    @property
+    def has_reranker(self) -> bool:
+        return bool(self.rerank_api_base and self.rerank_api_key and self.rerank_model)
 
 
 settings = Settings()

@@ -1,10 +1,11 @@
 from evaluate import CASES, evaluate
 from app.api.chat import ChatRequest
-from app.rag import embedding
+from app.rag import embedding, retriever
 from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits, filter_relevant, hybrid_hits, rerank_hits, retrieve
 from app.utils.llm import stream_reply
 from pydantic import ValidationError
 import asyncio
+from types import SimpleNamespace
 
 
 def test_deterministic_policy_evaluation_is_green():
@@ -89,6 +90,70 @@ def test_rerank_prefers_english_title_phrase():
     ])
 
     assert [hit["_id"] for hit in hits] == ["title", "content"]
+
+
+def test_production_rerank_orders_candidates_and_keeps_unranked_tail(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"results": [{"index": 1, "relevance_score": 0.9}, {"index": 0, "relevance_score": 0.2}]}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, headers, json):
+            assert url == "https://rerank.test/rerank"
+            assert json["model"] == "rerank-test"
+            assert json["top_n"] == 3
+            assert len(json["documents"]) == 3
+            return Response()
+
+    monkeypatch.setattr(retriever, "settings", SimpleNamespace(
+        has_reranker=True, rerank_api_base="https://rerank.test", rerank_api_key="secret", rerank_model="rerank-test"))
+    monkeypatch.setattr(retriever.httpx, "AsyncClient", lambda **kwargs: Client())
+    hits = [
+        {"_id": "a", "_source": {"title": "A", "content": "first"}},
+        {"_id": "b", "_source": {"title": "B", "content": "second"}},
+        {"_id": "c", "_source": {"title": "C", "content": "third"}},
+    ]
+
+    result = asyncio.run(retriever.production_rerank("second", hits))
+
+    assert [hit["_id"] for hit in result] == ["b", "a", "c"]
+
+
+def test_production_rerank_falls_back_on_invalid_response(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"results": [{"index": 99, "relevance_score": 1.0}]}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, *args, **kwargs):
+            return Response()
+
+    monkeypatch.setattr(retriever, "settings", SimpleNamespace(
+        has_reranker=True, rerank_api_base="https://rerank.test", rerank_api_key="secret", rerank_model="rerank-test"))
+    monkeypatch.setattr(retriever.httpx, "AsyncClient", lambda **kwargs: Client())
+    hits = [{"_id": "a", "_source": {"title": "A"}}, {"_id": "b", "_source": {"title": "B"}}]
+
+    result = asyncio.run(retriever.production_rerank("query", hits))
+
+    assert result == hits
 
 
 def test_retrieve_fuses_bm25_and_vector_results(monkeypatch):

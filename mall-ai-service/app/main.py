@@ -30,6 +30,7 @@ async def health():
         "enabled": settings.enabled,
         "modelConfigured": settings.enabled and settings.has_model,
         "embeddingConfigured": settings.enabled and settings.has_embedding,
+        "rerankerConfigured": settings.enabled and settings.has_reranker,
         "toolPlanningEnabled": settings.enabled and settings.has_model,
         "telemetryConfigured": telemetry_configured(),
     }

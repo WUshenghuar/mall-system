@@ -115,16 +115,17 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
     payload = {"model": settings.model_name, "messages": messages, "stream": True, "temperature": 0.3}
     emitted = False
     try:
-        async with httpx.AsyncClient(timeout=45) as client:
-            async with client.stream("POST", f"{settings.model_api_base}/chat/completions", headers=headers, json=payload) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if not line.startswith("data: ") or line == "data: [DONE]":
-                        continue
-                    delta = json.loads(line[6:]).get("choices", [{}])[0].get("delta", {}).get("content")
-                    if delta:
-                        emitted = True
-                        yield delta
+        with span("ai.model.stream", {"ai.model": settings.model_name}):
+            async with httpx.AsyncClient(timeout=45) as client:
+                async with client.stream("POST", f"{settings.model_api_base}/chat/completions", headers=headers, json=payload) as response:
+                    response.raise_for_status()
+                    async for line in response.aiter_lines():
+                        if not line.startswith("data: ") or line == "data: [DONE]":
+                            continue
+                        delta = json.loads(line[6:]).get("choices", [{}])[0].get("delta", {}).get("content")
+                        if delta:
+                            emitted = True
+                            yield delta
     except Exception:
         if emitted:
             raise
