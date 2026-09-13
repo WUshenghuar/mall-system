@@ -48,14 +48,21 @@ def langfuse_configured() -> bool:
     return all(os.getenv(name, "").strip() for name in ("LANGFUSE_BASE_URL", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"))
 
 
-def _headers(signal_name: str = "") -> dict[str, str]:
+def _parse_headers(value: str) -> dict[str, str]:
     result = {}
-    for item in os.getenv("OTEL_EXPORTER_OTLP_HEADERS", "").split(","):
+    for item in value.split(","):
         if "=" not in item:
             continue
         key, value = item.split("=", 1)
         if key.strip():
             result[key.strip()] = value.strip()
+    return result
+
+
+def _headers(signal_name: str = "") -> dict[str, str]:
+    result = _parse_headers(os.getenv("OTEL_EXPORTER_OTLP_HEADERS", ""))
+    if signal_name:
+        result.update(_parse_headers(os.getenv(f"OTEL_EXPORTER_OTLP_{signal_name}_HEADERS", "")))
     if signal_name == "TRACES" and langfuse_configured():
         auth = base64.b64encode(
             f"{os.getenv('LANGFUSE_PUBLIC_KEY')}:{os.getenv('LANGFUSE_SECRET_KEY')}".encode()

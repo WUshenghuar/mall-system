@@ -20,10 +20,11 @@ def test_otlp_endpoint_and_headers_support_signal_specific_paths(monkeypatch):
     monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
     monkeypatch.delenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", raising=False)
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_HEADERS", "Authorization=Basic abc==,x-tenant=cbec")
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_TRACES_HEADERS", "x-tenant=trace")
 
     assert telemetry._endpoint("TRACES") == "http://collector:4318/v1/traces"
     assert telemetry._endpoint("METRICS") == "http://collector:4318/v1/metrics"
-    assert telemetry._headers() == {"Authorization": "Basic abc==", "x-tenant": "cbec"}
+    assert telemetry._headers("TRACES") == {"Authorization": "Basic abc==", "x-tenant": "trace"}
 
 
 def test_mark_error_is_safe_without_a_recording_span():
