@@ -8,7 +8,7 @@ status: 持续迭代
 
 > **实施前提（2026-09-08）：** AI P0 对话基线已经实现，包括 Java SSE 网关、Python 服务、基础检索和业务上下文；本方案后续阶段聚焦生产级 RAG、工具编排、安全治理、可靠性和评测。AI 不得成为核心交易成功的必要依赖。
 >
-> **当前状态（2026-09-13）：** 已交付 Java/Python SSE 对话闭环、BM25 与可选 Embedding 混合检索、可选 Cohere 兼容 Rerank 协议、知识库管理、9 类只读业务工具、最多三轮且总数不超过 3 个工具的有界多轮规划与结果回传、模型上下文生成、中英文兜底、无知识拒答、人工接管、审计、幂等/陈旧占位回收、Redis 会员级限流、受保护的本地 SLA 指标/阈值、Trace ID 透传、可选 OpenTelemetry OTLP span/metrics 导出和本地 Collector smoke、AI 快速禁用。真实能力开关仍由环境变量控制，模型与 Embedding/Rerank 尚未在本地配置；生产级 Rerank 模型与质量评测、LangFuse 全链路、生产级 OTel Collector 后端/告警和生产级 SLA 仍按本方案迭代。
+> **当前状态（2026-09-13）：** 已交付 Java/Python SSE 对话闭环、BM25 与可选 Embedding 混合检索、可选 Cohere 兼容 Rerank 协议、知识库管理、9 类只读业务工具、最多三轮且总数不超过 3 个工具的有界多轮规划与结果回传、模型上下文生成、中英文兜底、无知识拒答、人工接管、审计、幂等/陈旧占位回收、Redis 会员级限流、受保护的本地 SLA 指标/阈值、Trace ID 透传、可选 OpenTelemetry OTLP span/metrics 导出、本地 Collector smoke 和 LangFuse OTLP traces 配置兼容、AI 快速禁用。真实能力开关仍由环境变量控制，模型与 Embedding/Rerank/LangFuse 尚未在本地配置；生产级 Rerank 模型与质量评测、LangFuse 业务语义/评测全链路、生产级 OTel Collector 后端/告警和生产级 SLA 仍按本方案迭代。
 
 > **当前架构口径：** Java 侧暂不拆分独立 Maven 模块，先在根目录单模块中增加受控 AI 代理；Python 服务按本方案独立启动。实际服务、端口和环境变量见《当前实现基线与文档口径》。
 

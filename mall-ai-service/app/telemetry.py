@@ -1,4 +1,5 @@
 import os
+import base64
 from contextlib import nullcontext
 
 try:
@@ -28,17 +29,26 @@ def _endpoint(signal_name: str) -> str:
     if specific:
         return specific.rstrip("/")
     endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip().rstrip("/")
-    for signal in ("traces", "metrics"):
-        if endpoint.endswith(f"/v1/{signal}"):
-            endpoint = endpoint[:-(len(signal) + 4)]
-            break
-    suffix = f"/v1/{signal_name.lower()}"
-    if endpoint and not endpoint.endswith(suffix):
-        endpoint += suffix
-    return endpoint
+    if endpoint:
+        for signal in ("traces", "metrics"):
+            if endpoint.endswith(f"/v1/{signal}"):
+                endpoint = endpoint[:-(len(signal) + 4)]
+                break
+        suffix = f"/v1/{signal_name.lower()}"
+        return endpoint if endpoint.endswith(suffix) else endpoint + suffix
+    if signal_name == "TRACES" and langfuse_configured():
+        endpoint = os.getenv("LANGFUSE_BASE_URL", "").strip().rstrip("/")
+        if not endpoint.endswith("/api/public/otel"):
+            endpoint += "/api/public/otel"
+        return endpoint + "/v1/traces"
+    return os.getenv(f"CBEC_OTEL_LOCAL_{signal_name}_ENDPOINT", "").strip().rstrip("/")
 
 
-def _headers() -> dict[str, str]:
+def langfuse_configured() -> bool:
+    return all(os.getenv(name, "").strip() for name in ("LANGFUSE_BASE_URL", "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY"))
+
+
+def _headers(signal_name: str = "") -> dict[str, str]:
     result = {}
     for item in os.getenv("OTEL_EXPORTER_OTLP_HEADERS", "").split(","):
         if "=" not in item:
@@ -46,6 +56,12 @@ def _headers() -> dict[str, str]:
         key, value = item.split("=", 1)
         if key.strip():
             result[key.strip()] = value.strip()
+    if signal_name == "TRACES" and langfuse_configured():
+        auth = base64.b64encode(
+            f"{os.getenv('LANGFUSE_PUBLIC_KEY')}:{os.getenv('LANGFUSE_SECRET_KEY')}".encode()
+        ).decode()
+        result.setdefault("Authorization", f"Basic {auth}")
+        result.setdefault("x-langfuse-ingestion-version", "4")
     return result
 
 
@@ -61,19 +77,20 @@ def configure_telemetry() -> bool:
     if _configured or trace is None:
         return _configured
     resource = Resource.create({SERVICE_NAME: os.getenv("OTEL_SERVICE_NAME", "cbec-ai-service")})
-    headers = _headers()
+    trace_headers = _headers("TRACES")
+    metric_headers = _headers("METRICS")
     configured = False
     trace_endpoint = _endpoint("TRACES")
     if trace_endpoint:
         provider = TracerProvider(resource=resource)
-        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=trace_endpoint, headers=headers)))
+        provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=trace_endpoint, headers=trace_headers)))
         trace.set_tracer_provider(provider)
         configured = True
 
     metric_endpoint = _endpoint("METRICS")
     if otel_metrics is not None and metric_endpoint:
         reader = PeriodicExportingMetricReader(
-            OTLPMetricExporter(endpoint=metric_endpoint, headers=headers),
+            OTLPMetricExporter(endpoint=metric_endpoint, headers=metric_headers),
             export_interval_millis=_metric_interval(),
         )
         otel_metrics.set_meter_provider(MeterProvider(resource=resource, metric_readers=[reader]))
