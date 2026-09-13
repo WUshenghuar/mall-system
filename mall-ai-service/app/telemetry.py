@@ -147,6 +147,15 @@ def mark_error(description: str = "ai_request_error") -> None:
         current.set_status(Status(StatusCode.ERROR, description))
 
 
+def set_span_attributes(attributes: dict) -> None:
+    if trace is None:
+        return
+    current = trace.get_current_span()
+    if current.is_recording():
+        for key, value in attributes.items():
+            current.set_attribute(key, value)
+
+
 def span(name: str, attributes: dict | None = None):
     if trace is None:
         return nullcontext()

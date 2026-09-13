@@ -29,6 +29,7 @@ async def health():
         "service": "cbec-ai-customer-service",
         "enabled": settings.enabled,
         "modelConfigured": settings.enabled and settings.has_model,
+        "modelUsageEnabled": settings.enabled and settings.has_model and settings.model_include_usage,
         "embeddingConfigured": settings.enabled and settings.has_embedding,
         "rerankerConfigured": settings.enabled and settings.has_reranker,
         "langfuseConfigured": settings.enabled and langfuse_configured(),

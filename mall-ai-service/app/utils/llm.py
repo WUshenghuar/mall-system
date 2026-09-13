@@ -6,7 +6,7 @@ import httpx
 from app.agent.agent import is_english_message, is_prompt_injection, local_agent, should_suggest_handoff
 from app.agent.tools import TOOL_DEFINITIONS, TOOL_NAMES
 from app.config import settings
-from app.telemetry import span
+from app.telemetry import set_span_attributes, span
 
 
 def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -24,7 +24,8 @@ def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
 
 
 async def plan_tool(message: str, history: list[dict[str, str]], tool_results: list[str] | None = None) -> dict:
-    with span("ai.tool_plan", {"langfuse.observation.type": "tool"}):
+    with span("ai.tool_plan", {"langfuse.observation.type": "tool", "gen_ai.system": "openai",
+                               "gen_ai.request.model": settings.model_name, "langfuse.observation.model.name": settings.model_name}):
         return await _plan_tool(message, history, tool_results)
 
 
@@ -52,7 +53,11 @@ async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: 
                 json=payload,
             )
             response.raise_for_status()
-        calls = response.json().get("choices", [{}])[0].get("message", {}).get("tool_calls", [])
+        body = response.json()
+        usage = usage_attributes(body.get("usage", {}))
+        if usage:
+            set_span_attributes(usage)
+        calls = body.get("choices", [{}])[0].get("message", {}).get("tool_calls", [])
         if not isinstance(calls, list):
             return {"tool": "", "arguments": {}}
         plans = []
@@ -113,16 +118,26 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
         messages.append({"role": "user", "content": message})
     headers = {"Authorization": f"Bearer {settings.model_api_key}"}
     payload = {"model": settings.model_name, "messages": messages, "stream": True, "temperature": 0.3}
+    if getattr(settings, "model_include_usage", False):
+        payload["stream_options"] = {"include_usage": True}
     emitted = False
     try:
-        with span("ai.model.stream", {"ai.model": settings.model_name, "langfuse.observation.type": "generation"}):
+        with span("ai.model.stream", {"ai.model": settings.model_name, "gen_ai.system": "openai",
+                                       "gen_ai.request.model": settings.model_name,
+                                       "langfuse.observation.model.name": settings.model_name,
+                                       "langfuse.observation.type": "generation"}):
             async with httpx.AsyncClient(timeout=45) as client:
                 async with client.stream("POST", f"{settings.model_api_base}/chat/completions", headers=headers, json=payload) as response:
                     response.raise_for_status()
                     async for line in response.aiter_lines():
                         if not line.startswith("data: ") or line == "data: [DONE]":
                             continue
-                        delta = json.loads(line[6:]).get("choices", [{}])[0].get("delta", {}).get("content")
+                        chunk = json.loads(line[6:])
+                        usage = usage_attributes(chunk.get("usage", {}))
+                        if usage:
+                            set_span_attributes(usage)
+                        choices = chunk.get("choices", [])
+                        delta = choices[0].get("delta", {}).get("content") if isinstance(choices, list) and choices else None
                         if delta:
                             emitted = True
                             yield delta
@@ -133,3 +148,20 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
         answer = business_context or "\n".join(item["content"] for item in context[:2]) or local_agent.invoke({"message": message})["answer"]
         for index in range(0, len(answer), 12):
             yield answer[index:index + 12]
+
+
+def usage_attributes(usage: dict) -> dict:
+    if not isinstance(usage, dict):
+        return {}
+    aliases = {"input_tokens": "input", "prompt_tokens": "input", "output_tokens": "output",
+               "completion_tokens": "output", "total_tokens": "total"}
+    details = {}
+    attributes = {}
+    for source, target in aliases.items():
+        value = usage.get(source)
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            details[target] = value
+            attributes[f"gen_ai.usage.{target}_tokens"] = value
+    if details:
+        attributes["langfuse.observation.usage_details"] = json.dumps(details, separators=(",", ":"))
+    return attributes

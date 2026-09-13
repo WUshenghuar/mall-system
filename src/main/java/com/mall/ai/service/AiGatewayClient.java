@@ -37,7 +37,7 @@ public class AiGatewayClient {
             return objectMapper.convertValue(requestJson("GET", "/health", null), new TypeReference<>() { });
         } catch (Exception e) {
             log.debug("AI runtime status unavailable", e);
-            return Map.of("status", "unavailable", "enabled", false, "modelConfigured", false, "embeddingConfigured", false,
+            return Map.of("status", "unavailable", "enabled", false, "modelConfigured", false, "modelUsageEnabled", false, "embeddingConfigured", false,
                     "rerankerConfigured", false, "langfuseConfigured", false, "toolPlanningEnabled", false);
         }
     }

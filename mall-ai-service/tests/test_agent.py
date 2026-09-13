@@ -72,6 +72,89 @@ def test_configured_model_formats_real_business_context(monkeypatch):
     assert asyncio.run(collect()) == "已整理：订单状态正常"
 
 
+def test_streaming_usage_chunk_with_empty_choices_is_recorded(monkeypatch):
+    monkeypatch.setattr(llm, "settings", SimpleNamespace(
+        enabled=True, has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat",
+        model_include_usage=True))
+    recorded = []
+
+    class Stream:
+        def raise_for_status(self):
+            return None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def aiter_lines(self):
+            yield 'data: {"choices":[{"delta":{"content":"回答"}}]}'
+            yield 'data: {"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":5,"total_tokens":17}}'
+            yield "data: [DONE]"
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        def stream(self, *args, **kwargs):
+            assert kwargs["json"]["stream_options"] == {"include_usage": True}
+            return Stream()
+
+    monkeypatch.setattr(llm, "set_span_attributes", recorded.append)
+    monkeypatch.setattr(llm.httpx, "AsyncClient", lambda **kwargs: Client())
+
+    async def collect():
+        return "".join([chunk async for chunk in stream_reply("查订单", [], [{"content": "规则"}], "")])
+
+    assert asyncio.run(collect()) == "回答"
+    assert recorded == [{
+        "gen_ai.usage.input_tokens": 12,
+        "gen_ai.usage.output_tokens": 5,
+        "gen_ai.usage.total_tokens": 17,
+        "langfuse.observation.usage_details": '{"input":12,"output":5,"total":17}',
+    }]
+
+
+def test_empty_model_stream_uses_business_fallback(monkeypatch):
+    monkeypatch.setattr(llm, "settings", SimpleNamespace(
+        enabled=True, has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
+
+    class Stream:
+        def raise_for_status(self):
+            return None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def aiter_lines(self):
+            yield 'data: {"choices":[]}'
+            yield "data: [DONE]"
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        def stream(self, *args, **kwargs):
+            return Stream()
+
+    monkeypatch.setattr(llm.httpx, "AsyncClient", lambda **kwargs: Client())
+
+    async def collect():
+        return "".join([chunk async for chunk in stream_reply("查订单", [], [{"content": "规则"}], "订单T1状态正常")])
+
+    assert asyncio.run(collect()) == "订单T1状态正常"
+
+
 def test_configured_model_ignores_prompt_injection_in_history(monkeypatch):
     monkeypatch.setattr(llm, "settings", SimpleNamespace(
         enabled=True, has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))

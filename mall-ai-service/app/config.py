@@ -21,6 +21,7 @@ class Settings:
     model_api_base: str = _MODEL_API_BASE
     model_api_key: str = _MODEL_API_KEY
     model_name: str = _env("AI_MODEL_NAME")
+    model_include_usage: bool = _env("AI_MODEL_INCLUDE_USAGE").lower() in {"1", "true", "yes", "on"}
     embedding_api_base: str = _EMBEDDING_API_BASE or _MODEL_API_BASE
     embedding_api_key: str = _EMBEDDING_API_KEY or (_MODEL_API_KEY if not _EMBEDDING_API_BASE else "")
     embedding_model: str = _env("AI_EMBEDDING_MODEL")

@@ -9,6 +9,7 @@ def test_health_reports_ai_feature_flags():
     assert result["status"] == "ok"
     assert result["enabled"] is True
     assert isinstance(result["modelConfigured"], bool)
+    assert isinstance(result["modelUsageEnabled"], bool)
     assert isinstance(result["embeddingConfigured"], bool)
     assert isinstance(result["rerankerConfigured"], bool)
     assert isinstance(result["langfuseConfigured"], bool)
