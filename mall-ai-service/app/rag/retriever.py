@@ -2,6 +2,7 @@ import asyncio
 import json
 import math
 import re
+from time import monotonic
 
 import httpx
 
@@ -11,6 +12,7 @@ from app.telemetry import span
 
 INDEX = "ai_knowledge"
 BM25_MIN_SCORE = 3.0
+_rerank_retry_at = 0.0
 DISABLED_IDS: set[str] = set()
 CHINESE_TERMS = {
     "refund": ("退款", "退货", "售后"), "coupon": ("优惠券", "优惠", "券包", "折扣券"),
@@ -180,7 +182,8 @@ def rerank_hits(query: str, hits: list[dict]) -> list[dict]:
 
 
 async def production_rerank(query: str, hits: list[dict]) -> list[dict]:
-    if len(hits) < 2 or not getattr(settings, "has_reranker", False):
+    if (len(hits) < 2 or not getattr(settings, "has_reranker", False)
+            or monotonic() < _rerank_retry_at):
         return hits
     documents = [_candidate_text(hit) for hit in hits]
     payload = {"model": settings.rerank_model, "query": query[:1000], "documents": documents,
@@ -195,26 +198,32 @@ async def production_rerank(query: str, hits: list[dict]) -> list[dict]:
                     json=payload,
                 )
                 response.raise_for_status()
-                results = response.json().get("results")
+        results = response.json().get("results")
         if not isinstance(results, list):
+            _mark_rerank_failure()
             return hits
         scored = []
         seen = set()
         for result in results:
             if not isinstance(result, dict):
+                _mark_rerank_failure()
                 return hits
             index, score = result.get("index"), result.get("relevance_score")
             if (isinstance(index, bool) or not isinstance(index, int) or index < 0 or index >= len(hits)
                     or index in seen or not isinstance(score, (int, float)) or not math.isfinite(float(score))):
+                _mark_rerank_failure()
                 return hits
             seen.add(index)
             scored.append((float(score), index))
         if not scored:
+            _mark_rerank_failure()
             return hits
         ranked = [hits[index] for _, index in sorted(scored, key=lambda item: (-item[0], item[1]))]
         ranked.extend(hit for index, hit in enumerate(hits) if index not in seen)
+        _mark_rerank_success()
         return ranked
     except Exception:
+        _mark_rerank_failure()
         return hits
 
 
@@ -222,6 +231,17 @@ def _candidate_text(hit: dict) -> str:
     source = hit.get("_source") if isinstance(hit, dict) else {}
     source = source if isinstance(source, dict) else {}
     return f"{source.get('title', '')}\n{source.get('content', '')}"[:4000]
+
+
+def _mark_rerank_failure() -> None:
+    global _rerank_retry_at
+    # ponytail: process-local cooldown avoids a dependency; use a shared breaker when running multiple workers.
+    _rerank_retry_at = monotonic() + 30
+
+
+def _mark_rerank_success() -> None:
+    global _rerank_retry_at
+    _rerank_retry_at = 0.0
 
 
 def filter_relevant(query: str, hits: list[dict]) -> list[dict]:
