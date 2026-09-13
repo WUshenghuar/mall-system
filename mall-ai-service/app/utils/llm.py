@@ -1,5 +1,6 @@
 import json
 from collections.abc import AsyncIterator
+from time import monotonic
 
 import httpx
 
@@ -7,6 +8,9 @@ from app.agent.agent import is_english_message, is_prompt_injection, local_agent
 from app.agent.tools import TOOL_DEFINITIONS, TOOL_NAMES
 from app.config import settings
 from app.telemetry import set_span_attributes, span
+
+
+_model_retry_at = 0.0
 
 
 def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -108,6 +112,11 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
         for index in range(0, len(answer), 12):
             yield answer[index:index + 12]
         return
+    if monotonic() < _model_retry_at:
+        answer = business_context or "\n".join(item["content"] for item in context[:2]) or local_agent.invoke({"message": message})["answer"]
+        for index in range(0, len(answer), 12):
+            yield answer[index:index + 12]
+        return
 
     sources = "\n".join(item["content"] for item in context)
     if business_context:
@@ -142,12 +151,16 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
                             emitted = True
                             yield delta
     except Exception:
+        _mark_model_failure()
         if emitted:
             raise
     if not emitted:
+        _mark_model_failure()
         answer = business_context or "\n".join(item["content"] for item in context[:2]) or local_agent.invoke({"message": message})["answer"]
         for index in range(0, len(answer), 12):
             yield answer[index:index + 12]
+    else:
+        _mark_model_success()
 
 
 def usage_attributes(usage: dict) -> dict:
@@ -165,3 +178,14 @@ def usage_attributes(usage: dict) -> dict:
     if details:
         attributes["langfuse.observation.usage_details"] = json.dumps(details, separators=(",", ":"))
     return attributes
+
+
+def _mark_model_failure() -> None:
+    global _model_retry_at
+    # ponytail: process-local cooldown avoids a dependency; use a shared breaker when running multiple workers.
+    _model_retry_at = monotonic() + 30
+
+
+def _mark_model_success() -> None:
+    global _model_retry_at
+    _model_retry_at = 0.0

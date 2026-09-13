@@ -35,6 +35,7 @@ def test_business_context_has_priority_over_model_reply():
 
 
 def test_configured_model_formats_real_business_context(monkeypatch):
+    monkeypatch.setattr(llm, "_model_retry_at", 0.0)
     monkeypatch.setattr(llm, "settings", SimpleNamespace(
         enabled=True, has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
 
@@ -73,6 +74,7 @@ def test_configured_model_formats_real_business_context(monkeypatch):
 
 
 def test_streaming_usage_chunk_with_empty_choices_is_recorded(monkeypatch):
+    monkeypatch.setattr(llm, "_model_retry_at", 0.0)
     monkeypatch.setattr(llm, "settings", SimpleNamespace(
         enabled=True, has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat",
         model_include_usage=True))
@@ -120,6 +122,7 @@ def test_streaming_usage_chunk_with_empty_choices_is_recorded(monkeypatch):
 
 
 def test_empty_model_stream_uses_business_fallback(monkeypatch):
+    monkeypatch.setattr(llm, "_model_retry_at", 0.0)
     monkeypatch.setattr(llm, "settings", SimpleNamespace(
         enabled=True, has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
 
@@ -156,6 +159,7 @@ def test_empty_model_stream_uses_business_fallback(monkeypatch):
 
 
 def test_configured_model_ignores_prompt_injection_in_history(monkeypatch):
+    monkeypatch.setattr(llm, "_model_retry_at", 0.0)
     monkeypatch.setattr(llm, "settings", SimpleNamespace(
         enabled=True, has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
     seen = {}
@@ -201,6 +205,7 @@ def test_configured_model_ignores_prompt_injection_in_history(monkeypatch):
 
 
 def test_model_failure_before_first_token_uses_safe_business_fallback(monkeypatch):
+    monkeypatch.setattr(llm, "_model_retry_at", 0.0)
     monkeypatch.setattr(llm, "settings", SimpleNamespace(
         enabled=True, has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
 
@@ -220,6 +225,22 @@ def test_model_failure_before_first_token_uses_safe_business_fallback(monkeypatc
         return "".join([chunk async for chunk in stream_reply("查订单", [], [], "订单T1当前状态：待收货")])
 
     assert asyncio.run(collect()) == "订单T1当前状态：待收货"
+
+
+def test_model_failure_cooldown_skips_repeated_provider_call(monkeypatch):
+    monkeypatch.setattr(llm, "_model_retry_at", float("inf"))
+    monkeypatch.setattr(llm, "settings", SimpleNamespace(
+        enabled=True, has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
+
+    def fail_if_called(**kwargs):
+        raise AssertionError("model call must be skipped during cooldown")
+
+    monkeypatch.setattr(llm.httpx, "AsyncClient", fail_if_called)
+
+    async def collect():
+        return "".join([chunk async for chunk in stream_reply("查订单", [], [], "订单T1状态正常")])
+
+    assert asyncio.run(collect()) == "订单T1状态正常"
 
 
 def test_model_is_not_called_without_trusted_knowledge(monkeypatch):
