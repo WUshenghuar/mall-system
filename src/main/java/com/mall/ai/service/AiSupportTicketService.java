@@ -15,5 +15,5 @@ public interface AiSupportTicketService {
     void claim(Long id, Long operatorId);
     void reply(Long id, Long operatorId, String reply);
     void memberMessage(Long id, Long memberId, String message);
-    void resolve(Long id, String note);
+    void resolve(Long id, Long operatorId, String note);
 }

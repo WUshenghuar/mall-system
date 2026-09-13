@@ -72,8 +72,8 @@ public class AiSupportTicketController {
 
     @PostMapping("/{id}/resolve")
     @PreAuthorize("hasAuthority('order:support:handle')")
-    public Result<Void> resolve(@PathVariable Long id, @Valid @RequestBody ResolveReq req) {
-        ticketService.resolve(id, req.getNote());
+    public Result<Void> resolve(@PathVariable Long id, @Valid @RequestBody ResolveReq req, Authentication auth) {
+        ticketService.resolve(id, ((LoginUser) auth.getPrincipal()).getUserId(), req.getNote());
         return Result.success(null);
     }
 

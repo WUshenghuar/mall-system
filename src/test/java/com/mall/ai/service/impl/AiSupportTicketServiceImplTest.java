@@ -56,14 +56,14 @@ class AiSupportTicketServiceImplTest {
     void claimAndResolveUseCompareAndSetStatus() {
         AiSupportTicketMapper mapper = mock(AiSupportTicketMapper.class);
         when(mapper.claim(1L, 3L)).thenReturn(1);
-        when(mapper.resolve(eq(1L), eq("已处理"))).thenReturn(1);
+        when(mapper.resolve(eq(1L), eq(3L), eq("已处理"))).thenReturn(1);
         AiSupportTicketServiceImpl service = service(mapper);
 
         service.claim(1L, 3L);
-        service.resolve(1L, "");
+        service.resolve(1L, 3L, "");
 
         verify(mapper).claim(1L, 3L);
-        verify(mapper).resolve(1L, "已处理");
+        verify(mapper).resolve(1L, 3L, "已处理");
     }
 
     @Test
@@ -152,5 +152,14 @@ class AiSupportTicketServiceImplTest {
 
         assertThatThrownBy(() -> service(mapper).claim(1L, 3L))
                 .hasMessageContaining("已被其他客服领取");
+    }
+
+    @Test
+    void rejectsResolveWhenTicketBelongsToAnotherAgent() {
+        AiSupportTicketMapper mapper = mock(AiSupportTicketMapper.class);
+        when(mapper.resolve(1L, 3L, "已处理")).thenReturn(0);
+
+        assertThatThrownBy(() -> service(mapper).resolve(1L, 3L, "已处理"))
+                .hasMessageContaining("自己已认领");
     }
 }
