@@ -92,10 +92,14 @@ public class AiChatServiceImpl implements AiChatService {
             start = System.currentTimeMillis();
             String businessContext = businessContext(memberId, request.getMessage());
             selectedTool = businessTool(request.getMessage(), businessContext);
-            if (businessContext.isBlank()) {
+            if (businessContext.isBlank() || hasMultipleBusinessTopics(request.getMessage())) {
                 Map<String, Object> decision = gatewayClient.plan(memberId, conversationId, request.getMessage(), history);
                 List<String> contextParts = new ArrayList<>();
                 List<String> toolNames = new ArrayList<>();
+                if (!businessContext.isBlank()) {
+                    contextParts.add(businessContext);
+                    if (!selectedTool.isBlank()) toolNames.add(selectedTool);
+                }
                 int added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), decision, contextParts, toolNames, start);
                 for (int round = 1; added > 0 && round < 3; round++) {
                     List<String> toolResults = new ArrayList<>();
@@ -236,6 +240,19 @@ public class AiChatServiceImpl implements AiChatService {
             }
         }
         return added;
+    }
+
+    private boolean hasMultipleBusinessTopics(String message) {
+        List<String[]> topics = List.of(
+                new String[]{"物流", "快递", "运单", "包裹", "tracking", "delivery"},
+                new String[]{"退款", "退货", "refund", "return"},
+                new String[]{"商品", "产品", "product", "item"},
+                new String[]{"优惠券", "coupon", "discount"},
+                new String[]{"会员", "积分", "member", "points"},
+                new String[]{"活动", "促销", "activity", "promotion"},
+                new String[]{"税费", "tax", "duty"},
+                new String[]{"订单", "order"});
+        return topics.stream().filter(topic -> containsAny(message, topic)).limit(2).count() == 2;
     }
 
     private String plannedOrderNo(Map<String, Object> decision) {

@@ -35,6 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -380,6 +381,39 @@ class AiChatServiceImplTest {
         verify(gateway).stream(anyLong(), anyString(), anyString(),
                 eq("你的会员等级：Gold 会员，积分：88，累计消费：1200.00。\n为你找到的上架商品：\n跨境耳机"),
                 eq("query_member,query_product"), any(), any());
+    }
+
+    @Test
+    void plansAdditionalToolsAfterAConfiguredRuleContextForMultipleTopics() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        TradeOrderService orders = mock(TradeOrderService.class);
+        LogisticsService logistics = mock(LogisticsService.class);
+        ActivityService activities = mock(ActivityService.class);
+        IPage<TradeOrder> page = mock(IPage.class);
+        TradeOrder order = new TradeOrder(); order.setOrderNo("T202609071234567890"); order.setOrderStatus(2);
+        TradeLogistics tracking = new TradeLogistics(); tracking.setLogisticsCompany("DHL"); tracking.setLogisticsNo("DHL-001");
+        Activity activity = new Activity(); activity.setActivityName("秋季好物周"); activity.setActivityType("DISCOUNT");
+        activity.setEndTime(LocalDateTime.of(2026, 9, 30, 23, 59));
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(orders.selectPage(1, 3, 9L, null)).thenReturn(page);
+        when(page.getRecords()).thenReturn(List.of(order));
+        when(logistics.getByOrderNo("T202609071234567890")).thenReturn(tracking);
+        when(activities.selectActive()).thenReturn(List.of(activity));
+        when(gateway.plan(anyLong(), anyString(), anyString(), any())).thenReturn(
+                Map.of("tool", "query_activity", "arguments", Map.of()));
+        when(gateway.plan(anyLong(), anyString(), anyString(), any(), anyList())).thenReturn(Map.of());
+
+        AiChatServiceImpl service = new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orders, logistics,
+                mock(TradeRefundService.class), mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class));
+        service.setActivityService(activities);
+        service.stream(9L, "session-1", newRequest("我的包裹和活动"), ignored -> { });
+
+        verify(gateway).plan(anyLong(), anyString(), anyString(), any());
+        verify(gateway).plan(anyLong(), anyString(), anyString(), any(), anyList());
+        verify(gateway).stream(anyLong(), anyString(), anyString(),
+                argThat(value -> value.contains("DHL-001") && value.contains("秋季好物周")),
+                eq("query_logistics,query_activity"), any(), any());
     }
 
     @Test
