@@ -30,7 +30,7 @@ def test_judge_response_requires_bounded_json_contract():
 def test_judge_stays_offline_without_model(monkeypatch):
     monkeypatch.setattr("evaluate.settings", SimpleNamespace(has_model=False))
 
-    assert asyncio.run(evaluate_with_judge(2)) == {"configured": False, "cases": 2, "evaluated": 0}
+    assert asyncio.run(evaluate_with_judge(2)) == {"configured": False, "cases": 2, "evaluated": 0, "passed": False}
 
 
 def test_judge_reads_openai_compatible_json_response(monkeypatch):
@@ -68,6 +68,24 @@ def test_judge_candidate_comes_from_customer_service_stream(monkeypatch):
     monkeypatch.setattr("evaluate.stream_reply", fake_stream)
 
     assert asyncio.run(generated_answer("查询订单")) == "模型候选回答"
+
+
+def test_judge_gate_rejects_low_quality_scores(monkeypatch):
+    monkeypatch.setattr("evaluate.settings", SimpleNamespace(has_model=True))
+
+    async def fake_generated(message):
+        return "候选回答"
+
+    async def fake_judge(message, answer, expected):
+        return {"score": 0, "grounded": False}
+
+    monkeypatch.setattr("evaluate.generated_answer", fake_generated)
+    monkeypatch.setattr("evaluate.judge_answer", fake_judge)
+
+    result = asyncio.run(evaluate_with_judge(2))
+
+    assert result["evaluated"] == 2
+    assert result["passed"] is False
 
 
 def test_knowledge_seed_covers_core_platform_faqs():
