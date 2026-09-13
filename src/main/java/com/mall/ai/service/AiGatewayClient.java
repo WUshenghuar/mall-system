@@ -53,7 +53,7 @@ public class AiGatewayClient {
                     .map(item -> Map.of("role", "agent".equals(item.getRole()) ? "assistant" : item.getRole(), "content", item.getContent())).toList();
             JsonNode response = requestJson("POST", "/internal/tool-plan", Map.of(
                     "memberId", memberId, "conversationId", conversationId, "message", message, "history", messages,
-                    "toolResults", toolResults == null ? List.of() : toolResults));
+                    "toolResults", toolResults == null ? List.of() : toolResults), 2);
             return objectMapper.convertValue(response, new TypeReference<>() { });
         } catch (Exception e) {
             log.debug("AI tool planning unavailable; using deterministic routing", e);
@@ -119,10 +119,14 @@ public class AiGatewayClient {
     }
 
     private JsonNode requestJson(String method, String path, Object body) throws Exception {
+        return requestJson(method, path, body, 10);
+    }
+
+    private JsonNode requestJson(String method, String path, Object body, int timeoutSeconds) throws Exception {
         HttpURLConnection connection = (HttpURLConnection) URI.create(baseUrl + path).toURL().openConnection();
         connection.setRequestMethod(method);
-        connection.setConnectTimeout((int) Duration.ofSeconds(10).toMillis());
-        connection.setReadTimeout((int) Duration.ofSeconds(10).toMillis());
+        connection.setConnectTimeout((int) Duration.ofSeconds(timeoutSeconds).toMillis());
+        connection.setReadTimeout((int) Duration.ofSeconds(timeoutSeconds).toMillis());
         connection.setRequestProperty("Content-Type", "application/json");
         connection.setRequestProperty("X-AI-Service-Token", serviceToken);
         if (body != null) {

@@ -46,7 +46,7 @@ async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: 
         "temperature": 0,
     }
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=2) as client:
             response = await client.post(
                 f"{settings.model_api_base}/chat/completions",
                 headers={"Authorization": f"Bearer {settings.model_api_key}"},
