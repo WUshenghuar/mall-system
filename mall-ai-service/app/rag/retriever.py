@@ -8,7 +8,7 @@ import httpx
 
 from app.config import settings
 from app.rag.embedding import embed_text
-from app.telemetry import span
+from app.telemetry import record_rerank, span
 
 INDEX = "ai_knowledge"
 BM25_MIN_SCORE = 3.0
@@ -182,8 +182,10 @@ def rerank_hits(query: str, hits: list[dict]) -> list[dict]:
 
 
 async def production_rerank(query: str, hits: list[dict]) -> list[dict]:
-    if (len(hits) < 2 or not getattr(settings, "has_reranker", False)
-            or monotonic() < _rerank_retry_at):
+    if len(hits) < 2 or not getattr(settings, "has_reranker", False):
+        return hits
+    if monotonic() < _rerank_retry_at:
+        record_rerank("cooldown")
         return hits
     documents = [_candidate_text(hit) for hit in hits]
     payload = {"model": settings.rerank_model, "query": query[:1000], "documents": documents,
@@ -200,29 +202,35 @@ async def production_rerank(query: str, hits: list[dict]) -> list[dict]:
                 response.raise_for_status()
         results = response.json().get("results")
         if not isinstance(results, list):
+            record_rerank("failed")
             _mark_rerank_failure()
             return hits
         scored = []
         seen = set()
         for result in results:
             if not isinstance(result, dict):
+                record_rerank("failed")
                 _mark_rerank_failure()
                 return hits
             index, score = result.get("index"), result.get("relevance_score")
             if (isinstance(index, bool) or not isinstance(index, int) or index < 0 or index >= len(hits)
                     or index in seen or not isinstance(score, (int, float)) or not math.isfinite(float(score))):
+                record_rerank("failed")
                 _mark_rerank_failure()
                 return hits
             seen.add(index)
             scored.append((float(score), index))
         if not scored:
+            record_rerank("failed")
             _mark_rerank_failure()
             return hits
         ranked = [hits[index] for _, index in sorted(scored, key=lambda item: (-item[0], item[1]))]
         ranked.extend(hit for index, hit in enumerate(hits) if index not in seen)
+        record_rerank("success")
         _mark_rerank_success()
         return ranked
     except Exception:
+        record_rerank("failed")
         _mark_rerank_failure()
         return hits
 

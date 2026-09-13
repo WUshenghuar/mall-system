@@ -169,6 +169,8 @@ def test_rerank_prefers_english_title_phrase():
 
 def test_production_rerank_orders_candidates_and_keeps_unranked_tail(monkeypatch):
     monkeypatch.setattr(retriever, "_rerank_retry_at", 0.0)
+    outcomes = []
+    monkeypatch.setattr(retriever, "record_rerank", outcomes.append)
     class Response:
         def raise_for_status(self):
             return None
@@ -202,10 +204,13 @@ def test_production_rerank_orders_candidates_and_keeps_unranked_tail(monkeypatch
     result = asyncio.run(retriever.production_rerank("second", hits))
 
     assert [hit["_id"] for hit in result] == ["b", "a", "c"]
+    assert outcomes == ["success"]
 
 
 def test_production_rerank_falls_back_on_invalid_response(monkeypatch):
     monkeypatch.setattr(retriever, "_rerank_retry_at", 0.0)
+    outcomes = []
+    monkeypatch.setattr(retriever, "record_rerank", outcomes.append)
     class Response:
         def raise_for_status(self):
             return None
@@ -231,17 +236,21 @@ def test_production_rerank_falls_back_on_invalid_response(monkeypatch):
     result = asyncio.run(retriever.production_rerank("query", hits))
 
     assert result == hits
+    assert outcomes == ["failed"]
 
 
 def test_production_rerank_skips_provider_during_cooldown(monkeypatch):
     monkeypatch.setattr(retriever, "_rerank_retry_at", float("inf"))
     monkeypatch.setattr(retriever, "settings", SimpleNamespace(has_reranker=True))
+    outcomes = []
+    monkeypatch.setattr(retriever, "record_rerank", outcomes.append)
 
     result = asyncio.run(retriever.production_rerank("query", [
         {"_id": "a", "_source": {"title": "A"}}, {"_id": "b", "_source": {"title": "B"}}
     ]))
 
     assert [hit["_id"] for hit in result] == ["a", "b"]
+    assert outcomes == ["cooldown"]
 
 
 def test_retrieve_fuses_bm25_and_vector_results(monkeypatch):
