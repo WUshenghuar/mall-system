@@ -25,6 +25,15 @@ def test_chat_request_rejects_non_positive_member_id():
     raise AssertionError("non-positive member id was accepted")
 
 
+def test_chat_request_rejects_oversized_history():
+    try:
+        ChatRequest(memberId=9, conversationId="history-limit", message="查询订单",
+                    history=[{"role": "user", "content": "继续"}] * 21)
+    except ValidationError:
+        return
+    raise AssertionError("oversized history was accepted")
+
+
 def test_disabled_chat_streams_handoff_without_dependencies(monkeypatch):
     monkeypatch.setattr(chat_module, "settings", SimpleNamespace(enabled=False, service_token="token"))
     request = ChatRequest(memberId=9, conversationId="disabled-test", message="查询订单")
