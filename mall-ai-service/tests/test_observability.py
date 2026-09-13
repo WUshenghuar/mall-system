@@ -26,6 +26,20 @@ def test_request_metrics_marks_sla_degraded_when_error_rate_exceeds_threshold():
     assert metrics.snapshot(error_rate_limit=0)["sla"]["status"] == "degraded"
 
 
+def test_request_metrics_uses_the_latency_window_for_sla_error_rate():
+    metrics = RequestMetrics(window_size=2)
+    for outcome in ("error", "completed", "completed"):
+        started = metrics.start()
+        metrics.finish(started, outcome)
+
+    result = metrics.snapshot()
+
+    assert result["errorRate"] == round(1 / 3, 4)
+    assert result["sla"]["observedErrorRate"] == 0.0
+    assert result["sla"]["windowRequests"] == 2
+    assert result["sla"]["status"] == "healthy"
+
+
 def test_trace_id_accepts_safe_correlation_id_and_replaces_invalid_value():
     assert trace_id("request-123") == "request-123"
     assert len(trace_id("bad trace id")) == 32

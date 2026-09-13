@@ -11,6 +11,7 @@ class RequestMetrics:
     def __init__(self, window_size: int = 1000):
         self._lock = Lock()
         self._window = deque(maxlen=window_size)
+        self._outcome_window = deque(maxlen=window_size)
         self._outcomes = Counter()
         self._active = 0
 
@@ -26,15 +27,18 @@ class RequestMetrics:
             self._active = max(0, self._active - 1)
             self._outcomes[outcome] += 1
             self._window.append(duration_ms)
+            self._outcome_window.append(outcome)
         record_active(-1)
         record_request(duration_ms, outcome)
 
     def snapshot(self, p95_limit_ms: float = 2000, error_rate_limit: float = 0.05) -> dict:
         with self._lock:
             durations = sorted(self._window)
+            window_outcomes = Counter(self._outcome_window)
             outcomes = dict(self._outcomes)
             active = self._active
         total = sum(outcomes.values())
+        window_total = sum(window_outcomes.values())
 
         def percentile(ratio: float) -> float:
             if not durations:
@@ -43,8 +47,10 @@ class RequestMetrics:
             return durations[index]
 
         errors = outcomes.get("error", 0)
+        window_errors = window_outcomes.get("error", 0)
         p95 = percentile(0.95)
         error_rate = errors / total if total else 0.0
+        window_error_rate = window_errors / window_total if window_total else 0.0
         return {
             "requests": total,
             "active": active,
@@ -57,9 +63,11 @@ class RequestMetrics:
                 "max": durations[-1] if durations else 0.0,
             },
             "sla": {
-                "status": "healthy" if p95 <= p95_limit_ms and error_rate <= error_rate_limit else "degraded",
+                "status": "healthy" if p95 <= p95_limit_ms and window_error_rate <= error_rate_limit else "degraded",
                 "p95LimitMs": p95_limit_ms,
                 "errorRateLimit": error_rate_limit,
+                "observedErrorRate": round(window_error_rate, 4),
+                "windowRequests": window_total,
             },
             "windowSize": len(durations),
         }
