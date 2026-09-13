@@ -38,7 +38,7 @@ public class AiGatewayClient {
         } catch (Exception e) {
             log.debug("AI runtime status unavailable", e);
             return Map.of("status", "unavailable", "enabled", false, "modelConfigured", false, "embeddingConfigured", false,
-                    "rerankerConfigured", false, "toolPlanningEnabled", false);
+                    "rerankerConfigured", false, "langfuseConfigured", false, "toolPlanningEnabled", false);
         }
     }
 
