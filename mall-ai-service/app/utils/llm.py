@@ -24,7 +24,7 @@ def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
 
 
 async def plan_tool(message: str, history: list[dict[str, str]], tool_results: list[str] | None = None) -> dict:
-    with span("ai.tool_plan"):
+    with span("ai.tool_plan", {"langfuse.observation.type": "tool"}):
         return await _plan_tool(message, history, tool_results)
 
 
@@ -115,7 +115,7 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
     payload = {"model": settings.model_name, "messages": messages, "stream": True, "temperature": 0.3}
     emitted = False
     try:
-        with span("ai.model.stream", {"ai.model": settings.model_name}):
+        with span("ai.model.stream", {"ai.model": settings.model_name, "langfuse.observation.type": "generation"}):
             async with httpx.AsyncClient(timeout=45) as client:
                 async with client.stream("POST", f"{settings.model_api_base}/chat/completions", headers=headers, json=payload) as response:
                     response.raise_for_status()

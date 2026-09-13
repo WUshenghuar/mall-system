@@ -190,7 +190,7 @@ async def production_rerank(query: str, hits: list[dict]) -> list[dict]:
                "top_n": min(3, len(documents))}
     try:
         # ponytail: one bounded rerank call; timeout/fallback protects chat latency until a circuit breaker is needed.
-        with span("ai.rag.rerank", {"ai.rerank.candidates": len(hits)}):
+        with span("ai.rag.rerank", {"ai.rerank.candidates": len(hits), "langfuse.observation.type": "retriever"}):
             async with httpx.AsyncClient(timeout=3) as client:
                 response = await client.post(
                     f"{settings.rerank_api_base}/rerank",

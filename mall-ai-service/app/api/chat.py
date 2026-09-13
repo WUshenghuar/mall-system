@@ -10,7 +10,7 @@ from app.agent.agent import should_suggest_handoff
 from app.config import settings
 from app.rag.retriever import retrieve
 from app.observability import metrics, trace_id
-from app.telemetry import mark_error, span
+from app.telemetry import mark_error, span, trace_context
 from app.utils.llm import plan_tool as plan_tool_request, stream_reply
 
 router = APIRouter()
@@ -56,7 +56,8 @@ async def tool_plan(request: ChatRequest, x_ai_service_token: str = Header(defau
     if x_ai_service_token != settings.service_token:
         raise HTTPException(status_code=401, detail="invalid AI service token")
     history = [item.model_dump() for item in request.history]
-    return await plan_tool_request(request.message, history, request.toolResults)
+    with trace_context({"langfuse.trace.name": "cbec.ai.tool_plan", "langfuse.session.id": request.conversationId}):
+        return await plan_tool_request(request.message, history, request.toolResults)
 
 
 @router.post("/internal/chat")
@@ -66,9 +67,10 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
     request_trace_id = trace_id(x_trace_id if isinstance(x_trace_id, str) else "")
 
     async def events() -> AsyncIterator[str]:
-        with span("ai.chat", {"ai.trace_id": request_trace_id}):
-            async for event in tracked_events():
-                yield event
+        with trace_context({"langfuse.trace.name": "cbec.ai.chat", "langfuse.session.id": request.conversationId}):
+            with span("ai.chat", {"ai.trace_id": request_trace_id, "langfuse.observation.type": "chain"}):
+                async for event in tracked_events():
+                    yield event
 
     async def tracked_events() -> AsyncIterator[str]:
         started = metrics.start()
@@ -94,7 +96,7 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
                 ]
                 yield sse({"type": "sources", "items": source_items})
             else:
-                with span("ai.rag.retrieve", {"ai.query.length": len(request.message)}):
+                with span("ai.rag.retrieve", {"ai.query.length": len(request.message), "langfuse.observation.type": "retriever"}):
                     context = await retrieve(request.message)
                 if not context and should_suggest_handoff(request.message):
                     yield sse({"type": "handoff_suggested"})

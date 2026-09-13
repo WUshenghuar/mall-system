@@ -1,6 +1,7 @@
 import os
 import base64
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
+from contextvars import ContextVar
 
 try:
     from opentelemetry import metrics as otel_metrics
@@ -22,6 +23,7 @@ _configured = False
 _request_counter = None
 _request_duration = None
 _active_requests = None
+_trace_attributes = ContextVar("ai_trace_attributes", default={})
 
 
 def _endpoint(signal_name: str) -> str:
@@ -115,6 +117,15 @@ def telemetry_configured() -> bool:
     return _configured
 
 
+@contextmanager
+def trace_context(attributes: dict[str, str]):
+    token = _trace_attributes.set({**_trace_attributes.get(), **attributes})
+    try:
+        yield
+    finally:
+        _trace_attributes.reset(token)
+
+
 def record_active(delta: int) -> None:
     if _active_requests is not None:
         _active_requests.add(delta)
@@ -139,4 +150,5 @@ def mark_error(description: str = "ai_request_error") -> None:
 def span(name: str, attributes: dict | None = None):
     if trace is None:
         return nullcontext()
-    return trace.get_tracer("cbec.ai").start_as_current_span(name, attributes=attributes or {})
+    merged = {**_trace_attributes.get(), **(attributes or {})}
+    return trace.get_tracer("cbec.ai").start_as_current_span(name, attributes=merged)

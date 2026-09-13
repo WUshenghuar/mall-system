@@ -45,3 +45,15 @@ def test_langfuse_configuration_builds_otlp_trace_auth(monkeypatch):
         "Authorization": "Basic cGs6c2s=", "x-langfuse-ingestion-version": "4"
     }
     assert telemetry._headers("METRICS") == {}
+
+
+def test_trace_context_is_scoped_and_merges_nested_attributes():
+    assert telemetry._trace_attributes.get() == {}
+    with telemetry.trace_context({"langfuse.session.id": "session-1"}):
+        assert telemetry._trace_attributes.get() == {"langfuse.session.id": "session-1"}
+        with telemetry.trace_context({"langfuse.trace.name": "chat"}):
+            assert telemetry._trace_attributes.get() == {
+                "langfuse.session.id": "session-1", "langfuse.trace.name": "chat"
+            }
+        assert telemetry._trace_attributes.get() == {"langfuse.session.id": "session-1"}
+    assert telemetry._trace_attributes.get() == {}
