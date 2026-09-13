@@ -4,6 +4,10 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
 exporters:
   debug:
     verbosity: detailed
@@ -21,6 +25,7 @@ processors:
     timeout: 5s
 
 service:
+  extensions: [health_check]
   pipelines:
     traces:
       receivers: [otlp]
