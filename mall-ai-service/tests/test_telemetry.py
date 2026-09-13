@@ -49,6 +49,12 @@ def test_langfuse_configuration_builds_otlp_trace_auth(monkeypatch):
 
 def test_trace_context_is_scoped_and_merges_nested_attributes():
     assert telemetry._trace_attributes.get() == {}
+
+
+def test_remote_context_is_safe_for_missing_or_invalid_parent():
+    with telemetry.remote_context(""):
+        with telemetry.span("test.remote"):
+            pass
     with telemetry.trace_context({"langfuse.session.id": "session-1"}):
         assert telemetry._trace_attributes.get() == {"langfuse.session.id": "session-1"}
         with telemetry.trace_context({"langfuse.trace.name": "chat"}):

@@ -11,7 +11,7 @@ from app.agent.agent import should_suggest_handoff
 from app.config import settings
 from app.rag.retriever import retrieve
 from app.observability import metrics, trace_id
-from app.telemetry import mark_error, span, trace_context
+from app.telemetry import mark_error, remote_context, span, trace_context
 from app.utils.llm import plan_tool as plan_tool_request, stream_reply
 
 router = APIRouter()
@@ -53,25 +53,32 @@ def sse(payload: dict) -> str:
 
 
 @router.post("/internal/tool-plan")
-async def tool_plan(request: ChatRequest, x_ai_service_token: str = Header(default="")):
+async def tool_plan(request: ChatRequest, x_ai_service_token: str = Header(default=""),
+                    x_trace_id: str = Header(default=""), traceparent: str = Header(default="")):
     if x_ai_service_token != settings.service_token:
         raise HTTPException(status_code=401, detail="invalid AI service token")
     history = [item.model_dump() for item in request.history]
-    with trace_context({"langfuse.trace.name": "cbec.ai.tool_plan", "langfuse.session.id": request.conversationId}):
-        return await plan_tool_request(request.message, history, request.toolResults)
+    request_trace_id = trace_id(x_trace_id if isinstance(x_trace_id, str) else "")
+    with remote_context(traceparent):
+        with trace_context({"langfuse.trace.name": "cbec.ai.tool_plan", "langfuse.session.id": request.conversationId,
+                            "ai.trace_id": request_trace_id}):
+            return await plan_tool_request(request.message, history, request.toolResults)
 
 
 @router.post("/internal/chat")
-async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""), x_trace_id: str = Header(default="")):
+async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""), x_trace_id: str = Header(default=""),
+               traceparent: str = Header(default="")):
     if x_ai_service_token != settings.service_token:
         raise HTTPException(status_code=401, detail="invalid AI service token")
     request_trace_id = trace_id(x_trace_id if isinstance(x_trace_id, str) else "")
 
     async def events() -> AsyncIterator[str]:
-        with trace_context({"langfuse.trace.name": "cbec.ai.chat", "langfuse.session.id": request.conversationId}):
-            with span("ai.chat", {"ai.trace_id": request_trace_id, "langfuse.observation.type": "chain"}):
-                async for event in tracked_events():
-                    yield event
+        with remote_context(traceparent):
+            with trace_context({"langfuse.trace.name": "cbec.ai.chat", "langfuse.session.id": request.conversationId,
+                                "ai.trace_id": request_trace_id}):
+                with span("ai.chat", {"langfuse.observation.type": "chain"}):
+                    async for event in tracked_events():
+                        yield event
 
     async def tracked_events() -> AsyncIterator[str]:
         started = metrics.start()

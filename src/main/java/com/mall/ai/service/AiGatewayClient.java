@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 @Component
@@ -53,7 +54,8 @@ public class AiGatewayClient {
                     .map(item -> Map.of("role", "agent".equals(item.getRole()) ? "assistant" : item.getRole(), "content", item.getContent())).toList();
             JsonNode response = requestJson("POST", "/internal/tool-plan", Map.of(
                     "memberId", memberId, "conversationId", conversationId, "message", message, "history", messages,
-                    "toolResults", toolResults == null ? List.of() : toolResults), 2);
+                    "toolResults", toolResults == null ? List.of() : toolResults), 2,
+                    traceId(conversationId, message), traceParent(conversationId, message));
             return objectMapper.convertValue(response, new TypeReference<>() { });
         } catch (Exception e) {
             log.debug("AI tool planning unavailable; using deterministic routing", e);
@@ -74,6 +76,8 @@ public class AiGatewayClient {
             connection.setReadTimeout((int) Duration.ofSeconds(45).toMillis());
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("X-AI-Service-Token", serviceToken);
+            connection.setRequestProperty("X-Trace-Id", traceId(conversationId, message));
+            connection.setRequestProperty("traceparent", traceParent(conversationId, message));
             connection.setDoOutput(true);
             try (OutputStream output = connection.getOutputStream()) { output.write(body.getBytes(StandardCharsets.UTF_8)); }
             if (connection.getResponseCode() != 200) throw new BusinessException("客服服务暂不可用");
@@ -123,12 +127,19 @@ public class AiGatewayClient {
     }
 
     private JsonNode requestJson(String method, String path, Object body, int timeoutSeconds) throws Exception {
+        return requestJson(method, path, body, timeoutSeconds, null, null);
+    }
+
+    private JsonNode requestJson(String method, String path, Object body, int timeoutSeconds,
+                                 String traceId, String traceParent) throws Exception {
         HttpURLConnection connection = (HttpURLConnection) URI.create(baseUrl + path).toURL().openConnection();
         connection.setRequestMethod(method);
         connection.setConnectTimeout((int) Duration.ofSeconds(timeoutSeconds).toMillis());
         connection.setReadTimeout((int) Duration.ofSeconds(timeoutSeconds).toMillis());
         connection.setRequestProperty("Content-Type", "application/json");
         connection.setRequestProperty("X-AI-Service-Token", serviceToken);
+        if (traceId != null) connection.setRequestProperty("X-Trace-Id", traceId);
+        if (traceParent != null) connection.setRequestProperty("traceparent", traceParent);
         if (body != null) {
             connection.setDoOutput(true);
             try (OutputStream output = connection.getOutputStream()) {
@@ -144,5 +155,14 @@ public class AiGatewayClient {
         } finally {
             connection.disconnect();
         }
+    }
+
+    private String traceId(String conversationId, String message) {
+        return UUID.nameUUIDFromBytes((conversationId + "\n" + message).getBytes(StandardCharsets.UTF_8))
+                .toString().replace("-", "");
+    }
+
+    private String traceParent(String conversationId, String message) {
+        return "00-" + traceId(conversationId, message) + "-0000000000000001-01";
     }
 }

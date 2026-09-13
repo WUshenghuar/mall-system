@@ -6,8 +6,10 @@ from contextvars import ContextVar
 try:
     from opentelemetry import metrics as otel_metrics
     from opentelemetry import trace
+    from opentelemetry.context import attach, detach
     from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+    from opentelemetry.propagate import extract
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.metrics import MeterProvider
     from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
@@ -15,6 +17,9 @@ try:
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 except ImportError:  # optional telemetry dependency
+    attach = None
+    detach = None
+    extract = None
     otel_metrics = None
     trace = None
 
@@ -124,6 +129,18 @@ def trace_context(attributes: dict[str, str]):
         yield
     finally:
         _trace_attributes.reset(token)
+
+
+@contextmanager
+def remote_context(traceparent: str):
+    if trace is None or attach is None or detach is None or extract is None or not isinstance(traceparent, str):
+        yield
+        return
+    token = attach(extract({"traceparent": traceparent}))
+    try:
+        yield
+    finally:
+        detach(token)
 
 
 def record_active(delta: int) -> None:
