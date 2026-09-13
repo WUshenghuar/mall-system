@@ -1,4 +1,5 @@
 import json
+import asyncio
 from collections.abc import AsyncIterator
 from typing import Literal
 
@@ -105,6 +106,9 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
             async for chunk in stream_reply(request.message, history, context, request.businessContext):
                 yield sse({"type": "text", "content": chunk})
             yield sse({"type": "done"})
+        except asyncio.CancelledError:
+            outcome = "cancelled"
+            raise
         except Exception:
             outcome = "error"
             mark_error()

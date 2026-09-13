@@ -40,6 +40,18 @@ def test_request_metrics_uses_the_latency_window_for_sla_error_rate():
     assert result["sla"]["status"] == "healthy"
 
 
+def test_request_metrics_keeps_cancellation_out_of_server_error_rate():
+    metrics = RequestMetrics()
+    started = metrics.start()
+    metrics.finish(started, "cancelled")
+
+    result = metrics.snapshot()
+
+    assert result["outcomes"] == {"cancelled": 1}
+    assert result["errorRate"] == 0.0
+    assert result["sla"]["observedErrorRate"] == 0.0
+
+
 def test_trace_id_accepts_safe_correlation_id_and_replaces_invalid_value():
     assert trace_id("request-123") == "request-123"
     assert len(trace_id("bad trace id")) == 32
