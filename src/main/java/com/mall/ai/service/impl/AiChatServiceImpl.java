@@ -244,13 +244,13 @@ public class AiChatServiceImpl implements AiChatService {
 
     private boolean hasMultipleBusinessTopics(String message) {
         List<String[]> topics = List.of(
-                new String[]{"物流", "快递", "运单", "包裹", "tracking", "delivery"},
-                new String[]{"退款", "退货", "refund", "return"},
-                new String[]{"商品", "产品", "product", "item"},
-                new String[]{"优惠券", "coupon", "discount"},
-                new String[]{"会员", "积分", "member", "points"},
-                new String[]{"活动", "促销", "activity", "promotion"},
-                new String[]{"税费", "tax", "duty"},
+                new String[]{"物流", "快递", "运单", "包裹", "tracking", "track", "delivery", "shipment", "package"},
+                new String[]{"退款", "退货", "refund", "return", "money back"},
+                new String[]{"商品", "产品", "product", "item", "recommend", "style", "size"},
+                new String[]{"优惠券", "coupon", "discount", "promo", "voucher"},
+                new String[]{"会员", "积分", "等级", "成长", "member", "membership", "points", "loyalty"},
+                new String[]{"活动", "促销", "限时", "秒杀", "activity", "promotion", "campaign", "sale", "deal"},
+                new String[]{"税费", "关税", "税金", "币种", "tax", "tariff", "duty", "currency"},
                 new String[]{"订单", "order"});
         return topics.stream().filter(topic -> containsAny(message, topic)).limit(2).count() == 2;
     }

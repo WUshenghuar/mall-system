@@ -407,7 +407,7 @@ class AiChatServiceImplTest {
         AiChatServiceImpl service = new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), orders, logistics,
                 mock(TradeRefundService.class), mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class));
         service.setActivityService(activities);
-        service.stream(9L, "session-1", newRequest("我的包裹和活动"), ignored -> { });
+        service.stream(9L, "session-1", newRequest("my package and promotion"), ignored -> { });
 
         verify(gateway).plan(anyLong(), anyString(), anyString(), any());
         verify(gateway).plan(anyLong(), anyString(), anyString(), any(), anyList());
