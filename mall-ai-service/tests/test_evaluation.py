@@ -1,4 +1,4 @@
-from evaluate import CASES, evaluate, evaluate_rerank, evaluate_retrieval
+from evaluate import CASES, evaluate, evaluate_rerank, evaluate_retrieval, evaluate_with_judge, judge_answer, parse_judge_response
 from app.api.chat import ChatRequest
 from app.rag import embedding, retriever
 from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits, filter_relevant, hybrid_hits, rerank_hits, retrieve
@@ -20,6 +20,45 @@ def test_retrieval_regression_baseline_is_green():
 
 def test_rerank_regression_baseline_is_green():
     assert evaluate_rerank() == {"queries": 3, "hitAt1": 1.0, "mrr": 1.0}
+
+
+def test_judge_response_requires_bounded_json_contract():
+    assert parse_judge_response('{"score":2,"grounded":true}') == {"score": 2, "grounded": True}
+    assert parse_judge_response("```json\n{\"score\":3,\"grounded\":true}\n```") is None
+
+
+def test_judge_stays_offline_without_model(monkeypatch):
+    monkeypatch.setattr("evaluate.settings", SimpleNamespace(has_model=False))
+
+    assert asyncio.run(evaluate_with_judge(2)) == {"configured": False, "cases": 2, "evaluated": 0}
+
+
+def test_judge_reads_openai_compatible_json_response(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": [{"message": {"content": '{"score":2,"grounded":true}'}}]}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, headers, json):
+            assert url == "https://model.test/v1/chat/completions"
+            assert json["temperature"] == 0
+            assert "期望标记：订单" in json["messages"][1]["content"]
+            return Response()
+
+    monkeypatch.setattr("evaluate.settings", SimpleNamespace(
+        has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="judge-test"))
+    monkeypatch.setattr("evaluate.httpx.AsyncClient", lambda **kwargs: Client())
+
+    assert asyncio.run(judge_answer("订单", "订单状态正常", "订单")) == {"score": 2, "grounded": True}
 
 
 def test_knowledge_seed_covers_core_platform_faqs():
