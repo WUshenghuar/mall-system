@@ -1,4 +1,4 @@
-from evaluate import CASES, evaluate
+from evaluate import CASES, evaluate, evaluate_retrieval
 from app.api.chat import ChatRequest
 from app.rag import embedding, retriever
 from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits, filter_relevant, hybrid_hits, rerank_hits, retrieve
@@ -12,6 +12,10 @@ def test_deterministic_policy_evaluation_is_green():
     assert len(CASES) >= 50
     result = evaluate()
     assert result == {"passed": len(CASES), "total": len(CASES), "score": 100}
+
+
+def test_retrieval_regression_baseline_is_green():
+    assert evaluate_retrieval() == {"queries": 6, "hitAt3": 1.0, "mrr": 1.0}
 
 
 def test_knowledge_seed_covers_core_platform_faqs():

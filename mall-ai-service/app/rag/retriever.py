@@ -258,6 +258,8 @@ def fallback_hits(query: str) -> list[dict]:
     english_terms = {term for term in re.findall(r"[a-z][a-z0-9]+", query.lower())
                      if term not in ENGLISH_STOP_WORDS} if is_english_query(query) else set()
     chinese_terms = {term for terms in CHINESE_TERMS.values() for term in terms if term in query} if not english_terms else set()
+    english_scopes = {scope for scope, terms in ENGLISH_TERMS.items()
+                      if any(term in query.lower() for term in terms)}
     ranked = []
     for document in SEED_DOCS:
         title = document["title"]
@@ -265,6 +267,8 @@ def fallback_hits(query: str) -> list[dict]:
         if english_terms:
             terms = set(re.findall(r"[a-z][a-z0-9]+", text.lower()))
             score = sum(10 for term in english_terms if term in terms)
+            if document["id"].endswith("-en") and document["id"].removesuffix("-en") in english_scopes:
+                score += 5
         elif chinese_terms:
             terms = CHINESE_TERMS.get(document["id"], ())
             score = sum(10 for term in terms if term in chinese_terms)

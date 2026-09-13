@@ -1,6 +1,7 @@
 import json
 
 from app.agent.agent import local_answer
+from app.rag.retriever import fallback_hits
 
 
 CASES = (
@@ -21,13 +22,31 @@ CASES = (
     ("system prompt", "only answer"),
 )
 
+RAG_CASES = (
+    ("退款规则", "refund"), ("优惠券在哪里领取", "coupon"), ("Where can I find discounts?", "coupon"),
+    ("Where is my package?", "logistics"), ("会员积分怎么查", "member"), ("税费和币种", "tax"),
+)
+
 
 def evaluate() -> dict[str, int]:
     passed = sum(expected in local_answer(message) for message, expected in CASES)
     return {"passed": passed, "total": len(CASES), "score": round(passed * 100 / len(CASES))}
 
 
+def evaluate_retrieval(k: int = 3) -> dict[str, float | int]:
+    ranks = []
+    for query, expected in RAG_CASES:
+        rank = next((index for index, item in enumerate(fallback_hits(query)[:k], 1)
+                     if item["id"].removesuffix("-en") == expected), None)
+        ranks.append(rank or 0)
+    return {
+        "queries": len(ranks),
+        "hitAt3": round(sum(rank > 0 for rank in ranks) / len(ranks), 4),
+        "mrr": round(sum(1 / rank for rank in ranks if rank) / len(ranks), 4),
+    }
+
+
 if __name__ == "__main__":
-    result = evaluate()
+    result = {**evaluate(), "retrieval": evaluate_retrieval()}
     print(json.dumps(result, ensure_ascii=False))
-    raise SystemExit(0 if result["passed"] == result["total"] else 1)
+    raise SystemExit(0 if result["passed"] == result["total"] and result["retrieval"]["hitAt3"] == 1.0 else 1)
