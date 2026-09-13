@@ -1,7 +1,7 @@
 import json
 
 from app.agent.agent import local_answer
-from app.rag.retriever import fallback_hits
+from app.rag.retriever import SEED_DOCS, fallback_hits, rerank_hits
 
 
 CASES = (
@@ -27,6 +27,12 @@ RAG_CASES = (
     ("Where is my package?", "logistics"), ("会员积分怎么查", "member"), ("税费和币种", "tax"),
 )
 
+RERANK_CASES = (
+    ("退款规则", ("coupon", "refund"), "refund"),
+    ("How do coupons work?", ("member-en", "coupon-en"), "coupon"),
+    ("Where is my package?", ("coupon-en", "logistics-en"), "logistics"),
+)
+
 
 def evaluate() -> dict[str, int]:
     passed = sum(expected in local_answer(message) for message, expected in CASES)
@@ -46,7 +52,23 @@ def evaluate_retrieval(k: int = 3) -> dict[str, float | int]:
     }
 
 
+def evaluate_rerank() -> dict[str, float | int]:
+    documents = {item["id"]: item for item in SEED_DOCS}
+    ranks = []
+    for query, candidate_ids, expected in RERANK_CASES:
+        candidates = [{"_id": item_id, "_source": documents[item_id]} for item_id in candidate_ids]
+        rank = next((index for index, hit in enumerate(rerank_hits(query, candidates), 1)
+                     if hit["_id"].removesuffix("-en") == expected), None)
+        ranks.append(rank or 0)
+    return {
+        "queries": len(ranks),
+        "hitAt1": round(sum(rank == 1 for rank in ranks) / len(ranks), 4),
+        "mrr": round(sum(1 / rank for rank in ranks if rank) / len(ranks), 4),
+    }
+
+
 if __name__ == "__main__":
-    result = {**evaluate(), "retrieval": evaluate_retrieval()}
+    result = {**evaluate(), "retrieval": evaluate_retrieval(), "rerank": evaluate_rerank()}
     print(json.dumps(result, ensure_ascii=False))
-    raise SystemExit(0 if result["passed"] == result["total"] and result["retrieval"]["hitAt3"] == 1.0 else 1)
+    raise SystemExit(0 if result["passed"] == result["total"] and result["retrieval"]["hitAt3"] == 1.0
+                     and result["rerank"]["hitAt1"] == 1.0 else 1)
