@@ -9,6 +9,7 @@ try:
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
     from opentelemetry.sdk.metrics import MeterProvider
     from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+    from opentelemetry.trace import Status, StatusCode
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
 except ImportError:  # optional telemetry dependency
@@ -101,6 +102,14 @@ def record_request(duration_ms: float, outcome: str) -> None:
     attributes = {"outcome": outcome}
     _request_counter.add(1, attributes)
     _request_duration.record(duration_ms, attributes)
+
+
+def mark_error(description: str = "ai_request_error") -> None:
+    if trace is None:
+        return
+    current = trace.get_current_span()
+    if current.is_recording():
+        current.set_status(Status(StatusCode.ERROR, description))
 
 
 def span(name: str, attributes: dict | None = None):

@@ -22,3 +22,7 @@ def test_otlp_endpoint_and_headers_support_signal_specific_paths(monkeypatch):
     assert telemetry._endpoint("TRACES") == "http://collector:4318/v1/traces"
     assert telemetry._endpoint("METRICS") == "http://collector:4318/v1/metrics"
     assert telemetry._headers() == {"Authorization": "Basic abc==", "x-tenant": "cbec"}
+
+
+def test_mark_error_is_safe_without_a_recording_span():
+    telemetry.mark_error()

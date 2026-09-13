@@ -10,7 +10,7 @@ from app.agent.agent import should_suggest_handoff
 from app.config import settings
 from app.rag.retriever import retrieve
 from app.observability import metrics, trace_id
-from app.telemetry import span
+from app.telemetry import mark_error, span
 from app.utils.llm import plan_tool as plan_tool_request, stream_reply
 
 router = APIRouter()
@@ -105,6 +105,7 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
             yield sse({"type": "done"})
         except Exception:
             outcome = "error"
+            mark_error()
             yield sse({"type": "error", "message": "客服服务暂不可用，请稍后重试"})
         finally:
             metrics.finish(started, outcome)
