@@ -6,6 +6,7 @@ import httpx
 
 from app.agent.agent import local_answer
 from app.rag.retriever import SEED_DOCS, fallback_hits, rerank_hits
+from app.utils.llm import stream_reply
 from app.config import settings
 
 
@@ -109,11 +110,16 @@ async def judge_answer(message: str, answer: str, expected: str) -> dict[str, in
         return None
 
 
+async def generated_answer(message: str) -> str:
+    context = fallback_hits(message) or [{"title": "客服范围", "content": "平台客服只回答商品、订单、物流、退款、优惠券和会员问题。"}]
+    return "".join([chunk async for chunk in stream_reply(message, [], context)])
+
+
 async def evaluate_with_judge(limit: int = 10) -> dict[str, float | int | bool]:
     cases = CASES[:max(1, min(limit, len(CASES)))]
     if not getattr(settings, "has_model", False):
         return {"configured": False, "cases": len(cases), "evaluated": 0}
-    results = [await judge_answer(message, local_answer(message), expected) for message, expected in cases]
+    results = [await judge_answer(message, await generated_answer(message), expected) for message, expected in cases]
     scored = [item for item in results if item is not None]
     return {"configured": True, "cases": len(cases), "evaluated": len(scored),
             "averageScore": round(sum(item["score"] for item in scored) / len(scored), 2) if scored else 0.0,

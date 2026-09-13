@@ -1,4 +1,4 @@
-from evaluate import CASES, evaluate, evaluate_rerank, evaluate_retrieval, evaluate_with_judge, judge_answer, parse_judge_response
+from evaluate import CASES, evaluate, evaluate_rerank, evaluate_retrieval, evaluate_with_judge, generated_answer, judge_answer, parse_judge_response
 from app.api.chat import ChatRequest
 from app.rag import embedding, retriever
 from app.rag.retriever import DISABLED_IDS, SEED_DOCS, fallback_hits, filter_relevant, hybrid_hits, rerank_hits, retrieve
@@ -59,6 +59,15 @@ def test_judge_reads_openai_compatible_json_response(monkeypatch):
     monkeypatch.setattr("evaluate.httpx.AsyncClient", lambda **kwargs: Client())
 
     assert asyncio.run(judge_answer("订单", "订单状态正常", "订单")) == {"score": 2, "grounded": True}
+
+
+def test_judge_candidate_comes_from_customer_service_stream(monkeypatch):
+    async def fake_stream(message, history, context, business_context=""):
+        yield "模型候选回答"
+
+    monkeypatch.setattr("evaluate.stream_reply", fake_stream)
+
+    assert asyncio.run(generated_answer("查询订单")) == "模型候选回答"
 
 
 def test_knowledge_seed_covers_core_platform_faqs():
