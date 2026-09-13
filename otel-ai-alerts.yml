@@ -1,0 +1,36 @@
+groups:
+  - name: cbec-ai-sla
+    interval: 30s
+    rules:
+      - alert: CbecAiChatErrorRateHigh
+        expr: |
+          sum(rate(ai_chat_requests_total{outcome="error"}[5m]))
+          / clamp_min(sum(rate(ai_chat_requests_total[5m])), 1) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CBEC AI客服错误率过高"
+          description: "最近 5 分钟 AI客服服务端错误率超过 5%。"
+
+      - alert: CbecAiChatP95LatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(ai_chat_request_duration_milliseconds_bucket[5m]))) > 2000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CBEC AI客服P95延迟过高"
+          description: "最近 5 分钟 AI客服请求 P95 延迟超过 2000ms。"
+
+      - alert: CbecAiRerankFailureRateHigh
+        expr: |
+          sum(rate(ai_rerank_requests_total{outcome="failed"}[5m]))
+          / clamp_min(sum(rate(ai_rerank_requests_total{outcome=~"success|failed"}[5m])), 1) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CBEC Rerank供应商失败率过高"
+          description: "最近 5 分钟远程 Rerank 失败率超过 10%，服务将回退确定性精排。"
