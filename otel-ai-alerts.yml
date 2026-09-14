@@ -24,6 +24,17 @@ groups:
           summary: "CBEC AI客服P95延迟过高"
           description: "最近 5 分钟 AI客服请求 P95 延迟超过 2000ms。"
 
+      - alert: CbecAiToolPlanP95LatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(ai_tool_plan_duration_milliseconds_bucket[5m]))) > 2000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CBEC AI工具规划P95延迟过高"
+          description: "最近 5 分钟只读工具规划 P95 延迟超过 2000ms。"
+
       - alert: CbecAiRerankFailureRateHigh
         expr: |
           sum(rate(ai_rerank_requests_total{outcome="failed"}[5m]))
