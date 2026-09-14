@@ -22,6 +22,16 @@ def test_rerank_regression_baseline_is_green():
     assert evaluate_rerank() == {"queries": 3, "hitAt1": 1.0, "mrr": 1.0}
 
 
+def test_retrieve_falls_back_when_the_rag_budget_expires(monkeypatch):
+    async def slow_retrieve(query):
+        await asyncio.sleep(1)
+
+    monkeypatch.setattr(retriever, "RAG_BUDGET_SECONDS", 0.01)
+    monkeypatch.setattr(retriever, "_retrieve", slow_retrieve)
+
+    assert asyncio.run(retrieve("优惠券")) == fallback_hits("优惠券")
+
+
 def test_judge_response_requires_bounded_json_contract():
     assert parse_judge_response('{"score":2,"grounded":true}') == {"score": 2, "grounded": True}
     assert parse_judge_response("```json\n{\"score\":3,\"grounded\":true}\n```") is None

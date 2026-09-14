@@ -12,6 +12,7 @@ from app.telemetry import record_rerank, span
 
 INDEX = "ai_knowledge"
 BM25_MIN_SCORE = 3.0
+RAG_BUDGET_SECONDS = 5
 _rerank_retry_at = 0.0
 DISABLED_IDS: set[str] = set()
 CHINESE_TERMS = {
@@ -115,6 +116,14 @@ async def _backfill_embeddings() -> None:
 
 
 async def retrieve(query: str) -> list[dict]:
+    try:
+        async with asyncio.timeout(RAG_BUDGET_SECONDS):
+            return await _retrieve(query)
+    except TimeoutError:
+        return fallback_hits(query)
+
+
+async def _retrieve(query: str) -> list[dict]:
     payload = {"size": 6, "min_score": BM25_MIN_SCORE, "query": {"bool": {"must": [{"multi_match": {"query": query, "fields": ["title^3", "content"], "minimum_should_match": "30%"}}], "should": [{"term": {"enabled": True}}, {"bool": {"must_not": {"exists": {"field": "enabled"}}}}], "minimum_should_match": 1}}}
     try:
         async with httpx.AsyncClient(timeout=5) as client:
