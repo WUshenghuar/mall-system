@@ -1,9 +1,23 @@
 from dataclasses import dataclass
+import math
 import os
 
 
 def _env(name: str) -> str:
     return os.getenv(name, "").strip()
+
+
+def _bounded_float(name: str, default: float, minimum: float, maximum: float | None = None) -> float:
+    raw = _env(name)
+    if not raw:
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    if not math.isfinite(value) or value < minimum or (maximum is not None and value > maximum):
+        return default
+    return value
 
 
 _MODEL_API_BASE = _env("AI_MODEL_API_BASE").rstrip("/")
@@ -30,8 +44,8 @@ class Settings:
     rerank_api_base: str = _RERANK_API_BASE
     rerank_api_key: str = _RERANK_API_KEY
     rerank_model: str = _env("AI_RERANK_MODEL")
-    sla_p95_ms: float = float(_env("AI_SLA_P95_MS") or "2000")
-    sla_error_rate: float = float(_env("AI_SLA_ERROR_RATE") or "0.05")
+    sla_p95_ms: float = _bounded_float("AI_SLA_P95_MS", 2000, 1)
+    sla_error_rate: float = _bounded_float("AI_SLA_ERROR_RATE", 0.05, 0, 1)
     elasticsearch_url: str = (_env("AI_ELASTICSEARCH_URL") or "http://elasticsearch:9200").rstrip("/")
 
     @property
