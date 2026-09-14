@@ -77,6 +77,7 @@ async function send(retryItem = null) {
     assistant.requestId = requestId
   }
   sending.value = true
+  if (!conversationId.value) conversationId.value = newRequestId()
   await scrollToBottom()
   try {
     await aiApi.streamChat({ requestId, conversationId: conversationId.value || undefined, message: content }, event => {
