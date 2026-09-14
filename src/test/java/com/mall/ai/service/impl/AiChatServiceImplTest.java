@@ -384,6 +384,39 @@ class AiChatServiceImplTest {
     }
 
     @Test
+    void stopsPlanningAfterThreeAcceptedTools() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        StoreCatalogService catalog = mock(StoreCatalogService.class);
+        MemberService members = mock(MemberService.class);
+        ActivityService activities = mock(ActivityService.class);
+        IPage page = mock(IPage.class);
+        Spu product = new Spu(); product.setSpuName("跨境耳机");
+        Member member = new Member(); member.setLevel(1); member.setPoints(88); member.setTotalAmount(new java.math.BigDecimal("1200.00"));
+        Activity activity = new Activity(); activity.setActivityName("秋季好物周");
+        activity.setEndTime(LocalDateTime.of(2026, 9, 30, 23, 59));
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(gateway.plan(anyLong(), anyString(), anyString(), any())).thenReturn(Map.of("tools", List.of(
+                Map.of("tool", "query_member", "arguments", Map.of()),
+                Map.of("tool", "query_product", "arguments", Map.of("keyword", "耳机")),
+                Map.of("tool", "query_activity", "arguments", Map.of()))));
+        when(members.getById(9L)).thenReturn(member);
+        when(catalog.products(1, 3, null, "耳机")).thenReturn(page);
+        when(page.getRecords()).thenReturn(List.of(product));
+        when(activities.selectActive()).thenReturn(List.of(activity));
+
+        AiChatServiceImpl service = new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
+                mock(LogisticsService.class), mock(TradeRefundService.class), catalog, mock(CouponService.class), members);
+        service.setActivityService(activities);
+        service.stream(9L, "session-1", newRequest("我的会员、耳机商品和活动"), ignored -> { });
+
+        verify(gateway, org.mockito.Mockito.never()).plan(anyLong(), anyString(), anyString(), any(), anyList());
+        verify(gateway).stream(anyLong(), anyString(), anyString(),
+                eq("你的会员等级：Gold 会员，积分：88，累计消费：1200.00。\n为你找到的上架商品：\n跨境耳机\n当前进行中的活动：\n秋季好物周（截止 2026-09-30T23:59）"),
+                eq("query_member,query_product,query_activity"), any(), any());
+    }
+
+    @Test
     void plansAdditionalToolsAfterAConfiguredRuleContextForMultipleTopics() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         AiGatewayClient gateway = mock(AiGatewayClient.class);

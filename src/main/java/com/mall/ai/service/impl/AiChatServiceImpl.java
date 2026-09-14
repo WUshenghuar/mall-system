@@ -101,7 +101,7 @@ public class AiChatServiceImpl implements AiChatService {
                     if (!selectedTool.isBlank()) toolNames.add(selectedTool);
                 }
                 int added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), decision, contextParts, toolNames, start);
-                for (int round = 1; added > 0 && round < 3; round++) {
+                for (int round = 1; added > 0 && toolNames.size() < 3 && round < 3; round++) {
                     List<String> toolResults = new ArrayList<>();
                     for (int index = 0; index < contextParts.size(); index++) {
                         toolResults.add(toolNames.get(index) + ": " + contextParts.get(index));
