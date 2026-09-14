@@ -59,6 +59,7 @@ export const aiApi = {
   feedback: data => request.post('/ai/feedback', data),
   handoff: data => request.post('/ai/tickets', data),
   memberMessage: (id, data) => request.post(`/ai/tickets/${id}/message`, data),
+  ticketConversation: id => request.get(`/ai/tickets/mine/${id}/conversation`),
   mine: params => request.get('/ai/tickets/mine', { params })
 }
 export const fileApi = {

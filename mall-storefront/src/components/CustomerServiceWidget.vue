@@ -52,10 +52,23 @@ async function loadHandoff() {
     const sessionId = conversationId.value || handoffTicket.value?.conversationId
     const candidates = sessionId ? records.filter(ticket => ticket.conversationId === sessionId) : records
     const nextTicket = candidates.find(ticket => ticket.status !== 2) || candidates[0] || null
-    if (nextTicket && (!handoffTicket.value || handoffTicket.value.id === nextTicket.id || handoffTicket.value.status === 2)) handoffTicket.value = nextTicket
+    if (nextTicket && (!handoffTicket.value || handoffTicket.value.id === nextTicket.id || handoffTicket.value.status === 2)) {
+      handoffTicket.value = nextTicket
+      await loadTicketConversation(nextTicket)
+    }
   } catch { /* 客服状态读取失败不影响 AI 对话 */ }
 }
-watch(open, value => { if (value) { loadRecent(true).finally(loadHandoff); handoffTimer = window.setInterval(() => { loadHandoff(); if (!sending.value) loadRecent(true) }, 15000) } else { window.clearInterval(handoffTimer) } })
+async function loadTicketConversation(ticket) {
+  if (!ticket?.conversationId || sending.value) return
+  try {
+    const records = (await aiApi.ticketConversation(ticket.id)).data || []
+    if (sending.value || !records.length) return
+    conversationId.value = ticket.conversationId
+    messages.value = records.filter(item => item.content).map(item => ({ id: item.id, role: item.role, content: item.content, feedback: item.feedback }))
+    scrollToBottom()
+  } catch { /* 工单会话读取失败不影响当前对话 */ }
+}
+watch(open, value => { if (value) { loadRecent(true).finally(loadHandoff); handoffTimer = window.setInterval(async () => { if (sending.value) return; await loadHandoff(); if (!handoffTicket.value?.conversationId) loadRecent(true) }, 15000) } else { window.clearInterval(handoffTimer) } })
 onUnmounted(() => window.clearInterval(handoffTimer))
 async function scrollToBottom() { await nextTick(); messageList.value?.scrollTo({ top: messageList.value.scrollHeight, behavior: 'smooth' }) }
 async function send(retryItem = null) {

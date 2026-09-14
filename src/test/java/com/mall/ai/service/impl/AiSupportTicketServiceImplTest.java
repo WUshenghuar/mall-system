@@ -12,6 +12,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -82,6 +83,36 @@ class AiSupportTicketServiceImplTest {
 
         assertThat(result).containsExactly(message);
         verify(conversationMapper).selectRecent(9L, "session-1", 20);
+    }
+
+    @Test
+    void loadsMemberConversationThroughOwnedTicket() {
+        AiSupportTicketMapper ticketMapper = mock(AiSupportTicketMapper.class);
+        AiConversationMapper conversationMapper = mock(AiConversationMapper.class);
+        AiSupportTicket ticket = new AiSupportTicket();
+        ticket.setMemberId(9L);
+        ticket.setConversationId("session-1");
+        AiConversation message = new AiConversation(); message.setContent("客服回复");
+        when(ticketMapper.selectById(8L)).thenReturn(ticket);
+        when(conversationMapper.selectRecent(9L, "session-1", 20)).thenReturn(List.of(message));
+
+        List<AiConversation> result = new AiSupportTicketServiceImpl(conversationMapper, ticketMapper)
+                .memberConversation(8L, 9L);
+
+        assertThat(result).containsExactly(message);
+        verify(conversationMapper).selectRecent(9L, "session-1", 20);
+    }
+
+    @Test
+    void rejectsMemberConversationForAnotherMember() {
+        AiSupportTicketMapper ticketMapper = mock(AiSupportTicketMapper.class);
+        AiConversationMapper conversationMapper = mock(AiConversationMapper.class);
+        AiSupportTicket ticket = new AiSupportTicket(); ticket.setMemberId(9L);
+        when(ticketMapper.selectById(8L)).thenReturn(ticket);
+
+        assertThatThrownBy(() -> new AiSupportTicketServiceImpl(conversationMapper, ticketMapper)
+                .memberConversation(8L, 10L)).hasMessageContaining("无权查看");
+        verify(conversationMapper, org.mockito.Mockito.never()).selectRecent(any(Long.class), any(String.class), anyInt());
     }
 
     @Test

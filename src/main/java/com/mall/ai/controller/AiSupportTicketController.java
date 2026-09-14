@@ -36,6 +36,11 @@ public class AiSupportTicketController {
         return Result.success(ticketService.selectMemberPage(CurrentMember.id(auth), page, size));
     }
 
+    @GetMapping("/mine/{id}/conversation")
+    public Result<List<AiConversation>> memberConversation(@PathVariable Long id, Authentication auth) {
+        return Result.success(ticketService.memberConversation(id, CurrentMember.id(auth)));
+    }
+
     @GetMapping("/page")
     @PreAuthorize("hasAuthority('order:support:list')")
     public Result<IPage<AiSupportTicket>> page(@RequestParam(defaultValue = "1") Integer page,

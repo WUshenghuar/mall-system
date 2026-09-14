@@ -10,6 +10,7 @@ public interface AiSupportTicketService {
     AiSupportTicket create(Long memberId, String conversationId, String message);
     IPage<AiSupportTicket> selectMemberPage(Long memberId, Integer page, Integer size);
     AiSupportTicket getOwnedById(Long id, Long memberId);
+    List<AiConversation> memberConversation(Long ticketId, Long memberId);
     IPage<AiSupportTicket> selectAdminPage(Integer page, Integer size, Integer status);
     List<AiConversation> conversation(Long ticketId);
     void claim(Long id, Long operatorId);

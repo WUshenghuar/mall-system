@@ -62,6 +62,11 @@ public class AiSupportTicketServiceImpl implements AiSupportTicketService {
     }
 
     @Override
+    public List<AiConversation> memberConversation(Long ticketId, Long memberId) {
+        return linkedConversation(getOwnedById(ticketId, memberId));
+    }
+
+    @Override
     public IPage<AiSupportTicket> selectAdminPage(Integer page, Integer size, Integer status) {
         return ticketMapper.selectPage(new Page<>(Math.max(page, 1), Math.min(Math.max(size, 1), 100)),
                 Wrappers.<AiSupportTicket>lambdaQuery().eq(status != null, AiSupportTicket::getStatus, status)
@@ -72,6 +77,10 @@ public class AiSupportTicketServiceImpl implements AiSupportTicketService {
     public List<AiConversation> conversation(Long ticketId) {
         AiSupportTicket ticket = ticketMapper.selectById(ticketId);
         if (ticket == null) throw new BusinessException("工单不存在");
+        return linkedConversation(ticket);
+    }
+
+    private List<AiConversation> linkedConversation(AiSupportTicket ticket) {
         if (!StringUtils.hasText(ticket.getConversationId())) return List.of();
         return conversationMapper.selectRecent(ticket.getMemberId(), ticket.getConversationId(), 20);
     }
