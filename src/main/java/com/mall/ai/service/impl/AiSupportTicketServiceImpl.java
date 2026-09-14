@@ -119,11 +119,12 @@ public class AiSupportTicketServiceImpl implements AiSupportTicketService {
         if (ticket == null || !memberId.equals(ticket.getMemberId())) {
             throw new BusinessException("工单不存在或无权操作");
         }
+        if (StringUtils.hasText(ticket.getConversationId())) {
+            int inserted = conversationMapper.insertMemberMessageIfAbsent(ticket.getConversationId(), idempotencyKey, memberId, content);
+            if (idempotencyKey != null && inserted == 0) return;
+        }
         if (ticketMapper.memberMessage(id, memberId, content) != 1) {
             throw new BusinessException("只有处理中工单可以补充留言");
-        }
-        if (StringUtils.hasText(ticket.getConversationId())) {
-            conversationMapper.insertMemberMessageIfAbsent(ticket.getConversationId(), idempotencyKey, memberId, content);
         }
     }
 

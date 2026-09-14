@@ -169,6 +169,7 @@ class AiSupportTicketServiceImplTest {
         new AiSupportTicketServiceImpl(conversationMapper, ticketMapper).memberMessage(1L, 9L, "member-req-1", "补充地址");
 
         verify(conversationMapper).insertMemberMessageIfAbsent("session-1", "member-req-1", 9L, "补充地址");
+        verify(ticketMapper).memberMessage(1L, 9L, "补充地址");
     }
 
     @Test
@@ -185,6 +186,7 @@ class AiSupportTicketServiceImplTest {
         new AiSupportTicketServiceImpl(conversationMapper, ticketMapper).memberMessage(1L, 9L, "member-req-1", "补充地址");
 
         verify(conversationMapper).insertMemberMessageIfAbsent("session-1", "member-req-1", 9L, "补充地址");
+        verify(ticketMapper, org.mockito.Mockito.never()).memberMessage(1L, 9L, "补充地址");
         verify(conversationMapper, org.mockito.Mockito.never()).insert(any(AiConversation.class));
     }
 
