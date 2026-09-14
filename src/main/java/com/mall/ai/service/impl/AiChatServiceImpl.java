@@ -57,7 +57,9 @@ public class AiChatServiceImpl implements AiChatService {
     private static final Duration TOOL_STATE_TTL = Duration.ofMinutes(5);
     private static final Duration TOOL_STATE_VERSION_TTL = Duration.ofMinutes(10);
     private static final DefaultRedisScript<Long> SAVE_TOOL_STATE = new DefaultRedisScript<>(
-            "local current=redis.call('GET',KEYS[1]); "
+            "local latest=tonumber(redis.call('GET',KEYS[2]) or '-1'); "
+                    + "if latest>tonumber(ARGV[3]) then return 0 end; "
+                    + "local current=redis.call('GET',KEYS[1]); "
                     + "if current then local ok,decoded=pcall(cjson.decode,current); "
                     + "if ok and type(decoded)=='table' and tonumber(decoded.version or '-1')>tonumber(ARGV[3]) then return 0 end end; "
                     + "if ARGV[4]=='delete' then redis.call('DEL',KEYS[1]) "
@@ -279,7 +281,7 @@ public class AiChatServiceImpl implements AiChatService {
                 contextParts.add(plannedContext);
                 toolNames.add(plannedTool);
                 toolResults.add(toolExecution(plannedTool, plannedArguments(plan), plannedContext,
-                        toolResults.size() + 1, plannedCallId(plan, toolResults.size() + 1)));
+                        toolResults.size() + 1, uniqueToolCallId(plan, toolResults.size() + 1, toolResults)));
                 added++;
                 recordAudit(memberId, conversationId, requestId, "tool_plan", plannedTool, "accepted",
                         (int) (System.currentTimeMillis() - start), "model_read_only_plan");
@@ -304,6 +306,19 @@ public class AiChatServiceImpl implements AiChatService {
     private String plannedCallId(Map<String, Object> plan, int sequence) {
         Object value = plan == null ? null : plan.get("callId");
         return value instanceof String id && TOOL_CALL_ID.matcher(id.trim()).matches() ? id.trim() : "call-" + sequence;
+    }
+
+    private String uniqueToolCallId(Map<String, Object> plan, int sequence, List<Map<String, Object>> toolResults) {
+        String id = plannedCallId(plan, sequence);
+        int suffix = sequence;
+        while (containsToolCallId(toolResults, id)) {
+            id = "call-" + suffix++;
+        }
+        return id;
+    }
+
+    private boolean containsToolCallId(List<Map<String, Object>> toolResults, String callId) {
+        return toolResults.stream().anyMatch(result -> callId.equals(result.get("callId")));
     }
 
     private Map<String, Object> plannedArguments(Map<String, Object> plan) {
@@ -346,10 +361,11 @@ public class AiChatServiceImpl implements AiChatService {
         if (toolStateRedis == null) return;
         try {
             String key = toolStateKey(memberId, conversationId);
+            String versionKey = toolStateVersionKey(memberId, conversationId);
             boolean delete = results == null || results.isEmpty();
             String payload = delete ? "" : objectMapper.writeValueAsString(Map.of(
                     "version", version, "results", results.stream().limit(3).toList()));
-            toolStateRedis.execute(SAVE_TOOL_STATE, List.of(key), payload,
+            toolStateRedis.execute(SAVE_TOOL_STATE, List.of(key, versionKey), payload,
                     String.valueOf(TOOL_STATE_TTL.getSeconds()), String.valueOf(version), delete ? "delete" : "set");
         } catch (Exception e) {
             log.debug("AI tool state save failed; continuing without cross-request state", e);
@@ -360,10 +376,14 @@ public class AiChatServiceImpl implements AiChatService {
         return "ai:tool-state:" + memberId + ":" + conversationId;
     }
 
+    private String toolStateVersionKey(Long memberId, String conversationId) {
+        return toolStateKey(memberId, conversationId) + ":version";
+    }
+
     private long nextToolStateVersion(Long memberId, String conversationId) {
         if (toolStateRedis == null) return System.currentTimeMillis();
         try {
-            String key = toolStateKey(memberId, conversationId) + ":version";
+            String key = toolStateVersionKey(memberId, conversationId);
             Long version = toolStateRedis.opsForValue().increment(key);
             toolStateRedis.expire(key, TOOL_STATE_VERSION_TTL);
             return version == null ? System.currentTimeMillis() : version;

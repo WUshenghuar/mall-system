@@ -211,6 +211,40 @@ def test_model_tool_plan_uses_structured_tool_messages(monkeypatch):
     assert result == {"tool": "", "arguments": {}}
 
 
+def test_model_tool_plan_normalizes_duplicate_previous_call_ids(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": [{"message": {"tool_calls": []}}]}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, headers, json):
+            calls = json["messages"][2]["tool_calls"]
+            assert [call["id"] for call in calls] == ["call-same", "call-2"]
+            assert json["messages"][3]["tool_call_id"] == "call-same"
+            assert json["messages"][4]["tool_call_id"] == "call-2"
+            return Response()
+
+    monkeypatch.setattr(llm, "settings", SimpleNamespace(
+        has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
+    monkeypatch.setattr(llm.httpx, "AsyncClient", lambda **kwargs: Client())
+
+    result = asyncio.run(llm.plan_tool("还要查商品", [], [
+        {"callId": "call-same", "tool": "query_activity", "arguments": {}, "content": "活动"},
+        {"callId": "call-same", "tool": "query_product", "arguments": {}, "content": "商品"},
+    ]))
+
+    assert result == {"tool": "", "arguments": {}}
+
+
 def test_chat_request_rejects_unsafe_tool_call_id():
     with pytest.raises(ValueError):
         ChatRequest(memberId=1, conversationId="session-1", message="查活动", toolResults=[{

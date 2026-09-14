@@ -1,4 +1,5 @@
 import json
+import re
 from collections.abc import AsyncIterator
 from time import monotonic
 
@@ -12,6 +13,7 @@ from app.telemetry import record_tool_plan, set_span_attributes, span
 
 _model_retry_at = 0.0
 MAX_REPLY_CHARS = 4000
+CALL_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
 def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -26,6 +28,18 @@ def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
             continue
         result.append({"role": role, "content": content.strip()[:1000]})
     return result
+
+
+def unique_call_id(value: object, fallback: str, used: set[str]) -> str:
+    candidate = value.strip() if isinstance(value, str) and CALL_ID_PATTERN.fullmatch(value.strip()) else fallback
+    if candidate in used:
+        candidate = fallback
+        suffix = 1
+        while candidate in used:
+            candidate = f"{fallback}-{suffix}"
+            suffix += 1
+    used.add(candidate)
+    return candidate
 
 
 async def plan_tool(message: str, history: list[dict[str, str]], tool_results: list | None = None) -> dict:
@@ -52,13 +66,15 @@ async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: 
     messages.extend(history_messages)
     structured_results = []
     legacy_results = []
+    used_call_ids = set()
     for item in (tool_results or [])[:3]:
         raw = item.model_dump() if hasattr(item, "model_dump") else item
         if isinstance(raw, dict):
             call_id, tool, arguments, content = raw.get("callId"), raw.get("tool"), raw.get("arguments"), raw.get("content")
             if (isinstance(call_id, str) and 1 <= len(call_id) <= 64 and isinstance(tool, str) and tool in TOOL_NAMES
                     and isinstance(arguments, dict) and isinstance(content, str) and content.strip()):
-                structured_results.append((call_id, tool, arguments, content.strip()[:2000]))
+                structured_results.append((unique_call_id(call_id, f"call-{len(structured_results) + 1}", used_call_ids),
+                                           tool, arguments, content.strip()[:2000]))
         elif isinstance(raw, str) and raw.strip():
             legacy_results.append(raw.strip()[:2000])
     if structured_results:
@@ -97,6 +113,7 @@ async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: 
         if not isinstance(calls, list):
             return {"tool": "", "arguments": {}}
         plans = []
+        used_plan_ids = set()
         for call in calls[:3]:
             if not isinstance(call, dict):
                 continue
@@ -111,7 +128,7 @@ async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: 
                 plan = {"tool": function["name"], "arguments": arguments}
                 call_id = call.get("id")
                 if isinstance(call_id, str) and 1 <= len(call_id.strip()) <= 64:
-                    plan["callId"] = call_id.strip()
+                    plan["callId"] = unique_call_id(call_id, f"call-{len(plans) + 1}", used_plan_ids)
                 plans.append(plan)
         if len(plans) == 1:
             return plans[0]

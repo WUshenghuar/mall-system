@@ -316,7 +316,7 @@ class AiChatServiceImplTest {
         assertThat(previous.get("callId")).isEqualTo("call-old");
         assertThat(previous.get("tool")).isEqualTo("query_activity");
         verify(redis).expire("ai:tool-state:9:session-1:version", Duration.ofMinutes(10));
-        verify(redis).execute(any(), eq(List.of("ai:tool-state:9:session-1")), any(), any(), any(), any());
+        verify(redis).execute(any(), eq(List.of("ai:tool-state:9:session-1", "ai:tool-state:9:session-1:version")), any(), any(), any(), any());
     }
 
     @Test
@@ -462,8 +462,8 @@ class AiChatServiceImplTest {
         Member member = new Member(); member.setLevel(1); member.setPoints(88); member.setTotalAmount(new java.math.BigDecimal("1200.00"));
         when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
         when(gateway.plan(anyLong(), anyString(), anyString(), any())).thenReturn(Map.of("tools", List.of(
-                Map.of("tool", "query_member", "arguments", Map.of()),
-                Map.of("tool", "query_product", "arguments", Map.of("keyword", "耳机")))));
+                Map.of("tool", "query_member", "arguments", Map.of(), "callId", "call-same"),
+                Map.of("tool", "query_product", "arguments", Map.of("keyword", "耳机"), "callId", "call-same"))));
         when(members.getById(9L)).thenReturn(member);
         when(catalog.products(1, 3, null, "耳机")).thenReturn(page);
         when(page.getRecords()).thenReturn(List.of(product));
@@ -473,6 +473,10 @@ class AiChatServiceImplTest {
                 mock(TradeRefundService.class), catalog, mock(CouponService.class), members)
                 .stream(9L, "session-1", request, ignored -> { });
 
+        ArgumentCaptor<List> toolResults = ArgumentCaptor.forClass(List.class);
+        verify(gateway).plan(anyLong(), anyString(), anyString(), any(), toolResults.capture());
+        assertThat(((Map<?, ?>) toolResults.getValue().get(0)).get("callId")).isEqualTo("call-same");
+        assertThat(((Map<?, ?>) toolResults.getValue().get(1)).get("callId")).isEqualTo("call-2");
         verify(gateway).stream(anyLong(), anyString(), anyString(),
                 eq("你的会员等级：Gold 会员，积分：88，累计消费：1200.00。\n为你找到的上架商品：\n跨境耳机"),
                 eq("query_member,query_product"), any(), any());
