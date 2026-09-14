@@ -32,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -52,6 +53,13 @@ public class AiChatServiceImpl implements AiChatService {
     private static final Pattern ORDER_NO = Pattern.compile("T\\d{18}");
     private static final Pattern TOOL_CALL_ID = Pattern.compile("[A-Za-z0-9_-]{1,64}");
     private static final Duration TOOL_STATE_TTL = Duration.ofMinutes(5);
+    private static final Duration TOOL_STATE_VERSION_TTL = Duration.ofMinutes(10);
+    private static final DefaultRedisScript<Long> SAVE_TOOL_STATE = new DefaultRedisScript<>(
+            "local current=redis.call('GET',KEYS[1]); "
+                    + "if current then local ok,decoded=pcall(cjson.decode,current); "
+                    + "if ok and type(decoded)=='table' and tonumber(decoded.version or '-1')>tonumber(ARGV[3]) then return 0 end end; "
+                    + "if ARGV[4]=='delete' then redis.call('DEL',KEYS[1]) "
+                    + "else redis.call('SET',KEYS[1],ARGV[1],'EX',ARGV[2]) end; return 1", Long.class);
     private final AiConversationMapper conversationMapper;
     private final AiGatewayClient gatewayClient;
     private final ObjectMapper objectMapper;
@@ -95,6 +103,7 @@ public class AiChatServiceImpl implements AiChatService {
         AtomicReference<String> failure = new AtomicReference<>();
         String selectedTool = "";
         List<Map<String, Object>> executedToolResults = new ArrayList<>();
+        long stateVersion = nextToolStateVersion(memberId, conversationId);
         long start = System.currentTimeMillis();
         try {
             List<AiConversation> history = conversationMapper.selectRecent(memberId, conversationId, 10);
@@ -143,7 +152,7 @@ public class AiChatServiceImpl implements AiChatService {
             });
             if (failure.get() != null) throw new BusinessException(failure.get());
             save(memberId, conversationId, requestId, "assistant", answer.toString(), 0, (int) (System.currentTimeMillis() - start));
-            saveToolState(memberId, conversationId, executedToolResults);
+            saveToolState(memberId, conversationId, executedToolResults, stateVersion);
             recordAudit(memberId, conversationId, requestId, "chat", selectedTool.isBlank() ? null : selectedTool,
                     "completed", (int) (System.currentTimeMillis() - start), "stream_completed");
         } catch (RuntimeException e) {
@@ -305,7 +314,10 @@ public class AiChatServiceImpl implements AiChatService {
         try {
             String value = toolStateRedis.opsForValue().get(toolStateKey(memberId, conversationId));
             if (!StringUtils.hasText(value)) return List.of();
-            List<Map<String, Object>> results = objectMapper.readValue(value, new TypeReference<>() { });
+            JsonNode node = objectMapper.readTree(value);
+            JsonNode rawResults = node.isArray() ? node : node.path("results");
+            if (!rawResults.isArray()) return List.of();
+            List<Map<String, Object>> results = objectMapper.convertValue(rawResults, new TypeReference<>() { });
             return results == null ? List.of() : results.stream().filter(this::validToolState).limit(3).toList();
         } catch (Exception e) {
             log.debug("AI tool state unavailable; using current-turn planning only", e);
@@ -313,15 +325,15 @@ public class AiChatServiceImpl implements AiChatService {
         }
     }
 
-    private void saveToolState(Long memberId, String conversationId, List<Map<String, Object>> results) {
+    private void saveToolState(Long memberId, String conversationId, List<Map<String, Object>> results, long version) {
         if (toolStateRedis == null) return;
         try {
             String key = toolStateKey(memberId, conversationId);
-            if (results == null || results.isEmpty()) {
-                toolStateRedis.delete(key);
-                return;
-            }
-            toolStateRedis.opsForValue().set(key, objectMapper.writeValueAsString(results.stream().limit(3).toList()), TOOL_STATE_TTL);
+            boolean delete = results == null || results.isEmpty();
+            String payload = delete ? "" : objectMapper.writeValueAsString(Map.of(
+                    "version", version, "results", results.stream().limit(3).toList()));
+            toolStateRedis.execute(SAVE_TOOL_STATE, List.of(key), payload,
+                    String.valueOf(TOOL_STATE_TTL.getSeconds()), String.valueOf(version), delete ? "delete" : "set");
         } catch (Exception e) {
             log.debug("AI tool state save failed; continuing without cross-request state", e);
         }
@@ -329,6 +341,19 @@ public class AiChatServiceImpl implements AiChatService {
 
     private String toolStateKey(Long memberId, String conversationId) {
         return "ai:tool-state:" + memberId + ":" + conversationId;
+    }
+
+    private long nextToolStateVersion(Long memberId, String conversationId) {
+        if (toolStateRedis == null) return System.currentTimeMillis();
+        try {
+            String key = toolStateKey(memberId, conversationId) + ":version";
+            Long version = toolStateRedis.opsForValue().increment(key);
+            toolStateRedis.expire(key, TOOL_STATE_VERSION_TTL);
+            return version == null ? System.currentTimeMillis() : version;
+        } catch (Exception e) {
+            log.debug("AI tool state version unavailable; using local clock", e);
+            return System.currentTimeMillis();
+        }
     }
 
     private boolean validToolState(Map<String, Object> state) {

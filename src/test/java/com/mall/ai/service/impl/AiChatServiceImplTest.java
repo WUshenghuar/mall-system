@@ -284,6 +284,7 @@ class AiChatServiceImplTest {
         Member member = new Member(); member.setLevel(1); member.setPoints(88);
         when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
         when(redis.opsForValue()).thenReturn(values);
+        when(values.increment("ai:tool-state:9:session-1:version")).thenReturn(7L);
         when(values.get("ai:tool-state:9:session-1")).thenReturn("[{\"callId\":\"call-old\",\"tool\":\"query_activity\",\"arguments\":{},\"content\":\"上一轮活动\"}]");
         when(gateway.plan(anyLong(), anyString(), anyString(), any(), anyList())).thenReturn(Map.of());
         when(members.getById(9L)).thenReturn(member);
@@ -299,7 +300,8 @@ class AiChatServiceImplTest {
         Map<?, ?> previous = (Map<?, ?>) captured.getValue().get(0);
         assertThat(previous.get("callId")).isEqualTo("call-old");
         assertThat(previous.get("tool")).isEqualTo("query_activity");
-        verify(values).set(eq("ai:tool-state:9:session-1"), anyString(), eq(Duration.ofMinutes(5)));
+        verify(redis).expire("ai:tool-state:9:session-1:version", Duration.ofMinutes(10));
+        verify(redis).execute(any(), eq(List.of("ai:tool-state:9:session-1")), any(), any(), any(), any());
     }
 
     @Test
