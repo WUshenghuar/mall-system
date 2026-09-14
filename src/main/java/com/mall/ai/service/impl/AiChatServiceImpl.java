@@ -36,6 +36,7 @@ import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -373,7 +374,8 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     private String toolStateKey(Long memberId, String conversationId) {
-        return "ai:tool-state:" + memberId + ":" + conversationId;
+        String encodedConversationId = URLEncoder.encode(conversationId, java.nio.charset.StandardCharsets.UTF_8);
+        return "ai:tool-state:{" + memberId + ":" + encodedConversationId + "}";
     }
 
     private String toolStateVersionKey(Long memberId, String conversationId) {
