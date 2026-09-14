@@ -3,7 +3,7 @@
     <van-button round type="primary" class="service-trigger" aria-label="打开平台客服" @click="open = true">客服</van-button>
     <van-popup v-model:show="open" position="bottom" round :style="{ height: '72%' }">
       <section class="service-panel" aria-label="平台智能客服">
-        <header><div><p class="eyebrow">PLATFORM SUPPORT</p><h2>海路客服</h2><small v-if="handoffTicket">工单 {{ handoffTicket.ticketNo }} · {{ handoffStatus }}</small><small v-if="handoffTicket?.agentReply" class="service-agent-reply" role="status" aria-atomic="true">客服回复：{{ handoffTicket.agentReply }}</small><small v-if="handoffTicket?.handledNote" class="service-resolution" role="status" aria-atomic="true">处理结果：{{ handoffTicket.handledNote }}</small></div><div class="service-header-actions"><van-button plain size="small" type="warning" :disabled="sending" @click="handoff">转人工</van-button><van-button v-if="handoffTicket?.status === 1" plain size="small" type="primary" :disabled="sending" @click="humanMode = true">补充留言</van-button><van-button plain size="small" @click="open = false">关闭</van-button></div></header>
+        <header><div><p class="eyebrow">PLATFORM SUPPORT</p><h2>海路客服</h2><small v-if="handoffTicket">工单 {{ handoffTicket.ticketNo }} · {{ handoffStatus }}</small><small v-if="handoffTicket?.agentReply" class="service-agent-reply" role="status" aria-atomic="true">客服回复：{{ handoffTicket.agentReply }}</small><small v-if="handoffTicket?.handledNote" class="service-resolution" role="status" aria-atomic="true">处理结果：{{ handoffTicket.handledNote }}</small></div><div class="service-header-actions"><van-button plain size="small" type="warning" :disabled="sending || handoffing" @click="handoff">{{ handoffing ? '提交中' : '转人工' }}</van-button><van-button v-if="handoffTicket?.status === 1" plain size="small" type="primary" :disabled="sending || handoffing" @click="humanMode = true">补充留言</van-button><van-button plain size="small" @click="open = false">关闭</van-button></div></header>
         <nav class="service-quick-actions" aria-label="常见问题">
           <button v-for="question in quickQuestions" :key="question" type="button" class="quick-question" :disabled="sending" @click="askQuickQuestion(question)">{{ question }}</button>
         </nav>
@@ -21,7 +21,7 @@ import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { aiApi } from '../api'
-const router = useRouter(), open = ref(false), draft = ref(''), sending = ref(false), humanMode = ref(false), messages = ref([]), conversationId = ref(''), handoffTicket = ref(null), messageList = ref(null)
+const router = useRouter(), open = ref(false), draft = ref(''), sending = ref(false), handoffing = ref(false), humanMode = ref(false), messages = ref([]), conversationId = ref(''), handoffTicket = ref(null), messageList = ref(null)
 let handoffTimer
 const quickQuestions = ['怎么查我的订单？', '退款规则是什么？', '物流在哪里看？', '优惠券怎么领？', '现在有什么活动？', '有哪些可领取优惠券？']
 const toolLabel = tool => ({ query_order: '订单查询', query_logistics: '物流查询', query_refund: '退款查询', query_product: '商品查询', query_coupon: '优惠券查询', query_member: '会员查询', query_tax: '税费查询', query_activity: '活动查询', query_return_eligibility: '退款/退货资格查询' }[tool] || '业务查询')
@@ -30,8 +30,10 @@ const handoffStatus = computed(() => ({ 0: '待接管', 1: '处理中', 2: '已�
 function askQuickQuestion(question) { draft.value = question; send() }
 async function handoff() {
   if (!localStorage.getItem('member-token')) { showToast('请登录后使用平台客服'); router.push('/account'); return }
+  if (handoffing.value) return
   const latest = messages.value.filter(item => item.role === 'user').at(-1)?.content || '需要人工客服协助'
-  try { handoffTicket.value = (await aiApi.handoff({ conversationId: conversationId.value || undefined, message: latest })).data; showToast('已提交平台人工客服工单') } catch (error) { showToast(error) }
+  handoffing.value = true
+  try { handoffTicket.value = (await aiApi.handoff({ conversationId: conversationId.value || undefined, message: latest })).data; showToast('已提交平台人工客服工单') } catch (error) { showToast(error) } finally { handoffing.value = false }
 }
 async function loadRecent(force = false) {
   if (!localStorage.getItem('member-token') || (!force && messages.value.length)) return

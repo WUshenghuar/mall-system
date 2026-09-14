@@ -31,7 +31,7 @@ public class AiSupportTicketServiceImpl implements AiSupportTicketService {
         if (sessionId != null) {
             AiSupportTicket existing = ticketMapper.selectOne(Wrappers.<AiSupportTicket>lambdaQuery()
                     .eq(AiSupportTicket::getMemberId, memberId).eq(AiSupportTicket::getConversationId, sessionId)
-                    .in(AiSupportTicket::getStatus, 0, 1).last("LIMIT 1"));
+                    .in(AiSupportTicket::getStatus, 0, 1).last("LIMIT 1 FOR UPDATE"));
             if (existing != null) {
                 existing.setLatestMessage(latestMessage);
                 ticketMapper.updateById(existing);
