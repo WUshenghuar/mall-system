@@ -201,7 +201,7 @@ async def production_rerank(query: str, hits: list[dict]) -> list[dict]:
                 )
                 response.raise_for_status()
         results = response.json().get("results")
-        if not isinstance(results, list):
+        if not isinstance(results, list) or len(results) > len(hits):
             record_rerank("failed")
             _mark_rerank_failure()
             return hits

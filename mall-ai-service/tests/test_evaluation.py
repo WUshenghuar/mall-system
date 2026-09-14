@@ -272,6 +272,43 @@ def test_production_rerank_rejects_boolean_score(monkeypatch):
     assert outcomes == ["failed"]
 
 
+def test_production_rerank_rejects_oversized_response(monkeypatch):
+    monkeypatch.setattr(retriever, "_rerank_retry_at", 0.0)
+    outcomes = []
+    monkeypatch.setattr(retriever, "record_rerank", outcomes.append)
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"results": [
+                {"index": 0, "relevance_score": 0.9},
+                {"index": 1, "relevance_score": 0.8},
+                {"index": 0, "relevance_score": 0.7},
+            ]}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, *args, **kwargs):
+            return Response()
+
+    monkeypatch.setattr(retriever, "settings", SimpleNamespace(
+        has_reranker=True, rerank_api_base="https://rerank.test", rerank_api_key="secret", rerank_model="rerank-test"))
+    monkeypatch.setattr(retriever.httpx, "AsyncClient", lambda **kwargs: Client())
+    hits = [{"_id": "a", "_source": {"title": "A"}}, {"_id": "b", "_source": {"title": "B"}}]
+
+    result = asyncio.run(retriever.production_rerank("query", hits))
+
+    assert result == hits
+    assert outcomes == ["failed"]
+
+
 def test_production_rerank_skips_provider_during_cooldown(monkeypatch):
     monkeypatch.setattr(retriever, "_rerank_retry_at", float("inf"))
     monkeypatch.setattr(retriever, "settings", SimpleNamespace(has_reranker=True))
