@@ -50,6 +50,8 @@ import java.util.regex.Pattern;
 @Slf4j
 public class AiChatServiceImpl implements AiChatService {
     private static final int MAX_BUSINESS_CONTEXT_CHARS = 5500;
+    private static final long PLANNER_BUDGET_MS = 3500;
+    private static final int PLANNER_MIN_CALL_MS = 250;
     private static final Pattern ORDER_NO = Pattern.compile("T\\d{18}");
     private static final Pattern TOOL_CALL_ID = Pattern.compile("[A-Za-z0-9_-]{1,64}");
     private static final Duration TOOL_STATE_TTL = Duration.ofMinutes(5);
@@ -112,9 +114,10 @@ public class AiChatServiceImpl implements AiChatService {
             selectedTool = businessTool(request.getMessage(), businessContext);
             if (businessContext.isBlank() || hasMultipleBusinessTopics(request.getMessage())) {
                 List<Map<String, Object>> previousToolResults = loadToolState(memberId, conversationId);
+                long plannerDeadline = System.currentTimeMillis() + PLANNER_BUDGET_MS;
                 Map<String, Object> decision = previousToolResults.isEmpty()
-                        ? gatewayClient.plan(memberId, conversationId, request.getMessage(), history)
-                        : gatewayClient.plan(memberId, conversationId, request.getMessage(), history, previousToolResults);
+                        ? planWithinBudget(memberId, conversationId, request.getMessage(), history, List.of(), plannerDeadline)
+                        : planWithinBudget(memberId, conversationId, request.getMessage(), history, previousToolResults, plannerDeadline);
                 List<String> contextParts = new ArrayList<>();
                 List<String> toolNames = new ArrayList<>();
                 if (!businessContext.isBlank()) {
@@ -126,7 +129,8 @@ public class AiChatServiceImpl implements AiChatService {
                 }
                 int added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), decision, contextParts, toolNames, executedToolResults, start);
                 for (int round = 1; added > 0 && toolNames.size() < 3 && round < 3; round++) {
-                    Map<String, Object> followUp = gatewayClient.plan(memberId, conversationId, request.getMessage(), history, executedToolResults);
+                    Map<String, Object> followUp = planWithinBudget(memberId, conversationId, request.getMessage(), history,
+                            executedToolResults, plannerDeadline);
                     added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), followUp, contextParts, toolNames, executedToolResults, start);
                 }
                 if (!contextParts.isEmpty()) {
@@ -209,6 +213,19 @@ public class AiChatServiceImpl implements AiChatService {
     private String businessTool(String message, String context) {
         if (context.isBlank()) return "";
         return intent(message);
+    }
+
+    private Map<String, Object> planWithinBudget(Long memberId, String conversationId, String message,
+                                                  List<AiConversation> history, List<?> toolResults, long deadline) {
+        long remaining = deadline - System.currentTimeMillis();
+        if (remaining < PLANNER_MIN_CALL_MS) return Map.of();
+        if (remaining > 2_050) {
+            return toolResults == null || toolResults.isEmpty()
+                    ? gatewayClient.plan(memberId, conversationId, message, history)
+                    : gatewayClient.plan(memberId, conversationId, message, history, toolResults);
+        }
+        return gatewayClient.planWithTimeout(memberId, conversationId, message, history,
+                toolResults == null ? List.of() : toolResults, (int) Math.max(PLANNER_MIN_CALL_MS, remaining - 50));
     }
 
     private String intent(String message) {

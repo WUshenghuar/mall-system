@@ -58,12 +58,23 @@ public class AiGatewayClient {
 
     public Map<String, Object> plan(Long memberId, String conversationId, String message, List<AiConversation> history,
                                     List<?> toolResults) {
+        return planInternal(memberId, conversationId, message, history, toolResults, 2_000);
+    }
+
+    public Map<String, Object> planWithTimeout(Long memberId, String conversationId, String message,
+                                                List<AiConversation> history, List<?> toolResults, int timeoutMillis) {
+        return planInternal(memberId, conversationId, message, history, toolResults,
+                Math.max(100, Math.min(timeoutMillis, 2_000)));
+    }
+
+    private Map<String, Object> planInternal(Long memberId, String conversationId, String message,
+                                             List<AiConversation> history, List<?> toolResults, int timeoutMillis) {
         try {
             List<Map<String, String>> messages = history.stream()
                     .map(item -> Map.of("role", "agent".equals(item.getRole()) ? "assistant" : item.getRole(), "content", item.getContent())).toList();
-            JsonNode response = requestJson("POST", "/internal/tool-plan", Map.of(
+            JsonNode response = requestJsonMillis("POST", "/internal/tool-plan", Map.of(
                     "memberId", memberId, "conversationId", conversationId, "message", message, "history", messages,
-                    "toolResults", toolResults == null ? List.of() : toolResults), 2,
+                    "toolResults", toolResults == null ? List.of() : toolResults), timeoutMillis,
                     traceId(conversationId, message), traceParent(conversationId, message));
             return objectMapper.convertValue(response, new TypeReference<>() { });
         } catch (Exception e) {
@@ -141,10 +152,15 @@ public class AiGatewayClient {
 
     private JsonNode requestJson(String method, String path, Object body, int timeoutSeconds,
                                  String traceId, String traceParent) throws Exception {
+        return requestJsonMillis(method, path, body, (int) Duration.ofSeconds(timeoutSeconds).toMillis(), traceId, traceParent);
+    }
+
+    private JsonNode requestJsonMillis(String method, String path, Object body, int timeoutMillis,
+                                       String traceId, String traceParent) throws Exception {
         HttpURLConnection connection = (HttpURLConnection) URI.create(baseUrl + path).toURL().openConnection();
         connection.setRequestMethod(method);
-        connection.setConnectTimeout((int) Duration.ofSeconds(timeoutSeconds).toMillis());
-        connection.setReadTimeout((int) Duration.ofSeconds(timeoutSeconds).toMillis());
+        connection.setConnectTimeout(timeoutMillis);
+        connection.setReadTimeout(timeoutMillis);
         connection.setRequestProperty("Content-Type", "application/json");
         connection.setRequestProperty("X-AI-Service-Token", serviceToken);
         if (traceId != null) connection.setRequestProperty("X-Trace-Id", traceId);

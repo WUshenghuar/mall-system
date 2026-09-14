@@ -27,6 +27,7 @@ import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -272,6 +273,20 @@ class AiChatServiceImplTest {
                 mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class));
 
         assertThat(service.runtimeMetrics()).isEqualTo(metrics);
+    }
+
+    @Test
+    void skipsAnotherPlannerRoundAfterTheBudgetExpires() {
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        AiChatServiceImpl service = new AiChatServiceImpl(mock(AiConversationMapper.class), gateway, new ObjectMapper(),
+                mock(TradeOrderService.class), mock(LogisticsService.class), mock(TradeRefundService.class),
+                mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class));
+
+        Map<?, ?> result = ReflectionTestUtils.invokeMethod(service, "planWithinBudget", 9L, "session-1", "继续查询",
+                List.of(), List.of(), System.currentTimeMillis() - 1);
+
+        assertThat(result).isEmpty();
+        verifyNoInteractions(gateway);
     }
 
     @Test
