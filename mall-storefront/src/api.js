@@ -34,10 +34,11 @@ export const marketingApi = {
   activities: () => request.get('/store/activities')
 }
 export const aiApi = {
-  async streamChat(payload, onEvent) {
+  async streamChat(payload, onEvent, signal) {
     const token = localStorage.getItem('member-token')
     const response = await fetch('/api/ai/chat', {
       method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      signal,
       body: JSON.stringify(payload)
     })
     if (!response.ok || !response.body) throw new Error('客服服务暂不可用')

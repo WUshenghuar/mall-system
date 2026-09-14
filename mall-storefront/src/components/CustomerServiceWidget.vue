@@ -23,6 +23,7 @@ import { showToast } from 'vant'
 import { aiApi } from '../api'
 const router = useRouter(), open = ref(false), draft = ref(''), sending = ref(false), handoffing = ref(false), humanMode = ref(false), messages = ref([]), conversationId = ref(''), handoffTicket = ref(null), messageList = ref(null)
 let handoffTimer
+let chatController
 const quickQuestions = ['怎么查我的订单？', '退款规则是什么？', '物流在哪里看？', '优惠券怎么领？', '现在有什么活动？', '有哪些可领取优惠券？']
 const toolLabel = tool => ({ query_order: '订单查询', query_logistics: '物流查询', query_refund: '退款查询', query_product: '商品查询', query_coupon: '优惠券查询', query_member: '会员查询', query_tax: '税费查询', query_activity: '活动查询', query_return_eligibility: '退款/退货资格查询' }[tool] || '业务查询')
 const toolLabels = item => (item.tools?.length ? item.tools : item.tool ? [item.tool] : []).map(toolLabel).join('、')
@@ -68,8 +69,8 @@ async function loadTicketConversation(ticket) {
     scrollToBottom()
   } catch { /* 工单会话读取失败不影响当前对话 */ }
 }
-watch(open, value => { if (value) { loadRecent(true).finally(loadHandoff); handoffTimer = window.setInterval(async () => { if (sending.value) return; await loadHandoff(); if (!handoffTicket.value?.conversationId) loadRecent(true) }, 15000) } else { window.clearInterval(handoffTimer) } })
-onUnmounted(() => window.clearInterval(handoffTimer))
+watch(open, value => { if (value) { loadRecent(true).finally(loadHandoff); handoffTimer = window.setInterval(async () => { if (sending.value) return; await loadHandoff(); if (!handoffTicket.value?.conversationId) loadRecent(true) }, 15000) } else { window.clearInterval(handoffTimer); chatController?.abort(); chatController = null } })
+onUnmounted(() => { window.clearInterval(handoffTimer); chatController?.abort() })
 async function scrollToBottom() { await nextTick(); messageList.value?.scrollTo({ top: messageList.value.scrollHeight, behavior: 'smooth' }) }
 async function send(retryItem = null) {
   const retrying = retryItem?.role === 'assistant'
@@ -93,6 +94,7 @@ async function send(retryItem = null) {
   }
   sending.value = true
   if (!conversationId.value) conversationId.value = newRequestId()
+  chatController = new AbortController()
   await scrollToBottom()
   try {
     await aiApi.streamChat({ requestId, conversationId: conversationId.value || undefined, message: content }, event => {
@@ -103,7 +105,7 @@ async function send(retryItem = null) {
       if (event.type === 'sources') assistant.sources = event.items
       if (event.type === 'handoff_suggested') assistant.handoffSuggested = true
       scrollToBottom()
-    })
+    }, chatController.signal)
     if (!assistant.error) {
       try {
         const records = (await aiApi.recent()).data || []
@@ -111,7 +113,7 @@ async function send(retryItem = null) {
         if (latestReply) { assistant.id = latestReply.id; assistant.feedback = latestReply.feedback }
       } catch { /* 反馈同步失败不影响已经完成的客服回答 */ }
     }
-  } catch (error) { assistant.content = error.message || '客服服务暂不可用，请稍后重试'; assistant.error = true } finally { sending.value = false; scrollToBottom() }
+  } catch (error) { if (error.name !== 'AbortError') { assistant.content = error.message || '客服服务暂不可用，请稍后重试'; assistant.error = true } } finally { chatController = null; sending.value = false; scrollToBottom() }
 }
 function newRequestId() { return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}` }
 function retry(item) { send(item) }
