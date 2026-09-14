@@ -306,7 +306,7 @@ public class AiChatServiceImpl implements AiChatService {
             String value = toolStateRedis.opsForValue().get(toolStateKey(memberId, conversationId));
             if (!StringUtils.hasText(value)) return List.of();
             List<Map<String, Object>> results = objectMapper.readValue(value, new TypeReference<>() { });
-            return results == null ? List.of() : results.stream().filter(item -> item != null).limit(3).toList();
+            return results == null ? List.of() : results.stream().filter(this::validToolState).limit(3).toList();
         } catch (Exception e) {
             log.debug("AI tool state unavailable; using current-turn planning only", e);
             return List.of();
@@ -329,6 +329,15 @@ public class AiChatServiceImpl implements AiChatService {
 
     private String toolStateKey(Long memberId, String conversationId) {
         return "ai:tool-state:" + memberId + ":" + conversationId;
+    }
+
+    private boolean validToolState(Map<String, Object> state) {
+        if (state == null || !(state.get("callId") instanceof String callId)
+                || !TOOL_CALL_ID.matcher(callId).matches()
+                || !(state.get("tool") instanceof String tool) || !isSupportedTool(tool)
+                || !(state.get("arguments") instanceof Map<?, ?>)
+                || !(state.get("content") instanceof String content)) return false;
+        return StringUtils.hasText(content) && content.length() <= MAX_BUSINESS_CONTEXT_CHARS;
     }
 
     void setToolStateRedis(StringRedisTemplate toolStateRedis) {

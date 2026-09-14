@@ -303,6 +303,34 @@ class AiChatServiceImplTest {
     }
 
     @Test
+    void dropsMalformedToolStateBeforeCallingPlanner() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        MemberService members = mock(MemberService.class);
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> values = mock(ValueOperations.class);
+        Member member = new Member(); member.setLevel(1); member.setPoints(88);
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(redis.opsForValue()).thenReturn(values);
+        when(values.get("ai:tool-state:9:session-1")).thenReturn("["
+                + "{\"callId\":\"bad id\",\"tool\":\"query_activity\",\"arguments\":{},\"content\":\"非法\"},"
+                + "{\"callId\":\"call-ok\",\"tool\":\"query_activity\",\"arguments\":{},\"content\":\"上一轮活动\"}]");
+        when(gateway.plan(anyLong(), anyString(), anyString(), any(), anyList())).thenReturn(Map.of());
+        when(members.getById(9L)).thenReturn(member);
+
+        AiChatServiceImpl service = new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
+                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class),
+                mock(CouponService.class), members);
+        service.setToolStateRedis(redis);
+        service.stream(9L, "session-1", newRequest("我的会员和活动"), ignored -> { });
+
+        ArgumentCaptor<List> captured = ArgumentCaptor.forClass(List.class);
+        verify(gateway).plan(anyLong(), anyString(), anyString(), any(), captured.capture());
+        assertThat(captured.getValue()).hasSize(1);
+        assertThat(((Map<?, ?>) captured.getValue().get(0)).get("callId")).isEqualTo("call-ok");
+    }
+
+    @Test
     void exposesFeedbackStatsForOperations() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         when(mapper.selectFeedbackStats()).thenReturn(Map.of("total", 4L, "positive", 3L, "negative", 1L));
