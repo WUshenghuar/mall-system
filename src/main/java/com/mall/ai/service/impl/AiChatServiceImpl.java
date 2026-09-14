@@ -46,6 +46,7 @@ import java.util.regex.Pattern;
 @Slf4j
 public class AiChatServiceImpl implements AiChatService {
     private static final Pattern ORDER_NO = Pattern.compile("T\\d{18}");
+    private static final Pattern TOOL_CALL_ID = Pattern.compile("[A-Za-z0-9_-]{1,64}");
     private final AiConversationMapper conversationMapper;
     private final AiGatewayClient gatewayClient;
     private final ObjectMapper objectMapper;
@@ -96,18 +97,18 @@ public class AiChatServiceImpl implements AiChatService {
                 Map<String, Object> decision = gatewayClient.plan(memberId, conversationId, request.getMessage(), history);
                 List<String> contextParts = new ArrayList<>();
                 List<String> toolNames = new ArrayList<>();
+                List<Map<String, Object>> toolResults = new ArrayList<>();
                 if (!businessContext.isBlank()) {
                     contextParts.add(businessContext);
-                    if (!selectedTool.isBlank()) toolNames.add(selectedTool);
-                }
-                int added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), decision, contextParts, toolNames, start);
-                for (int round = 1; added > 0 && toolNames.size() < 3 && round < 3; round++) {
-                    List<String> toolResults = new ArrayList<>();
-                    for (int index = 0; index < contextParts.size(); index++) {
-                        toolResults.add(toolNames.get(index) + ": " + contextParts.get(index));
+                    if (!selectedTool.isBlank()) {
+                        toolNames.add(selectedTool);
+                        toolResults.add(toolExecution(selectedTool, Map.of(), businessContext, toolResults.size() + 1, null));
                     }
+                }
+                int added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), decision, contextParts, toolNames, toolResults, start);
+                for (int round = 1; added > 0 && toolNames.size() < 3 && round < 3; round++) {
                     Map<String, Object> followUp = gatewayClient.plan(memberId, conversationId, request.getMessage(), history, toolResults);
-                    added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), followUp, contextParts, toolNames, start);
+                    added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), followUp, contextParts, toolNames, toolResults, start);
                 }
                 if (!contextParts.isEmpty()) {
                     businessContext = String.join("\n", contextParts);
@@ -229,7 +230,8 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     private int appendPlannedContexts(Long memberId, String conversationId, String requestId, String message,
-                                      Map<String, Object> decision, List<String> contextParts, List<String> toolNames, long start) {
+                                      Map<String, Object> decision, List<String> contextParts, List<String> toolNames,
+                                      List<Map<String, Object>> toolResults, long start) {
         int added = 0;
         for (Map<String, Object> plan : plannedTools(decision)) {
             if (toolNames.size() >= 3) break;
@@ -239,12 +241,33 @@ public class AiChatServiceImpl implements AiChatService {
             if (!plannedContext.isBlank()) {
                 contextParts.add(plannedContext);
                 toolNames.add(plannedTool);
+                toolResults.add(toolExecution(plannedTool, plannedArguments(plan), plannedContext,
+                        toolResults.size() + 1, plannedCallId(plan, toolResults.size() + 1)));
                 added++;
                 recordAudit(memberId, conversationId, requestId, "tool_plan", plannedTool, "accepted",
                         (int) (System.currentTimeMillis() - start), "model_read_only_plan");
             }
         }
         return added;
+    }
+
+    private Map<String, Object> toolExecution(String tool, Map<String, Object> arguments, String content,
+                                              int sequence, String callId) {
+        String id = callId != null && TOOL_CALL_ID.matcher(callId).matches() ? callId : "call-" + sequence;
+        return Map.of("callId", id, "tool", tool, "arguments", arguments, "content", content);
+    }
+
+    private String plannedCallId(Map<String, Object> plan, int sequence) {
+        Object value = plan == null ? null : plan.get("callId");
+        return value instanceof String id && TOOL_CALL_ID.matcher(id.trim()).matches() ? id.trim() : "call-" + sequence;
+    }
+
+    private Map<String, Object> plannedArguments(Map<String, Object> plan) {
+        Object value = plan == null ? null : plan.get("arguments");
+        if (!(value instanceof Map<?, ?> raw)) return Map.of();
+        Map<String, Object> arguments = new java.util.HashMap<>();
+        raw.forEach((key, item) -> { if (key instanceof String name) arguments.put(name, item); });
+        return arguments;
     }
 
     private boolean hasMultipleBusinessTopics(String message) {

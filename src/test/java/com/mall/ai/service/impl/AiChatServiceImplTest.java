@@ -23,6 +23,7 @@ import com.mall.marketing.service.CouponService;
 import com.mall.marketing.service.ActivityService;
 import com.mall.member.entity.Member;
 import com.mall.member.service.MemberService;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -456,6 +457,13 @@ class AiChatServiceImplTest {
 
         verify(gateway).plan(anyLong(), anyString(), anyString(), any());
         verify(gateway).plan(anyLong(), anyString(), anyString(), any(), anyList());
+        ArgumentCaptor<List> toolResults = ArgumentCaptor.forClass(List.class);
+        verify(gateway).plan(anyLong(), anyString(), anyString(), any(), toolResults.capture());
+        Map<?, ?> firstToolResult = (Map<?, ?>) toolResults.getValue().get(0);
+        assertThat(firstToolResult.get("callId")).isEqualTo("call-1");
+        assertThat(firstToolResult.get("tool")).isEqualTo("query_logistics");
+        assertThat(firstToolResult.containsKey("arguments")).isTrue();
+        assertThat(firstToolResult.containsKey("content")).isTrue();
         verify(gateway).stream(anyLong(), anyString(), anyString(),
                 argThat(value -> value.contains("DHL-001") && value.contains("秋季好物周")),
                 eq("query_logistics,query_activity"), any(), any());

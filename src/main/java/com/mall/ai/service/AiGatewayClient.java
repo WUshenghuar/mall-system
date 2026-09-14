@@ -57,7 +57,7 @@ public class AiGatewayClient {
     }
 
     public Map<String, Object> plan(Long memberId, String conversationId, String message, List<AiConversation> history,
-                                    List<String> toolResults) {
+                                    List<?> toolResults) {
         try {
             List<Map<String, String>> messages = history.stream()
                     .map(item -> Map.of("role", "agent".equals(item.getRole()) ? "assistant" : item.getRole(), "content", item.getContent())).toList();

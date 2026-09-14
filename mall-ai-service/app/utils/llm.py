@@ -28,13 +28,13 @@ def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
     return result
 
 
-async def plan_tool(message: str, history: list[dict[str, str]], tool_results: list[str] | None = None) -> dict:
+async def plan_tool(message: str, history: list[dict[str, str]], tool_results: list | None = None) -> dict:
     with span("ai.tool_plan", {"langfuse.observation.type": "tool", "gen_ai.system": "openai",
                                "gen_ai.request.model": settings.model_name, "langfuse.observation.model.name": settings.model_name}):
         return await _plan_tool(message, history, tool_results)
 
 
-async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: list[str] | None = None) -> dict:
+async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: list | None = None) -> dict:
     if is_prompt_injection(message) or not getattr(settings, "enabled", True) or not settings.has_model:
         return {"tool": "", "arguments": {}}
     messages = [{"role": "system", "content": "你是平台客服意图路由器。只允许选择只读查询工具，不执行任何写操作；无法确定时不要选择工具。"}]
@@ -42,10 +42,30 @@ async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: 
     if history_messages and history_messages[-1]["role"] == "user" and history_messages[-1]["content"] == message:
         history_messages = history_messages[:-1]
     messages.extend(history_messages)
-    results = [item.strip()[:2000] for item in (tool_results or []) if isinstance(item, str) and item.strip()][:3]
-    if results:
-        messages.append({"role": "system", "content": "以下只读工具已执行，不要重复这些查询；仅在仍缺少必要信息时选择其它只读工具：\n" + "\n".join(results)})
-    messages.append({"role": "user", "content": message})
+    structured_results = []
+    legacy_results = []
+    for item in (tool_results or [])[:3]:
+        raw = item.model_dump() if hasattr(item, "model_dump") else item
+        if isinstance(raw, dict):
+            call_id, tool, arguments, content = raw.get("callId"), raw.get("tool"), raw.get("arguments"), raw.get("content")
+            if (isinstance(call_id, str) and 1 <= len(call_id) <= 64 and isinstance(tool, str) and tool in TOOL_NAMES
+                    and isinstance(arguments, dict) and isinstance(content, str) and content.strip()):
+                structured_results.append((call_id, tool, arguments, content.strip()[:2000]))
+        elif isinstance(raw, str) and raw.strip():
+            legacy_results.append(raw.strip()[:2000])
+    if structured_results:
+        messages.append({"role": "user", "content": message})
+        messages.append({"role": "assistant", "tool_calls": [
+            {"id": call_id, "type": "function", "function": {
+                "name": tool, "arguments": json.dumps(arguments, ensure_ascii=False, separators=(",", ":"))
+            }} for call_id, tool, arguments, _ in structured_results
+        ]})
+        messages.extend({"role": "tool", "tool_call_id": call_id, "name": tool, "content": content}
+                        for call_id, tool, _, content in structured_results)
+    else:
+        if legacy_results:
+            messages.append({"role": "system", "content": "以下只读工具已执行，不要重复这些查询；仅在仍缺少必要信息时选择其它只读工具：\n" + "\n".join(legacy_results)})
+        messages.append({"role": "user", "content": message})
     payload = {
         "model": settings.model_name,
         "messages": messages,
@@ -80,7 +100,11 @@ async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: 
             except (TypeError, json.JSONDecodeError):
                 continue
             if isinstance(arguments, dict):
-                plans.append({"tool": function["name"], "arguments": arguments})
+                plan = {"tool": function["name"], "arguments": arguments}
+                call_id = call.get("id")
+                if isinstance(call_id, str) and 1 <= len(call_id.strip()) <= 64:
+                    plan["callId"] = call_id.strip()
+                plans.append(plan)
         if len(plans) == 1:
             return plans[0]
         return {"tools": plans} if plans else {"tool": "", "arguments": {}}

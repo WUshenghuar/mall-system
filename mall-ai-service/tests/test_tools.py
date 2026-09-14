@@ -14,7 +14,8 @@ def test_model_tool_plan_returns_only_allowed_function_call(monkeypatch):
                 "function": {
                     "name": "query_logistics",
                     "arguments": '{"order_no":"T202609071234567890"}',
-                }
+                },
+                "id": "call-logistics",
             }]}}]}
 
     class Client:
@@ -42,7 +43,7 @@ def test_model_tool_plan_returns_only_allowed_function_call(monkeypatch):
 
     result = asyncio.run(llm.plan_tool("我的包裹到哪了", []))
 
-    assert result == {"tool": "query_logistics", "arguments": {"order_no": "T202609071234567890"}}
+    assert result == {"tool": "query_logistics", "arguments": {"order_no": "T202609071234567890"}, "callId": "call-logistics"}
 
 
 def test_model_tool_plan_keeps_at_most_three_allowed_calls(monkeypatch):
@@ -168,5 +169,41 @@ def test_model_tool_plan_does_not_duplicate_current_question(monkeypatch):
     monkeypatch.setattr(llm.httpx, "AsyncClient", lambda **kwargs: Client())
 
     result = asyncio.run(llm.plan_tool("查活动", [{"role": "user", "content": "查活动"}]))
+
+    assert result == {"tool": "", "arguments": {}}
+
+
+def test_model_tool_plan_uses_structured_tool_messages(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": [{"message": {"tool_calls": []}}]}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, headers, json):
+            assert [item["role"] for item in json["messages"]] == ["system", "user", "assistant", "tool"]
+            assert json["messages"][2]["tool_calls"][0]["id"] == "call-activity"
+            function = json["messages"][2]["tool_calls"][0]["function"]
+            assert function["name"] == "query_activity"
+            assert function["arguments"] == "{}"
+            assert json["messages"][3]["tool_call_id"] == "call-activity"
+            assert json["messages"][3]["content"] == "当前进行中的活动：秋季活动"
+            return Response()
+
+    monkeypatch.setattr(llm, "settings", SimpleNamespace(
+        has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
+    monkeypatch.setattr(llm.httpx, "AsyncClient", lambda **kwargs: Client())
+
+    result = asyncio.run(llm.plan_tool("还要查会员", [], [{
+        "callId": "call-activity", "tool": "query_activity", "arguments": {}, "content": "当前进行中的活动：秋季活动"
+    }]))
 
     assert result == {"tool": "", "arguments": {}}

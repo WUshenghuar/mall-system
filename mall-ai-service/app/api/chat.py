@@ -38,6 +38,13 @@ class ChatMessage(BaseModel):
     content: str
 
 
+class ToolResult(BaseModel):
+    callId: str = Field(min_length=1, max_length=64)
+    tool: str = Field(min_length=1, max_length=64)
+    arguments: dict = Field(default_factory=dict)
+    content: str = Field(min_length=1, max_length=6000)
+
+
 class ChatRequest(BaseModel):
     memberId: int = Field(gt=0)
     conversationId: str = Field(min_length=1, max_length=64)
@@ -45,7 +52,7 @@ class ChatRequest(BaseModel):
     businessContext: str = Field(default="", max_length=6000)
     businessTool: str = Field(default="", max_length=128)
     history: list[ChatMessage] = Field(default_factory=list, max_length=20)
-    toolResults: list[str] = Field(default_factory=list, max_length=3)
+    toolResults: list[ToolResult | str] = Field(default_factory=list, max_length=3)
 
 
 def sse(payload: dict) -> str:
