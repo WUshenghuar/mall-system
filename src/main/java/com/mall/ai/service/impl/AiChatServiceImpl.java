@@ -48,6 +48,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 @Slf4j
 public class AiChatServiceImpl implements AiChatService {
+    private static final int MAX_BUSINESS_CONTEXT_CHARS = 5500;
     private static final Pattern ORDER_NO = Pattern.compile("T\\d{18}");
     private static final Pattern TOOL_CALL_ID = Pattern.compile("[A-Za-z0-9_-]{1,64}");
     private static final Duration TOOL_STATE_TTL = Duration.ofMinutes(5);
@@ -130,7 +131,7 @@ public class AiChatServiceImpl implements AiChatService {
                             (int) (System.currentTimeMillis() - start), "read_only");
                 }
             }
-            gatewayClient.stream(memberId, conversationId, request.getMessage(), businessContext,
+            gatewayClient.stream(memberId, conversationId, request.getMessage(), boundedBusinessContext(businessContext),
                     selectedTool, history, event -> {
                 String error = readError(event);
                 if (error != null) {
@@ -264,7 +265,14 @@ public class AiChatServiceImpl implements AiChatService {
     private Map<String, Object> toolExecution(String tool, Map<String, Object> arguments, String content,
                                               int sequence, String callId) {
         String id = callId != null && TOOL_CALL_ID.matcher(callId).matches() ? callId : "call-" + sequence;
-        return Map.of("callId", id, "tool", tool, "arguments", arguments, "content", content);
+        return Map.of("callId", id, "tool", tool, "arguments", arguments, "content", boundedBusinessContext(content));
+    }
+
+    private String boundedBusinessContext(String context) {
+        if (context == null || context.length() <= MAX_BUSINESS_CONTEXT_CHARS) return context == null ? "" : context;
+        int end = context.lastIndexOf('\n', MAX_BUSINESS_CONTEXT_CHARS);
+        if (end <= 0) end = MAX_BUSINESS_CONTEXT_CHARS;
+        return context.substring(0, end) + "\n（业务查询结果过长，仅展示部分，请以页面实时数据为准）";
     }
 
     private String plannedCallId(Map<String, Object> plan, int sequence) {

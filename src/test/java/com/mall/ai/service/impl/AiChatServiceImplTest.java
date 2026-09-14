@@ -678,6 +678,33 @@ class AiChatServiceImplTest {
     }
 
     @Test
+    void boundsOversizedBusinessContextBeforeSendingToAiService() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        ActivityService activities = mock(ActivityService.class);
+        List<Activity> manyActivities = new ArrayList<>();
+        for (int index = 0; index < 100; index++) {
+            Activity activity = new Activity();
+            activity.setActivityName("活动" + "x".repeat(80) + index);
+            activity.setEndTime(LocalDateTime.of(2026, 9, 30, 23, 59));
+            manyActivities.add(activity);
+        }
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(activities.selectActive()).thenReturn(manyActivities);
+        AiChatServiceImpl service = new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
+                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class),
+                mock(CouponService.class), mock(MemberService.class));
+        service.setActivityService(activities);
+
+        service.stream(9L, "session-1", newRequest("现在有什么活动"), ignored -> { });
+
+        ArgumentCaptor<String> context = ArgumentCaptor.forClass(String.class);
+        verify(gateway).stream(anyLong(), anyString(), anyString(), context.capture(), anyString(), any(), any());
+        assertThat(context.getValue().length()).isLessThanOrEqualTo(5500);
+        assertThat(context.getValue()).contains("业务查询结果过长");
+    }
+
+    @Test
     void streamQueriesPublishedProductsAsReadOnlyContext() {
         AiConversationMapper mapper = mock(AiConversationMapper.class);
         AiGatewayClient gateway = mock(AiGatewayClient.class);
