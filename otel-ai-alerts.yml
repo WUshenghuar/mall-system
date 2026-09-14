@@ -35,6 +35,17 @@ groups:
           summary: "CBEC AI工具规划P95延迟过高"
           description: "最近 5 分钟只读工具规划 P95 延迟超过 2000ms。"
 
+      - alert: CbecAiToolPlanErrorRateHigh
+        expr: |
+          sum(rate(ai_tool_plan_requests_total{outcome="error"}[5m]))
+          / clamp_min(sum(rate(ai_tool_plan_requests_total[5m])), 1) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CBEC AI工具规划错误率过高"
+          description: "最近 5 分钟工具规划错误率超过 10%，将回退确定性路由。"
+
       - alert: CbecAiRerankFailureRateHigh
         expr: |
           sum(rate(ai_rerank_requests_total{outcome="failed"}[5m]))

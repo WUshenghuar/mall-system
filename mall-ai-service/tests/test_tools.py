@@ -216,3 +216,26 @@ def test_chat_request_rejects_unsafe_tool_call_id():
         ChatRequest(memberId=1, conversationId="session-1", message="查活动", toolResults=[{
             "callId": "call bad", "tool": "query_activity", "arguments": {}, "content": "活动"
         }])
+
+
+def test_model_tool_plan_records_provider_failure_as_error(monkeypatch):
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, *args, **kwargs):
+            raise RuntimeError("planner unavailable")
+
+    outcomes = []
+    monkeypatch.setattr(llm, "settings", SimpleNamespace(
+        has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
+    monkeypatch.setattr(llm.httpx, "AsyncClient", lambda **kwargs: Client())
+    monkeypatch.setattr(llm, "record_tool_plan", lambda duration, outcome: outcomes.append(outcome))
+
+    result = asyncio.run(llm.plan_tool("查订单", []))
+
+    assert result == {"tool": "", "arguments": {}}
+    assert outcomes == ["error"]

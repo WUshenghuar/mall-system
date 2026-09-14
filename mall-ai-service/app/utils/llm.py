@@ -35,7 +35,8 @@ async def plan_tool(message: str, history: list[dict[str, str]], tool_results: l
         with span("ai.tool_plan", {"langfuse.observation.type": "tool", "gen_ai.system": "openai",
                                    "gen_ai.request.model": settings.model_name, "langfuse.observation.model.name": settings.model_name}):
             result = await _plan_tool(message, history, tool_results)
-        outcome = "planned" if result.get("tool") or result.get("tools") else "empty"
+        planner_error = result.pop("_planner_error", False)
+        outcome = "error" if planner_error else "planned" if result.get("tool") or result.get("tools") else "empty"
         return result
     finally:
         record_tool_plan(round((monotonic() - started) * 1000, 2), outcome)
@@ -116,7 +117,7 @@ async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: 
             return plans[0]
         return {"tools": plans} if plans else {"tool": "", "arguments": {}}
     except Exception:
-        return {"tool": "", "arguments": {}}
+        return {"tool": "", "arguments": {}, "_planner_error": True}
 
 
 async def stream_reply(message: str, history: list[dict[str, str]], context: list[dict], business_context: str = "") -> AsyncIterator[str]:
