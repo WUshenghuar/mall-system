@@ -147,6 +147,7 @@ public class AiChatController {
     }
 
     private void sendRaw(SseEmitter emitter, String event) {
-        try { emitter.send(SseEmitter.event().name("message").data(event)); } catch (Exception ignored) { }
+        try { emitter.send(SseEmitter.event().name("message").data(event)); }
+        catch (Exception e) { throw new CancellationException("客服 SSE 客户端已断开"); }
     }
 }

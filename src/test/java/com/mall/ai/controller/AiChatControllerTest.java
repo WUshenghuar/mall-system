@@ -10,8 +10,12 @@ import org.springframework.core.task.AsyncTaskExecutor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
+import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CancellationException;
 import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -20,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 
 class AiChatControllerTest {
@@ -54,6 +59,17 @@ class AiChatControllerTest {
         verify(service).stream(any(), any(), any(), any());
     }
 
+    @Test
+    void turnsSseSendFailureIntoCancellation() throws Exception {
+        AiChatController controller = new AiChatController(mock(AiChatService.class), new ObjectMapper(),
+                syncExecutor(), mock(ObjectProvider.class));
+        Method sendRaw = AiChatController.class.getDeclaredMethod("sendRaw", SseEmitter.class, String.class);
+        sendRaw.setAccessible(true);
+
+        assertThatThrownBy(() -> sendRaw.invoke(controller, new FailingEmitter(), "{}"))
+                .hasCauseInstanceOf(CancellationException.class);
+    }
+
     private AiChatRequest request(String requestId) {
         AiChatRequest request = new AiChatRequest();
         request.setRequestId(requestId);
@@ -74,5 +90,12 @@ class AiChatControllerTest {
         Authentication auth = mock(Authentication.class);
         when(auth.getPrincipal()).thenReturn(new MemberPrincipal(9L, "13900000001", "", 1));
         return auth;
+    }
+
+    private static class FailingEmitter extends SseEmitter {
+        @Override
+        public void send(SseEventBuilder builder) throws IOException {
+            throw new IOException("client disconnected");
+        }
     }
 }
