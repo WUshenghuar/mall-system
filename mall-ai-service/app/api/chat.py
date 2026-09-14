@@ -39,7 +39,7 @@ class ChatMessage(BaseModel):
 
 
 class ToolResult(BaseModel):
-    callId: str = Field(min_length=1, max_length=64)
+    callId: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     tool: str = Field(min_length=1, max_length=64)
     arguments: dict = Field(default_factory=dict)
     content: str = Field(min_length=1, max_length=6000)

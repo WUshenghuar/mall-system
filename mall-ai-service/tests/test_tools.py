@@ -1,6 +1,8 @@
 import asyncio
+import pytest
 from types import SimpleNamespace
 
+from app.api.chat import ChatRequest
 from app.utils import llm
 
 
@@ -207,3 +209,10 @@ def test_model_tool_plan_uses_structured_tool_messages(monkeypatch):
     }]))
 
     assert result == {"tool": "", "arguments": {}}
+
+
+def test_chat_request_rejects_unsafe_tool_call_id():
+    with pytest.raises(ValueError):
+        ChatRequest(memberId=1, conversationId="session-1", message="查活动", toolResults=[{
+            "callId": "call bad", "tool": "query_activity", "arguments": {}, "content": "活动"
+        }])
