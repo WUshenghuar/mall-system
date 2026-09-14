@@ -1,3 +1,4 @@
+import asyncio
 import json
 import re
 from collections.abc import AsyncIterator
@@ -28,6 +29,10 @@ def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
             continue
         result.append({"role": role, "content": content.strip()[:1000]})
     return result
+
+
+async def local_answer(message: str) -> str:
+    return (await asyncio.to_thread(local_agent.invoke, {"message": message}))["answer"]
 
 
 def unique_call_id(value: object, fallback: str, used: set[str]) -> str:
@@ -142,12 +147,12 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
         yield "AI 客服当前暂时停用，请转人工客服获取帮助。"
         return
     if is_prompt_injection(message):
-        answer = local_agent.invoke({"message": message})["answer"]
+        answer = await local_answer(message)
         for chunk in text_chunks(answer):
             yield chunk
         return
     if not context and not business_context:
-        answer = local_agent.invoke({"message": message})["answer"]
+        answer = await local_answer(message)
         if should_suggest_handoff(message):
             answer = ("I couldn't find verified platform information for that question. Please provide an order number or contact a human agent."
                       if is_english_message(message) else "我暂时没有查到可确认的相关平台资料，无法直接判断。你可以补充订单号或转人工客服。")
@@ -161,12 +166,12 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
             return
         domains = ("支付", "会员", "订单", "物流", "退款", "优惠券", "商品", "税费", "币种")
         answers = context[:2] if sum(domain in message for domain in domains) > 1 else context[:1]
-        answer = "\n".join(item["content"] for item in answers) if answers else local_agent.invoke({"message": message})["answer"]
+        answer = "\n".join(item["content"] for item in answers) if answers else await local_answer(message)
         for chunk in text_chunks(answer):
             yield chunk
         return
     if monotonic() < _model_retry_at:
-        answer = business_context or "\n".join(item["content"] for item in context[:2]) or local_agent.invoke({"message": message})["answer"]
+        answer = business_context or "\n".join(item["content"] for item in context[:2]) or await local_answer(message)
         for chunk in text_chunks(answer):
             yield chunk
         return
@@ -217,7 +222,7 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
             raise
     if not emitted:
         _mark_model_failure()
-        answer = business_context or "\n".join(item["content"] for item in context[:2]) or local_agent.invoke({"message": message})["answer"]
+        answer = business_context or "\n".join(item["content"] for item in context[:2]) or await local_answer(message)
         for chunk in text_chunks(answer):
             yield chunk
     else:

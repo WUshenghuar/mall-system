@@ -3,6 +3,7 @@ from app.utils import llm
 from app.utils.llm import stream_reply
 
 import asyncio
+import threading
 from types import SimpleNamespace
 
 
@@ -32,6 +33,19 @@ def test_business_context_has_priority_over_model_reply():
         return "".join([chunk async for chunk in stream_reply("查询订单", [], [], "订单T1当前状态：待收货。")])
 
     assert asyncio.run(collect()) == "订单T1当前状态：待收货。"
+
+
+def test_local_model_fallback_runs_off_the_event_loop(monkeypatch):
+    thread_names = []
+
+    def invoke(payload):
+        thread_names.append(threading.current_thread().name)
+        return {"answer": "异步线程兜底"}
+
+    monkeypatch.setattr(llm, "local_agent", SimpleNamespace(invoke=invoke))
+
+    assert asyncio.run(llm.local_answer("查询订单")) == "异步线程兜底"
+    assert thread_names and thread_names[0] != threading.main_thread().name
 
 
 def test_configured_model_formats_real_business_context(monkeypatch):
