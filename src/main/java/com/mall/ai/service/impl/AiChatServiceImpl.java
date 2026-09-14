@@ -263,10 +263,22 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     private Map<String, Object> plannedArguments(Map<String, Object> plan) {
+        String tool = plannedTool(plan);
         Object value = plan == null ? null : plan.get("arguments");
         if (!(value instanceof Map<?, ?> raw)) return Map.of();
         Map<String, Object> arguments = new java.util.HashMap<>();
-        raw.forEach((key, item) -> { if (key instanceof String name) arguments.put(name, item); });
+        if (List.of("query_order", "query_logistics", "query_refund", "query_tax", "query_return_eligibility").contains(tool)) {
+            Object orderNo = raw.get("order_no");
+            if (orderNo instanceof String valueText && ORDER_NO.matcher(valueText.trim()).matches()) {
+                arguments.put("order_no", valueText.trim());
+            }
+        } else if ("query_product".equals(tool)) {
+            Object keyword = raw.get("keyword");
+            if (keyword instanceof String valueText && StringUtils.hasText(valueText)) {
+                String normalized = valueText.trim();
+                arguments.put("keyword", normalized.substring(0, Math.min(normalized.length(), 128)));
+            }
+        }
         return arguments;
     }
 
@@ -285,7 +297,11 @@ public class AiChatServiceImpl implements AiChatService {
 
     private String plannedOrderNo(Map<String, Object> decision) {
         Object arguments = decision == null ? null : decision.get("arguments");
-        if (arguments instanceof Map<?, ?> values && values.get("order_no") instanceof String orderNo) return orderNo;
+        if (arguments instanceof Map<?, ?> values && values.get("order_no") instanceof String orderNo
+                && StringUtils.hasText(orderNo)) {
+            String normalized = orderNo.trim();
+            return ORDER_NO.matcher(normalized).matches() ? normalized : null;
+        }
         return null;
     }
 

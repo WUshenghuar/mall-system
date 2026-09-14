@@ -353,7 +353,7 @@ class AiChatServiceImplTest {
         when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
         when(gateway.plan(anyLong(), anyString(), anyString(), any())).thenReturn(Map.of(
                 "tool", "query_logistics",
-                "arguments", Map.of("order_no", "T202609071234567890")));
+                "arguments", Map.of("order_no", " T202609071234567890 ", "unexpected", "ignore-me")));
         TradeOrder order = new TradeOrder(); order.setOrderStatus(2); order.setPayAmount(new java.math.BigDecimal("19.90"));
         when(orderService.getOwnedByOrderNo("T202609071234567890", 9L)).thenReturn(order);
         TradeLogistics logistics = new TradeLogistics(); logistics.setLogisticsCompany("DHL"); logistics.setLogisticsNo("DHL-001");
@@ -365,6 +365,12 @@ class AiChatServiceImplTest {
                 .stream(9L, "session-1", request, ignored -> { });
 
         verify(gateway).plan(anyLong(), anyString(), anyString(), any());
+        ArgumentCaptor<List> toolResults = ArgumentCaptor.forClass(List.class);
+        verify(gateway).plan(anyLong(), anyString(), anyString(), any(), toolResults.capture());
+        Map<?, ?> plannedResult = (Map<?, ?>) toolResults.getValue().get(0);
+        Map<?, ?> plannedArguments = (Map<?, ?>) plannedResult.get("arguments");
+        assertThat(plannedArguments.get("order_no")).isEqualTo("T202609071234567890");
+        assertThat(plannedArguments.containsKey("unexpected")).isFalse();
         verify(gateway).stream(anyLong(), anyString(), anyString(),
                 eq("订单T202609071234567890的物流：DHL，运单号：DHL-001。"), eq("query_logistics"), any(), any());
     }
