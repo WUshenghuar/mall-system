@@ -142,3 +142,31 @@ def test_model_tool_plan_receives_previous_tool_results(monkeypatch):
     result = asyncio.run(llm.plan_tool("还要查活动", [], ["query_product: 已找到耳机"]))
 
     assert result == {"tool": "", "arguments": {}}
+
+
+def test_model_tool_plan_does_not_duplicate_current_question(monkeypatch):
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"choices": [{"message": {"tool_calls": []}}]}
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, headers, json):
+            assert [item["content"] for item in json["messages"] if item["role"] == "user"] == ["查活动"]
+            return Response()
+
+    monkeypatch.setattr(llm, "settings", SimpleNamespace(
+        has_model=True, model_api_base="https://model.test/v1", model_api_key="secret", model_name="test-chat"))
+    monkeypatch.setattr(llm.httpx, "AsyncClient", lambda **kwargs: Client())
+
+    result = asyncio.run(llm.plan_tool("查活动", [{"role": "user", "content": "查活动"}]))
+
+    assert result == {"tool": "", "arguments": {}}

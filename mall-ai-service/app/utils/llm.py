@@ -38,7 +38,10 @@ async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: 
     if is_prompt_injection(message) or not getattr(settings, "enabled", True) or not settings.has_model:
         return {"tool": "", "arguments": {}}
     messages = [{"role": "system", "content": "你是平台客服意图路由器。只允许选择只读查询工具，不执行任何写操作；无法确定时不要选择工具。"}]
-    messages.extend(safe_history(history))
+    history_messages = safe_history(history)
+    if history_messages and history_messages[-1]["role"] == "user" and history_messages[-1]["content"] == message:
+        history_messages = history_messages[:-1]
+    messages.extend(history_messages)
     results = [item.strip()[:2000] for item in (tool_results or []) if isinstance(item, str) and item.strip()][:3]
     if results:
         messages.append({"role": "system", "content": "以下只读工具已执行，不要重复这些查询；仅在仍缺少必要信息时选择其它只读工具：\n" + "\n".join(results)})
