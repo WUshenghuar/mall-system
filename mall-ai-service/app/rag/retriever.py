@@ -214,7 +214,8 @@ async def production_rerank(query: str, hits: list[dict]) -> list[dict]:
                 return hits
             index, score = result.get("index"), result.get("relevance_score")
             if (isinstance(index, bool) or not isinstance(index, int) or index < 0 or index >= len(hits)
-                    or index in seen or not isinstance(score, (int, float)) or not math.isfinite(float(score))):
+                    or index in seen or isinstance(score, bool) or not isinstance(score, (int, float))
+                    or not math.isfinite(float(score))):
                 record_rerank("failed")
                 _mark_rerank_failure()
                 return hits
