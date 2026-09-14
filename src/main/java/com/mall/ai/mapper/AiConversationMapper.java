@@ -22,6 +22,12 @@ public interface AiConversationMapper extends BaseMapper<AiConversation> {
     int insertUserIfAbsent(@Param("sessionId") String sessionId, @Param("requestId") String requestId,
                            @Param("userId") Long userId, @Param("content") String content);
 
+    @Insert("INSERT IGNORE INTO ai_conversation "
+            + "(session_id, request_id, user_id, role, content, tokens_used, latency_ms, model, create_time, update_time, deleted) "
+            + "VALUES (#{sessionId}, #{requestId}, #{userId}, 'user', #{content}, 0, 0, 'human-member', NOW(), NOW(), 0)")
+    int insertMemberMessageIfAbsent(@Param("sessionId") String sessionId, @Param("requestId") String requestId,
+                                    @Param("userId") Long userId, @Param("content") String content);
+
     @Update("UPDATE ai_conversation SET request_id = NULL, deleted = 1, update_time = NOW() "
             + "WHERE user_id = #{userId} AND session_id = #{sessionId} AND request_id = #{requestId} "
             + "AND role = 'user' AND deleted = 0")

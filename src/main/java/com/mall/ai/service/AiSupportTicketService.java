@@ -14,6 +14,6 @@ public interface AiSupportTicketService {
     List<AiConversation> conversation(Long ticketId);
     void claim(Long id, Long operatorId);
     void reply(Long id, Long operatorId, String reply);
-    void memberMessage(Long id, Long memberId, String message);
+    void memberMessage(Long id, Long memberId, String requestId, String message);
     void resolve(Long id, Long operatorId, String note);
 }

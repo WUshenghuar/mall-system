@@ -66,7 +66,7 @@ public class AiSupportTicketController {
 
     @PostMapping("/{id}/message")
     public Result<Void> memberMessage(@PathVariable Long id, @Valid @RequestBody MemberMessageReq req, Authentication auth) {
-        ticketService.memberMessage(id, CurrentMember.id(auth), req.getMessage());
+        ticketService.memberMessage(id, CurrentMember.id(auth), req.getRequestId(), req.getMessage());
         return Result.success(null);
     }
 
@@ -95,6 +95,7 @@ public class AiSupportTicketController {
 
     @Data
     public static class MemberMessageReq {
+        @Size(max = 64) private String requestId;
         @NotBlank @Size(max = 1000) private String message;
     }
 }

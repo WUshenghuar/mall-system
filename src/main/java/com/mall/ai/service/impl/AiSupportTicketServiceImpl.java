@@ -103,8 +103,9 @@ public class AiSupportTicketServiceImpl implements AiSupportTicketService {
 
     @Override
     @Transactional
-    public void memberMessage(Long id, Long memberId, String message) {
+    public void memberMessage(Long id, Long memberId, String requestId, String message) {
         String content = StringUtils.hasText(message) ? message.trim() : "需要补充说明";
+        String idempotencyKey = StringUtils.hasText(requestId) ? requestId.trim() : null;
         AiSupportTicket ticket = ticketMapper.selectById(id);
         if (ticket == null || !memberId.equals(ticket.getMemberId())) {
             throw new BusinessException("工单不存在或无权操作");
@@ -113,13 +114,7 @@ public class AiSupportTicketServiceImpl implements AiSupportTicketService {
             throw new BusinessException("只有处理中工单可以补充留言");
         }
         if (StringUtils.hasText(ticket.getConversationId())) {
-            AiConversation userMessage = new AiConversation();
-            userMessage.setSessionId(ticket.getConversationId());
-            userMessage.setUserId(memberId);
-            userMessage.setRole("user");
-            userMessage.setContent(content);
-            userMessage.setModel("human-member");
-            conversationMapper.insert(userMessage);
+            conversationMapper.insertMemberMessageIfAbsent(ticket.getConversationId(), idempotencyKey, memberId, content);
         }
     }
 

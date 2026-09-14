@@ -97,8 +97,9 @@ async function send(retryItem = null) {
     }
   } catch (error) { assistant.content = error.message || '客服服务暂不可用，请稍后重试'; assistant.error = true } finally { sending.value = false; scrollToBottom() }
 }
+function newRequestId() { return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}` }
 function retry(item) { send(item) }
-async function sendMemberMessage(content) { if (!handoffTicket.value || handoffTicket.value.status !== 1) { humanMode.value = false; showToast('请先提交人工客服工单'); return }; messages.value.push({ role: 'user', content }); draft.value = ''; sending.value = true; try { await aiApi.memberMessage(handoffTicket.value.id, { message: content }); humanMode.value = false; showToast('留言已发送给平台客服'); await scrollToBottom() } catch (error) { messages.value.pop(); showToast(error) } finally { sending.value = false } }
+async function sendMemberMessage(content) { if (!handoffTicket.value || handoffTicket.value.status !== 1) { humanMode.value = false; showToast('请先提交人工客服工单'); return }; messages.value.push({ role: 'user', content }); draft.value = ''; sending.value = true; try { await aiApi.memberMessage(handoffTicket.value.id, { requestId: newRequestId(), message: content }); humanMode.value = false; showToast('留言已发送给平台客服'); await scrollToBottom() } catch (error) { messages.value.pop(); showToast(error) } finally { sending.value = false } }
 async function rate(item, value) { if (!item.id || item.feedback === 1 || item.feedback === -1) return; try { await aiApi.feedback({ messageId: item.id, feedback: value }); item.feedback = value; showToast('感谢你的反馈') } catch (error) { showToast(error) } }
 </script>
 <style scoped>

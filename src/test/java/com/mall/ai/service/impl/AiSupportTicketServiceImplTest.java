@@ -133,16 +133,28 @@ class AiSupportTicketServiceImplTest {
         ticket.setConversationId("session-1");
         when(ticketMapper.selectById(1L)).thenReturn(ticket);
         when(ticketMapper.memberMessage(1L, 9L, "补充地址")).thenReturn(1);
+        when(conversationMapper.insertMemberMessageIfAbsent("session-1", "member-req-1", 9L, "补充地址")).thenReturn(1);
 
-        new AiSupportTicketServiceImpl(conversationMapper, ticketMapper).memberMessage(1L, 9L, "补充地址");
+        new AiSupportTicketServiceImpl(conversationMapper, ticketMapper).memberMessage(1L, 9L, "member-req-1", "补充地址");
 
-        ArgumentCaptor<AiConversation> captor = ArgumentCaptor.forClass(AiConversation.class);
-        verify(conversationMapper).insert(captor.capture());
-        AiConversation message = captor.getValue();
-        assertThat(message.getRole()).isEqualTo("user");
-        assertThat(message.getSessionId()).isEqualTo("session-1");
-        assertThat(message.getContent()).isEqualTo("补充地址");
-        assertThat(message.getModel()).isEqualTo("human-member");
+        verify(conversationMapper).insertMemberMessageIfAbsent("session-1", "member-req-1", 9L, "补充地址");
+    }
+
+    @Test
+    void doesNotDuplicateMemberMessageWhenRequestIsRetried() {
+        AiSupportTicketMapper ticketMapper = mock(AiSupportTicketMapper.class);
+        AiConversationMapper conversationMapper = mock(AiConversationMapper.class);
+        AiSupportTicket ticket = new AiSupportTicket();
+        ticket.setMemberId(9L);
+        ticket.setConversationId("session-1");
+        when(ticketMapper.selectById(1L)).thenReturn(ticket);
+        when(ticketMapper.memberMessage(1L, 9L, "补充地址")).thenReturn(1);
+        when(conversationMapper.insertMemberMessageIfAbsent("session-1", "member-req-1", 9L, "补充地址")).thenReturn(0);
+
+        new AiSupportTicketServiceImpl(conversationMapper, ticketMapper).memberMessage(1L, 9L, "member-req-1", "补充地址");
+
+        verify(conversationMapper).insertMemberMessageIfAbsent("session-1", "member-req-1", 9L, "补充地址");
+        verify(conversationMapper, org.mockito.Mockito.never()).insert(any(AiConversation.class));
     }
 
     @Test
