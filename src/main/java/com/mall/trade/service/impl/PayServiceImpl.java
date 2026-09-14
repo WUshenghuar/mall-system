@@ -111,7 +111,7 @@ public class PayServiceImpl implements PayService {
 
     @Override
     public void handleWechatNotify(Map<String, String> params) {
-        // 微信回调处理逻辑
+        // TODO: 接入微信支付 v3 回调验签、金额校验、幂等和订单状态更新。
     }
 
     private boolean completePayment(TradePay pay, String callbackContent) {

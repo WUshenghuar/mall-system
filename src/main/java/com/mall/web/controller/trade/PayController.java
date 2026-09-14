@@ -46,6 +46,7 @@ public class PayController {
 
     @PostMapping("/notify/wechat")
     public String wechatNotify(@RequestParam Map<String, String> params) {
+        // TODO: 配置微信支付回调后调用 payService.handleWechatNotify(params)。
         return "failure";
     }
 
