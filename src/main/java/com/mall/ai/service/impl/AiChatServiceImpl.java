@@ -119,8 +119,8 @@ public class AiChatServiceImpl implements AiChatService {
                 List<Map<String, Object>> previousToolResults = loadToolState(memberId, conversationId);
                 long plannerDeadline = System.currentTimeMillis() + PLANNER_BUDGET_MS;
                 Map<String, Object> decision = previousToolResults.isEmpty()
-                        ? planWithinBudget(memberId, conversationId, request.getMessage(), history, List.of(), plannerDeadline)
-                        : planWithinBudget(memberId, conversationId, request.getMessage(), history, previousToolResults, plannerDeadline);
+                        ? planWithinBudget(memberId, conversationId, request.getMessage(), history, List.of(), plannerDeadline, requestId)
+                        : planWithinBudget(memberId, conversationId, request.getMessage(), history, previousToolResults, plannerDeadline, requestId);
                 List<String> contextParts = new ArrayList<>();
                 List<String> toolNames = new ArrayList<>();
                 if (!businessContext.isBlank()) {
@@ -133,7 +133,7 @@ public class AiChatServiceImpl implements AiChatService {
                 int added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), decision, contextParts, toolNames, executedToolResults, start);
                 for (int round = 1; added > 0 && toolNames.size() < 3 && round < 3; round++) {
                     Map<String, Object> followUp = planWithinBudget(memberId, conversationId, request.getMessage(), history,
-                            executedToolResults, plannerDeadline);
+                            executedToolResults, plannerDeadline, requestId);
                     added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), followUp, contextParts, toolNames, executedToolResults, start);
                 }
                 if (!contextParts.isEmpty()) {
@@ -147,8 +147,7 @@ public class AiChatServiceImpl implements AiChatService {
                             (int) (System.currentTimeMillis() - start), "read_only");
                 }
             }
-            gatewayClient.stream(memberId, conversationId, request.getMessage(), boundedBusinessContext(businessContext),
-                    selectedTool, history, event -> {
+            Consumer<String> responseConsumer = event -> {
                 String error = readError(event);
                 if (error != null) {
                     failure.set(error);
@@ -156,7 +155,14 @@ public class AiChatServiceImpl implements AiChatService {
                 }
                 answer.append(readText(event));
                 eventConsumer.accept(event);
-            });
+            };
+            if (requestId == null) {
+                gatewayClient.stream(memberId, conversationId, request.getMessage(), boundedBusinessContext(businessContext),
+                        selectedTool, history, responseConsumer);
+            } else {
+                gatewayClient.streamWithRequestId(memberId, conversationId, request.getMessage(), boundedBusinessContext(businessContext),
+                        selectedTool, history, requestId, responseConsumer);
+            }
             if (failure.get() != null) throw new BusinessException(failure.get());
             save(memberId, conversationId, requestId, "assistant", answer.toString(), 0, (int) (System.currentTimeMillis() - start));
             saveToolState(memberId, conversationId, executedToolResults, stateVersion);
@@ -220,15 +226,27 @@ public class AiChatServiceImpl implements AiChatService {
 
     private Map<String, Object> planWithinBudget(Long memberId, String conversationId, String message,
                                                   List<AiConversation> history, List<?> toolResults, long deadline) {
+        return planWithinBudget(memberId, conversationId, message, history, toolResults, deadline, null);
+    }
+
+    private Map<String, Object> planWithinBudget(Long memberId, String conversationId, String message,
+                                                  List<AiConversation> history, List<?> toolResults, long deadline,
+                                                  String requestId) {
         long remaining = deadline - System.currentTimeMillis();
         if (remaining < PLANNER_MIN_CALL_MS) return Map.of();
         if (remaining > 2_050) {
-            return toolResults == null || toolResults.isEmpty()
-                    ? gatewayClient.plan(memberId, conversationId, message, history)
-                    : gatewayClient.plan(memberId, conversationId, message, history, toolResults);
+            if (toolResults == null || toolResults.isEmpty()) {
+                return requestId == null ? gatewayClient.plan(memberId, conversationId, message, history)
+                        : gatewayClient.plan(memberId, conversationId, message, history, requestId);
+            }
+            return requestId == null ? gatewayClient.plan(memberId, conversationId, message, history, toolResults)
+                    : gatewayClient.plan(memberId, conversationId, message, history, toolResults, requestId);
         }
-        return gatewayClient.planWithTimeout(memberId, conversationId, message, history,
-                toolResults == null ? List.of() : toolResults, (int) Math.max(PLANNER_MIN_CALL_MS, remaining - 50));
+        int timeout = (int) Math.max(PLANNER_MIN_CALL_MS, remaining - 50);
+        return requestId == null ? gatewayClient.planWithTimeout(memberId, conversationId, message, history,
+                toolResults == null ? List.of() : toolResults, timeout)
+                : gatewayClient.planWithTimeout(memberId, conversationId, message, history,
+                toolResults == null ? List.of() : toolResults, requestId, timeout);
     }
 
     private String intent(String message) {

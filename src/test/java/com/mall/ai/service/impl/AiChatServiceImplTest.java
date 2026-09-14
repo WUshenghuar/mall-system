@@ -119,10 +119,10 @@ class AiChatServiceImplTest {
         when(mapper.reclaimStaleUserRequest(9L, "session-1", "req-stale")).thenReturn(1);
         when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
         doAnswer(invocation -> {
-            Consumer<String> consumer = invocation.getArgument(6);
+            Consumer<String> consumer = invocation.getArgument(7);
             consumer.accept("{\"type\":\"text\",\"content\":\"已恢复处理\"}");
             return null;
-        }).when(gateway).stream(anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any());
+        }).when(gateway).streamWithRequestId(anyLong(), anyString(), anyString(), anyString(), anyString(), any(), anyString(), any());
         AiChatRequest request = newRequest("超时重试"); request.setRequestId("req-stale");
 
         new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class), mock(LogisticsService.class),
@@ -130,7 +130,7 @@ class AiChatServiceImplTest {
                 .stream(9L, "session-1", request, ignored -> { });
 
         verify(mapper).reclaimStaleUserRequest(9L, "session-1", "req-stale");
-        verify(gateway).stream(anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any());
+        verify(gateway).streamWithRequestId(anyLong(), anyString(), anyString(), anyString(), anyString(), any(), eq("req-stale"), any());
     }
 
     @Test
@@ -139,8 +139,8 @@ class AiChatServiceImplTest {
         AiGatewayClient gateway = mock(AiGatewayClient.class);
         when(mapper.selectAssistantByRequest(9L, "session-1", "req-fail")).thenReturn(null);
         when(mapper.insertUserIfAbsent("session-1", "req-fail", 9L, "失败重试")).thenReturn(1);
-        doThrow(new BusinessException("客服服务暂不可用")).when(gateway).stream(anyLong(), anyString(), anyString(),
-                anyString(), anyString(), any(), any());
+        doThrow(new BusinessException("客服服务暂不可用")).when(gateway).streamWithRequestId(anyLong(), anyString(), anyString(),
+                anyString(), anyString(), any(), anyString(), any());
         AiChatRequest request = newRequest("失败重试");
         request.setRequestId("req-fail");
 
@@ -160,10 +160,10 @@ class AiChatServiceImplTest {
         when(mapper.insertUserIfAbsent("session-1", "req-event-fail", 9L, "事件失败")).thenReturn(1);
         when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
         doAnswer(invocation -> {
-            Consumer<String> consumer = invocation.getArgument(6);
+            Consumer<String> consumer = invocation.getArgument(7);
             consumer.accept("{\"type\":\"error\",\"message\":\"客服服务暂不可用\"}");
             return null;
-        }).when(gateway).stream(anyLong(), anyString(), anyString(), anyString(), anyString(), any(), any());
+        }).when(gateway).streamWithRequestId(anyLong(), anyString(), anyString(), anyString(), anyString(), any(), anyString(), any());
         AiChatRequest request = newRequest("事件失败");
         request.setRequestId("req-event-fail");
 

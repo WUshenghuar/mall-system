@@ -20,4 +20,14 @@ class AiGatewayClientTest {
         assertThat(traceId).matches("[0-9a-f]{32}").isEqualTo(repeatedTraceId);
         assertThat(traceParent).isEqualTo("00-" + traceId + "-0000000000000001-01");
     }
+
+    @Test
+    void separatesDifferentRequestIdsWithTheSameMessage() {
+        AiGatewayClient client = new AiGatewayClient(new ObjectMapper());
+        String first = (String) ReflectionTestUtils.invokeMethod(client, "traceId", "session-1", "查询订单", "request-1");
+        String retry = (String) ReflectionTestUtils.invokeMethod(client, "traceId", "session-1", "查询订单", "request-1");
+        String second = (String) ReflectionTestUtils.invokeMethod(client, "traceId", "session-1", "查询订单", "request-2");
+
+        assertThat(first).isEqualTo(retry).isNotEqualTo(second);
+    }
 }

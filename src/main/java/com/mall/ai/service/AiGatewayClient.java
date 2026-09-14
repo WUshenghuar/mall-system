@@ -53,29 +53,46 @@ public class AiGatewayClient {
     }
 
     public Map<String, Object> plan(Long memberId, String conversationId, String message, List<AiConversation> history) {
-        return plan(memberId, conversationId, message, history, List.of());
+        return plan(memberId, conversationId, message, history, List.of(), null);
     }
 
     public Map<String, Object> plan(Long memberId, String conversationId, String message, List<AiConversation> history,
                                     List<?> toolResults) {
-        return planInternal(memberId, conversationId, message, history, toolResults, 2_000);
+        return plan(memberId, conversationId, message, history, toolResults, null);
+    }
+
+    public Map<String, Object> plan(Long memberId, String conversationId, String message, List<AiConversation> history,
+                                    String requestId) {
+        return plan(memberId, conversationId, message, history, List.of(), requestId);
+    }
+
+    public Map<String, Object> plan(Long memberId, String conversationId, String message, List<AiConversation> history,
+                                    List<?> toolResults, String requestId) {
+        return planInternal(memberId, conversationId, message, history, toolResults, requestId, 2_000);
     }
 
     public Map<String, Object> planWithTimeout(Long memberId, String conversationId, String message,
                                                 List<AiConversation> history, List<?> toolResults, int timeoutMillis) {
-        return planInternal(memberId, conversationId, message, history, toolResults,
+        return planWithTimeout(memberId, conversationId, message, history, toolResults, null, timeoutMillis);
+    }
+
+    public Map<String, Object> planWithTimeout(Long memberId, String conversationId, String message,
+                                                List<AiConversation> history, List<?> toolResults, String requestId,
+                                                int timeoutMillis) {
+        return planInternal(memberId, conversationId, message, history, toolResults, requestId,
                 Math.max(100, Math.min(timeoutMillis, 2_000)));
     }
 
     private Map<String, Object> planInternal(Long memberId, String conversationId, String message,
-                                             List<AiConversation> history, List<?> toolResults, int timeoutMillis) {
+                                             List<AiConversation> history, List<?> toolResults, String requestId,
+                                             int timeoutMillis) {
         try {
             List<Map<String, String>> messages = history.stream()
                     .map(item -> Map.of("role", "agent".equals(item.getRole()) ? "assistant" : item.getRole(), "content", item.getContent())).toList();
             JsonNode response = requestJsonMillis("POST", "/internal/tool-plan", Map.of(
                     "memberId", memberId, "conversationId", conversationId, "message", message, "history", messages,
                     "toolResults", toolResults == null ? List.of() : toolResults), timeoutMillis,
-                    traceId(conversationId, message), traceParent(conversationId, message));
+                    traceId(conversationId, message, requestId), traceParent(conversationId, message, requestId));
             return objectMapper.convertValue(response, new TypeReference<>() { });
         } catch (Exception e) {
             log.debug("AI tool planning unavailable; using deterministic routing", e);
@@ -85,6 +102,18 @@ public class AiGatewayClient {
 
     public void stream(Long memberId, String conversationId, String message, String businessContext, String businessTool, List<AiConversation> history,
                        Consumer<String> eventConsumer) {
+        streamInternal(memberId, conversationId, message, businessContext, businessTool, history, null, eventConsumer);
+    }
+
+    public void streamWithRequestId(Long memberId, String conversationId, String message, String businessContext,
+                                     String businessTool, List<AiConversation> history, String requestId,
+                                     Consumer<String> eventConsumer) {
+        streamInternal(memberId, conversationId, message, businessContext, businessTool, history, requestId, eventConsumer);
+    }
+
+    private void streamInternal(Long memberId, String conversationId, String message, String businessContext,
+                                String businessTool, List<AiConversation> history, String requestId,
+                                Consumer<String> eventConsumer) {
         try {
             List<Map<String, String>> messages = history.stream()
                     .map(item -> Map.of("role", "agent".equals(item.getRole()) ? "assistant" : item.getRole(), "content", item.getContent())).toList();
@@ -96,8 +125,8 @@ public class AiGatewayClient {
             connection.setReadTimeout((int) Duration.ofSeconds(45).toMillis());
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("X-AI-Service-Token", serviceToken);
-            connection.setRequestProperty("X-Trace-Id", traceId(conversationId, message));
-            connection.setRequestProperty("traceparent", traceParent(conversationId, message));
+            connection.setRequestProperty("X-Trace-Id", traceId(conversationId, message, requestId));
+            connection.setRequestProperty("traceparent", traceParent(conversationId, message, requestId));
             connection.setDoOutput(true);
             try (OutputStream output = connection.getOutputStream()) { output.write(body.getBytes(StandardCharsets.UTF_8)); }
             if (connection.getResponseCode() != 200) throw new BusinessException("客服服务暂不可用");
@@ -183,11 +212,20 @@ public class AiGatewayClient {
     }
 
     private String traceId(String conversationId, String message) {
-        return UUID.nameUUIDFromBytes((conversationId + "\n" + message).getBytes(StandardCharsets.UTF_8))
+        return traceId(conversationId, message, null);
+    }
+
+    private String traceId(String conversationId, String message, String requestId) {
+        return UUID.nameUUIDFromBytes((conversationId + "\n" + message + "\n" + (requestId == null ? "" : requestId))
+                        .getBytes(StandardCharsets.UTF_8))
                 .toString().replace("-", "");
     }
 
     private String traceParent(String conversationId, String message) {
-        return "00-" + traceId(conversationId, message) + "-0000000000000001-01";
+        return traceParent(conversationId, message, null);
+    }
+
+    private String traceParent(String conversationId, String message, String requestId) {
+        return "00-" + traceId(conversationId, message, requestId) + "-0000000000000001-01";
     }
 }
