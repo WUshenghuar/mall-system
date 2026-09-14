@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Header, HTTPException
 
 from app.api.chat import router as chat_router
@@ -7,19 +9,20 @@ from app.rag.retriever import ensure_seeded
 from app.observability import metrics
 from app.telemetry import configure_telemetry, langfuse_configured, telemetry_configured
 
-app = FastAPI(title="CBEC AI Customer Service", version="0.1.0")
-configure_telemetry()
-app.include_router(chat_router)
-app.include_router(knowledge_router)
-
-
-@app.on_event("startup")
-async def seed_knowledge():
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
     try:
         await ensure_seeded()
     except Exception:
         # ES 未就绪时保留客服降级回复，后续检索会自动重试。
         pass
+    yield
+
+
+app = FastAPI(title="CBEC AI Customer Service", version="0.1.0", lifespan=lifespan)
+configure_telemetry()
+app.include_router(chat_router)
+app.include_router(knowledge_router)
 
 
 @app.get("/health")
