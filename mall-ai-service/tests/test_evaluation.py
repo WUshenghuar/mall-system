@@ -128,7 +128,9 @@ def test_unmatched_question_has_no_knowledge_fallback():
     assert fallback_hits("完全不相关的旅行天气问题xyz") == []
 
 
-def test_local_rag_combines_two_relevant_topics():
+def test_local_rag_combines_two_relevant_topics(monkeypatch):
+    monkeypatch.setattr("app.utils.llm.settings", SimpleNamespace(enabled=True, has_model=False))
+
     async def collect():
         context = [{"content": "支付说明"}, {"content": "会员服务"}]
         return "".join([chunk async for chunk in stream_reply("支付和会员服务", [], context)])

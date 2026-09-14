@@ -28,7 +28,9 @@ def test_prompt_injection_covers_bypass_and_command_phrases():
     assert "only answer" in local_answer("system prompt").lower()
 
 
-def test_business_context_has_priority_over_model_reply():
+def test_business_context_has_priority_over_model_reply(monkeypatch):
+    monkeypatch.setattr(llm, "settings", SimpleNamespace(enabled=True, has_model=False))
+
     async def collect():
         return "".join([chunk async for chunk in stream_reply("查询订单", [], [], "订单T1当前状态：待收货。")])
 
