@@ -25,7 +25,10 @@ import com.mall.member.entity.Member;
 import com.mall.member.service.MemberService;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -269,6 +272,34 @@ class AiChatServiceImplTest {
                 mock(StoreCatalogService.class), mock(CouponService.class), mock(MemberService.class));
 
         assertThat(service.runtimeMetrics()).isEqualTo(metrics);
+    }
+
+    @Test
+    void reusesShortLivedToolStateForTheNextConversationTurn() {
+        AiConversationMapper mapper = mock(AiConversationMapper.class);
+        AiGatewayClient gateway = mock(AiGatewayClient.class);
+        MemberService members = mock(MemberService.class);
+        StringRedisTemplate redis = mock(StringRedisTemplate.class);
+        ValueOperations<String, String> values = mock(ValueOperations.class);
+        Member member = new Member(); member.setLevel(1); member.setPoints(88);
+        when(mapper.selectRecent(anyLong(), anyString(), anyInt())).thenReturn(List.of());
+        when(redis.opsForValue()).thenReturn(values);
+        when(values.get("ai:tool-state:9:session-1")).thenReturn("[{\"callId\":\"call-old\",\"tool\":\"query_activity\",\"arguments\":{},\"content\":\"上一轮活动\"}]");
+        when(gateway.plan(anyLong(), anyString(), anyString(), any(), anyList())).thenReturn(Map.of());
+        when(members.getById(9L)).thenReturn(member);
+
+        AiChatServiceImpl service = new AiChatServiceImpl(mapper, gateway, new ObjectMapper(), mock(TradeOrderService.class),
+                mock(LogisticsService.class), mock(TradeRefundService.class), mock(StoreCatalogService.class),
+                mock(CouponService.class), members);
+        service.setToolStateRedis(redis);
+        service.stream(9L, "session-1", newRequest("我的会员和活动"), ignored -> { });
+
+        ArgumentCaptor<List> captured = ArgumentCaptor.forClass(List.class);
+        verify(gateway).plan(anyLong(), anyString(), anyString(), any(), captured.capture());
+        Map<?, ?> previous = (Map<?, ?>) captured.getValue().get(0);
+        assertThat(previous.get("callId")).isEqualTo("call-old");
+        assertThat(previous.get("tool")).isEqualTo("query_activity");
+        verify(values).set(eq("ai:tool-state:9:session-1"), anyString(), eq(Duration.ofMinutes(5)));
     }
 
     @Test

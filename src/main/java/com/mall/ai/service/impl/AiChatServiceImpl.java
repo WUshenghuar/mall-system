@@ -1,5 +1,6 @@
 package com.mall.ai.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
@@ -30,12 +31,14 @@ import com.mall.member.service.MemberService;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -47,6 +50,7 @@ import java.util.regex.Pattern;
 public class AiChatServiceImpl implements AiChatService {
     private static final Pattern ORDER_NO = Pattern.compile("T\\d{18}");
     private static final Pattern TOOL_CALL_ID = Pattern.compile("[A-Za-z0-9_-]{1,64}");
+    private static final Duration TOOL_STATE_TTL = Duration.ofMinutes(5);
     private final AiConversationMapper conversationMapper;
     private final AiGatewayClient gatewayClient;
     private final ObjectMapper objectMapper;
@@ -60,6 +64,8 @@ public class AiChatServiceImpl implements AiChatService {
     private AiAuditLogMapper auditLogMapper;
     @Autowired(required = false)
     private ActivityService activityService;
+    @Autowired(required = false)
+    private StringRedisTemplate toolStateRedis;
 
     @Override
     public void stream(Long memberId, String conversationId, AiChatRequest request, Consumer<String> eventConsumer) {
@@ -87,6 +93,7 @@ public class AiChatServiceImpl implements AiChatService {
         StringBuilder answer = new StringBuilder();
         AtomicReference<String> failure = new AtomicReference<>();
         String selectedTool = "";
+        List<Map<String, Object>> executedToolResults = new ArrayList<>();
         long start = System.currentTimeMillis();
         try {
             List<AiConversation> history = conversationMapper.selectRecent(memberId, conversationId, 10);
@@ -94,21 +101,23 @@ public class AiChatServiceImpl implements AiChatService {
             String businessContext = businessContext(memberId, request.getMessage());
             selectedTool = businessTool(request.getMessage(), businessContext);
             if (businessContext.isBlank() || hasMultipleBusinessTopics(request.getMessage())) {
-                Map<String, Object> decision = gatewayClient.plan(memberId, conversationId, request.getMessage(), history);
+                List<Map<String, Object>> previousToolResults = loadToolState(memberId, conversationId);
+                Map<String, Object> decision = previousToolResults.isEmpty()
+                        ? gatewayClient.plan(memberId, conversationId, request.getMessage(), history)
+                        : gatewayClient.plan(memberId, conversationId, request.getMessage(), history, previousToolResults);
                 List<String> contextParts = new ArrayList<>();
                 List<String> toolNames = new ArrayList<>();
-                List<Map<String, Object>> toolResults = new ArrayList<>();
                 if (!businessContext.isBlank()) {
                     contextParts.add(businessContext);
                     if (!selectedTool.isBlank()) {
                         toolNames.add(selectedTool);
-                        toolResults.add(toolExecution(selectedTool, Map.of(), businessContext, toolResults.size() + 1, null));
+                        executedToolResults.add(toolExecution(selectedTool, Map.of(), businessContext, executedToolResults.size() + 1, null));
                     }
                 }
-                int added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), decision, contextParts, toolNames, toolResults, start);
+                int added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), decision, contextParts, toolNames, executedToolResults, start);
                 for (int round = 1; added > 0 && toolNames.size() < 3 && round < 3; round++) {
-                    Map<String, Object> followUp = gatewayClient.plan(memberId, conversationId, request.getMessage(), history, toolResults);
-                    added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), followUp, contextParts, toolNames, toolResults, start);
+                    Map<String, Object> followUp = gatewayClient.plan(memberId, conversationId, request.getMessage(), history, executedToolResults);
+                    added = appendPlannedContexts(memberId, conversationId, requestId, request.getMessage(), followUp, contextParts, toolNames, executedToolResults, start);
                 }
                 if (!contextParts.isEmpty()) {
                     businessContext = String.join("\n", contextParts);
@@ -133,6 +142,7 @@ public class AiChatServiceImpl implements AiChatService {
             });
             if (failure.get() != null) throw new BusinessException(failure.get());
             save(memberId, conversationId, requestId, "assistant", answer.toString(), 0, (int) (System.currentTimeMillis() - start));
+            saveToolState(memberId, conversationId, executedToolResults);
             recordAudit(memberId, conversationId, requestId, "chat", selectedTool.isBlank() ? null : selectedTool,
                     "completed", (int) (System.currentTimeMillis() - start), "stream_completed");
         } catch (RuntimeException e) {
@@ -280,6 +290,41 @@ public class AiChatServiceImpl implements AiChatService {
             }
         }
         return arguments;
+    }
+
+    private List<Map<String, Object>> loadToolState(Long memberId, String conversationId) {
+        if (toolStateRedis == null) return List.of();
+        try {
+            String value = toolStateRedis.opsForValue().get(toolStateKey(memberId, conversationId));
+            if (!StringUtils.hasText(value)) return List.of();
+            List<Map<String, Object>> results = objectMapper.readValue(value, new TypeReference<>() { });
+            return results == null ? List.of() : results.stream().filter(item -> item != null).limit(3).toList();
+        } catch (Exception e) {
+            log.debug("AI tool state unavailable; using current-turn planning only", e);
+            return List.of();
+        }
+    }
+
+    private void saveToolState(Long memberId, String conversationId, List<Map<String, Object>> results) {
+        if (toolStateRedis == null) return;
+        try {
+            String key = toolStateKey(memberId, conversationId);
+            if (results == null || results.isEmpty()) {
+                toolStateRedis.delete(key);
+                return;
+            }
+            toolStateRedis.opsForValue().set(key, objectMapper.writeValueAsString(results.stream().limit(3).toList()), TOOL_STATE_TTL);
+        } catch (Exception e) {
+            log.debug("AI tool state save failed; continuing without cross-request state", e);
+        }
+    }
+
+    private String toolStateKey(Long memberId, String conversationId) {
+        return "ai:tool-state:" + memberId + ":" + conversationId;
+    }
+
+    void setToolStateRedis(StringRedisTemplate toolStateRedis) {
+        this.toolStateRedis = toolStateRedis;
     }
 
     private boolean hasMultipleBusinessTopics(String message) {
