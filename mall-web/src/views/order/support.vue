@@ -1,6 +1,9 @@
 <template>
   <div class="sub-page support-page">
     <div class="page-head"><div><h2 class="page-title">平台客服工单</h2><p class="page-desc">处理 C 端 AI 客服转交的会员问题</p></div><a-space class="feedback-stats"><a-tag :color="aiStatus.status === 'disabled' || aiStatus.enabled === false ? 'default' : aiStatus.status === 'ok' ? (aiStatus.modelConfigured ? 'green' : 'gold') : 'red'">{{ aiStatusLabel }}</a-tag><a-button @click="openKnowledge">AI 知识库</a-button><a-button @click="openAudit">客服运行记录</a-button><a-statistic title="已评价" :value="feedbackStats.total" /><a-statistic title="有帮助率" :value="helpfulRate" suffix="%" /></a-space></div>
+    <a-card :bordered="false" class="ai-sla-card">
+      <div class="ai-sla-summary" role="status" aria-atomic="true"><strong>AI 客服运行指标</strong><a-tag :color="aiSlaColor">{{ aiSlaLabel }}</a-tag><span>窗口请求 {{ aiMetrics.sla?.windowRequests ?? 0 }}</span><span>活跃 {{ aiMetrics.active ?? 0 }}</span><span>P95 {{ aiMetrics.latencyMs?.p95 ?? 0 }} ms</span><span>窗口错误率 {{ aiErrorRate }}</span></div>
+    </a-card>
     <a-card :bordered="false">
       <a-tabs v-model:activeKey="statusFilter" @change="fetchData">
         <a-tab-pane key="" tab="全部" /><a-tab-pane key="0" tab="待接管" /><a-tab-pane key="1" tab="处理中" /><a-tab-pane key="2" tab="已解决" />
@@ -71,7 +74,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { message } from 'ant-design-vue'
-import { claimSupportTicket, getAiAuditPage, getAiFeedbackStats, getAiKnowledge, getAiRuntimeStatus, getSupportTicketConversation, getSupportTicketPage, replySupportTicket, resolveSupportTicket, saveAiKnowledge } from '@/api/ai'
+import { claimSupportTicket, getAiAuditPage, getAiFeedbackStats, getAiKnowledge, getAiRuntimeMetrics, getAiRuntimeStatus, getSupportTicketConversation, getSupportTicketPage, replySupportTicket, resolveSupportTicket, saveAiKnowledge } from '@/api/ai'
 
 const loading = ref(false), list = ref([]), statusFilter = ref('')
 const pagination = ref({ current: 1, pageSize: 10, total: 0 })
@@ -79,6 +82,7 @@ const replyOpen = ref(false), replying = ref(false), replyTarget = ref(null), re
 const conversationOpen = ref(false), conversationLoading = ref(false), conversationMessages = ref([])
 const feedbackStats = ref({ total: 0, positive: 0, negative: 0 })
 const aiStatus = ref({ status: 'loading', enabled: true, modelConfigured: false, embeddingConfigured: false })
+const aiMetrics = ref({ active: 0, latencyMs: { p95: 0 }, sla: { status: 'unavailable', observedErrorRate: 0, windowRequests: 0 } })
 const knowledgeOpen = ref(false), knowledgeLoading = ref(false), knowledgeSaving = ref(false), knowledgeEditorOpen = ref(false), knowledgeDocs = ref([]), knowledgeEditingId = ref('')
 const knowledgeForm = ref({ id: '', title: '', category: '', content: '' })
 const resolveOpen = ref(false), resolving = ref(false), resolveTarget = ref(null), resolveNote = ref('')
@@ -87,6 +91,9 @@ const auditPagination = ref({ current: 1, pageSize: 20, total: 0 })
 let refreshTimer
 const helpfulRate = computed(() => { const total = Number(feedbackStats.value.total) || 0; return total ? Math.round((Number(feedbackStats.value.positive) || 0) * 100 / total) : 0 })
 const aiStatusLabel = computed(() => aiStatus.value.status === 'disabled' || aiStatus.value.enabled === false ? 'AI：已停用' : aiStatus.value.status !== 'ok' ? 'AI 服务不可用' : aiStatus.value.modelConfigured ? (aiStatus.value.embeddingConfigured ? 'AI：模型 + 向量' : 'AI：模型') : 'AI：本地兜底')
+const aiSlaLabel = computed(() => aiStatus.value.status === 'disabled' || aiStatus.value.enabled === false ? 'AI 已停用' : aiMetrics.value.sla?.status === 'healthy' ? 'SLA 正常' : aiMetrics.value.sla?.status === 'degraded' ? 'SLA 降级' : 'SLA 未知')
+const aiSlaColor = computed(() => aiStatus.value.status === 'disabled' || aiStatus.value.enabled === false ? 'default' : aiMetrics.value.sla?.status === 'healthy' ? 'green' : aiMetrics.value.sla?.status === 'degraded' ? 'orange' : 'default')
+const aiErrorRate = computed(() => `${(Number(aiMetrics.value.sla?.observedErrorRate) || 0) * 100}%`)
 const columns = [
   { title: '工单号', dataIndex: 'ticketNo', width: 190 }, { title: '会员 ID', dataIndex: 'memberId', width: 90 },
   { title: '问题摘要', dataIndex: 'subject', width: 180, ellipsis: true }, { title: '最新留言', key: 'message', ellipsis: true },
@@ -101,6 +108,7 @@ const outcomeLabel = value => ({ completed: '已完成', failed: '失败', start
 async function fetchData() { loading.value = true; try { const res = await getSupportTicketPage({ page: pagination.value.current, size: pagination.value.pageSize, status: statusFilter.value || undefined }); list.value = res.data?.records || []; pagination.value.total = res.data?.total || 0 } finally { loading.value = false } }
 async function fetchFeedbackStats() { try { feedbackStats.value = (await getAiFeedbackStats()).data || feedbackStats.value } catch { /* 指标失败不影响工单处理 */ } }
 async function fetchAiStatus() { try { aiStatus.value = (await getAiRuntimeStatus()).data || aiStatus.value } catch { aiStatus.value = { status: 'unavailable', enabled: false, modelConfigured: false, embeddingConfigured: false } } }
+async function fetchAiMetrics() { try { aiMetrics.value = (await getAiRuntimeMetrics()).data || aiMetrics.value } catch { aiMetrics.value = { ...aiMetrics.value, sla: { ...aiMetrics.value.sla, status: 'unavailable' } } } }
 async function openKnowledge() { knowledgeOpen.value = true; knowledgeLoading.value = true; try { knowledgeDocs.value = (await getAiKnowledge()).data || [] } catch { message.error('知识库读取失败') } finally { knowledgeLoading.value = false } }
 async function openAudit() { auditOpen.value = true; auditPagination.value.current = 1; await fetchAudit() }
 async function fetchAudit() { auditLoading.value = true; try { const res = await getAiAuditPage({ page: auditPagination.value.current, size: auditPagination.value.pageSize, eventType: auditEventType.value, outcome: auditOutcome.value }); auditList.value = res.data?.records || []; auditPagination.value.total = res.data?.total || 0 } catch { message.error('运行记录读取失败') } finally { auditLoading.value = false } }
@@ -116,12 +124,15 @@ function openReply(record) { replyTarget.value = record; replyContent.value = ''
 async function reply() { if (!replyTarget.value || !replyContent.value.trim()) { message.warning('请输入回复内容'); return }; replying.value = true; try { await replySupportTicket(replyTarget.value.id, replyContent.value.trim()); message.success('已发送回复'); replyOpen.value = false; fetchData() } catch { /* interceptor shows error */ } finally { replying.value = false } }
 function openResolve(record) { resolveTarget.value = record; resolveNote.value = ''; resolveOpen.value = true }
 async function resolve() { if (!resolveTarget.value) return; resolving.value = true; try { await resolveSupportTicket(resolveTarget.value.id, resolveNote.value.trim()); message.success('工单已解决'); resolveOpen.value = false; fetchData() } catch { /* interceptor shows error */ } finally { resolving.value = false } }
-onMounted(() => { fetchData(); fetchFeedbackStats(); fetchAiStatus(); refreshTimer = window.setInterval(() => { fetchData(); fetchFeedbackStats(); fetchAiStatus() }, 15000) })
+onMounted(() => { fetchData(); fetchFeedbackStats(); fetchAiStatus(); fetchAiMetrics(); refreshTimer = window.setInterval(() => { fetchData(); fetchFeedbackStats(); fetchAiStatus(); fetchAiMetrics() }, 15000) })
 onUnmounted(() => window.clearInterval(refreshTimer))
 </script>
 
 <style scoped>
 .support-page { max-width: 1200px; }
+.ai-sla-card { margin-bottom: 16px; }
+.ai-sla-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; color: #64748b; }
+.ai-sla-summary strong { color: #1f2937; }
 .feedback-stats :deep(.ant-statistic) { min-width: 92px; }
 .knowledge-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; color: #64748b; }
 .knowledge-item { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #f0f0f0; }

@@ -24,6 +24,10 @@ export function getAiRuntimeStatus() {
   return request.get('/ai/status')
 }
 
+export function getAiRuntimeMetrics() {
+  return request.get('/ai/metrics')
+}
+
 export function getSupportTicketConversation(id) {
   return request.get(`/ai/tickets/${id}/conversation`)
 }

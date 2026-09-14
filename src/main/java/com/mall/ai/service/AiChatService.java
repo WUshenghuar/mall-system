@@ -15,5 +15,6 @@ public interface AiChatService {
     void feedback(Long memberId, Long messageId, Integer feedback);
     Map<String, Object> feedbackStats();
     Map<String, Object> runtimeStatus();
+    Map<String, Object> runtimeMetrics();
     IPage<AiAuditLog> auditPage(Integer page, Integer size, String eventType, String outcome);
 }

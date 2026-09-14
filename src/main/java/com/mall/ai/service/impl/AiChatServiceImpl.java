@@ -168,6 +168,11 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     @Override
+    public Map<String, Object> runtimeMetrics() {
+        return gatewayClient.runtimeMetrics();
+    }
+
+    @Override
     public IPage<AiAuditLog> auditPage(Integer page, Integer size, String eventType, String outcome) {
         int current = Math.min(Math.max(page == null ? 1 : page, 1), 10_000);
         int pageSize = Math.min(Math.max(size == null ? 20 : size, 1), 100);

@@ -43,6 +43,15 @@ public class AiGatewayClient {
         }
     }
 
+    public Map<String, Object> runtimeMetrics() {
+        try {
+            return objectMapper.convertValue(requestJson("GET", "/internal/metrics", null), new TypeReference<>() { });
+        } catch (Exception e) {
+            log.debug("AI runtime metrics unavailable", e);
+            return Map.of("status", "unavailable");
+        }
+    }
+
     public Map<String, Object> plan(Long memberId, String conversationId, String message, List<AiConversation> history) {
         return plan(memberId, conversationId, message, history, List.of());
     }
