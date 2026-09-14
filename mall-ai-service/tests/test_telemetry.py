@@ -31,6 +31,31 @@ def test_mark_error_is_safe_without_a_recording_span():
     telemetry.mark_error()
 
 
+def test_record_tool_plan_records_outcome_and_duration(monkeypatch):
+    class Counter:
+        def __init__(self):
+            self.calls = []
+
+        def add(self, value, attributes):
+            self.calls.append((value, attributes))
+
+    class Histogram:
+        def __init__(self):
+            self.calls = []
+
+        def record(self, value, attributes):
+            self.calls.append((value, attributes))
+
+    counter, histogram = Counter(), Histogram()
+    monkeypatch.setattr(telemetry, "_tool_plan_counter", counter)
+    monkeypatch.setattr(telemetry, "_tool_plan_duration", histogram)
+
+    telemetry.record_tool_plan(12.5, "planned")
+
+    assert counter.calls == [(1, {"outcome": "planned"})]
+    assert histogram.calls == [(12.5, {"outcome": "planned"})]
+
+
 def test_langfuse_configuration_builds_otlp_trace_auth(monkeypatch):
     monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
     monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)

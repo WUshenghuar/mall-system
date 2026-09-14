@@ -29,6 +29,8 @@ _request_counter = None
 _request_duration = None
 _active_requests = None
 _rerank_counter = None
+_tool_plan_counter = None
+_tool_plan_duration = None
 _trace_attributes = ContextVar("ai_trace_attributes", default={})
 
 
@@ -88,7 +90,7 @@ def _metric_interval() -> int:
 
 
 def configure_telemetry() -> bool:
-    global _active_requests, _configured, _rerank_counter, _request_counter, _request_duration
+    global _active_requests, _configured, _rerank_counter, _tool_plan_counter, _tool_plan_duration, _request_counter, _request_duration
     if _configured or trace is None:
         return _configured
     resource = Resource.create({SERVICE_NAME: os.getenv("OTEL_SERVICE_NAME", "cbec-ai-service")})
@@ -114,6 +116,8 @@ def configure_telemetry() -> bool:
         _request_duration = meter.create_histogram("ai_chat_request_duration", unit="ms")
         _active_requests = meter.create_up_down_counter("ai_chat_active_requests", unit="{request}")
         _rerank_counter = meter.create_counter("ai_rerank_requests", unit="{request}")
+        _tool_plan_counter = meter.create_counter("ai_tool_plan_requests", unit="{request}")
+        _tool_plan_duration = meter.create_histogram("ai_tool_plan_duration", unit="ms")
         configured = True
 
     _configured = configured
@@ -161,6 +165,14 @@ def record_request(duration_ms: float, outcome: str) -> None:
 def record_rerank(outcome: str) -> None:
     if _rerank_counter is not None:
         _rerank_counter.add(1, {"outcome": outcome})
+
+
+def record_tool_plan(duration_ms: float, outcome: str) -> None:
+    if _tool_plan_counter is None or _tool_plan_duration is None:
+        return
+    attributes = {"outcome": outcome}
+    _tool_plan_counter.add(1, attributes)
+    _tool_plan_duration.record(duration_ms, attributes)
 
 
 def mark_error(description: str = "ai_request_error") -> None:

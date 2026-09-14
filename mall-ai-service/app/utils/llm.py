@@ -7,7 +7,7 @@ import httpx
 from app.agent.agent import is_english_message, is_prompt_injection, local_agent, should_suggest_handoff
 from app.agent.tools import TOOL_DEFINITIONS, TOOL_NAMES
 from app.config import settings
-from app.telemetry import set_span_attributes, span
+from app.telemetry import record_tool_plan, set_span_attributes, span
 
 
 _model_retry_at = 0.0
@@ -29,9 +29,16 @@ def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
 
 
 async def plan_tool(message: str, history: list[dict[str, str]], tool_results: list | None = None) -> dict:
-    with span("ai.tool_plan", {"langfuse.observation.type": "tool", "gen_ai.system": "openai",
-                               "gen_ai.request.model": settings.model_name, "langfuse.observation.model.name": settings.model_name}):
-        return await _plan_tool(message, history, tool_results)
+    started = monotonic()
+    outcome = "error"
+    try:
+        with span("ai.tool_plan", {"langfuse.observation.type": "tool", "gen_ai.system": "openai",
+                                   "gen_ai.request.model": settings.model_name, "langfuse.observation.model.name": settings.model_name}):
+            result = await _plan_tool(message, history, tool_results)
+        outcome = "planned" if result.get("tool") or result.get("tools") else "empty"
+        return result
+    finally:
+        record_tool_plan(round((monotonic() - started) * 1000, 2), outcome)
 
 
 async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: list | None = None) -> dict:
