@@ -68,7 +68,7 @@ public class AiGatewayClient {
 
     public Map<String, Object> plan(Long memberId, String conversationId, String message, List<AiConversation> history,
                                     List<?> toolResults, String requestId) {
-        return planInternal(memberId, conversationId, message, history, toolResults, requestId, 2_000);
+        return planInternal(memberId, conversationId, message, history, toolResults, requestId, 2_500);
     }
 
     public Map<String, Object> planWithTimeout(Long memberId, String conversationId, String message,
@@ -80,7 +80,7 @@ public class AiGatewayClient {
                                                 List<AiConversation> history, List<?> toolResults, String requestId,
                                                 int timeoutMillis) {
         return planInternal(memberId, conversationId, message, history, toolResults, requestId,
-                Math.max(100, Math.min(timeoutMillis, 2_000)));
+                Math.max(100, Math.min(timeoutMillis, 2_500)));
     }
 
     private Map<String, Object> planInternal(Long memberId, String conversationId, String message,

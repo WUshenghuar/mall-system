@@ -102,8 +102,10 @@ async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: 
         "tool_choice": "auto",
         "temperature": 0,
     }
+    if settings.model_name.lower() == "glm-4.5-air" and "open.bigmodel.cn" in settings.model_api_base:
+        payload["thinking"] = {"type": "disabled"}
     try:
-        async with httpx.AsyncClient(timeout=2) as client:
+        async with httpx.AsyncClient(timeout=2.5) as client:
             response = await client.post(
                 f"{settings.model_api_base}/chat/completions",
                 headers={"Authorization": f"Bearer {settings.model_api_key}"},
@@ -185,6 +187,8 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
         messages.append({"role": "user", "content": message})
     headers = {"Authorization": f"Bearer {settings.model_api_key}"}
     payload = {"model": settings.model_name, "messages": messages, "stream": True, "temperature": 0.3}
+    if settings.model_name.lower() == "glm-4.5-air" and "open.bigmodel.cn" in settings.model_api_base:
+        payload["thinking"] = {"type": "disabled"}
     if getattr(settings, "model_include_usage", False):
         payload["stream_options"] = {"include_usage": True}
     emitted = False
