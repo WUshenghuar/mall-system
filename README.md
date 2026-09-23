@@ -1,107 +1,96 @@
 # CBEC · 跨境电商全栈系统
 
 <p align="center">
-  <strong>从商品运营，到用户下单，再到 AI 客服接管的完整业务闭环</strong><br>
-  Java 23 · Spring Boot · Vue 3 · MySQL · Redis · RabbitMQ · Elasticsearch · FastAPI
+  <strong>覆盖运营后台、消费者交易闭环与可控 AI 客服的 B2C 工程实践</strong>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Java-23-ED8B00?logo=openjdk&logoColor=white" alt="Java 23">
-  <img src="https://img.shields.io/badge/Spring%20Boot-3.2.5-6DB33F?logo=springboot&logoColor=white" alt="Spring Boot">
+  <img src="https://img.shields.io/badge/Spring%20Boot-3.2.5-6DB33F?logo=springboot&logoColor=white" alt="Spring Boot 3.2.5">
   <img src="https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white" alt="Vue 3">
-  <img src="https://img.shields.io/badge/AI-FastAPI%20%2B%20LangGraph-009688?logo=fastapi&logoColor=white" alt="AI service">
+  <img src="https://img.shields.io/badge/AI-FastAPI%20%2B%20LangGraph-009688?logo=fastapi&logoColor=white" alt="FastAPI and LangGraph">
 </p>
 
-> 一个面向跨境零售场景的 B2C 全栈项目：B 端负责运营管理，C 端承载交易闭环，AI 服务提供可追溯的智能客服与人工接管。
+CBEC 是一个单平台跨境零售系统。Java 后端负责交易、权限和业务数据，两个 Vue 前端分别服务运营人员与消费者，Python 服务负责 AI 编排、知识检索和流式回答。
 
-## 项目一览
-
-| 端 | 工程 | 当前能力 |
-| --- | --- | --- |
-| B 端 | `mall-web/` | 商品、订单、会员、营销、财务、系统管理、客服工单 |
-| C 端 | `mall-storefront/` | 商品目录、购物车、结算、税费、优惠券、订单、物流、售后 |
-| AI | `mall-ai-service/` | SSE 对话、FAQ 检索、只读业务工具、来源依据、转人工 |
-| 后端 | `src/main/java/com/mall/` | 单模块 Spring Boot，按领域组织业务代码 |
-
-## 业务闭环
+## 架构
 
 ```mermaid
 flowchart LR
-    A[商品浏览] --> B[购物车]
-    B --> C[结算与税费]
-    C --> D[创建订单]
-    D --> E[模拟支付]
-    E --> F[发货与物流]
-    F --> G[确认收货 / 售后]
-    H[B 端运营] -. 管理 .-> A
-    H -. 审核 .-> D
-    I[AI 客服] -. 查询业务 .-> D
-    I -. 无法解决 .-> J[人工工单]
-    J -. 回复 .-> H
+    B[Vue 3 B 端] --> J[Spring Boot API]
+    C[Vue 3 C 端] --> J
+    J --> M[(MySQL)]
+    J --> R[(Redis)]
+    J --> Q[RabbitMQ]
+    J --> E[(Elasticsearch)]
+    J --> O[(MinIO)]
+    J -->|HTTP / SSE| A[FastAPI + LangGraph]
+    A --> E
 ```
 
-## 核心特性
+## 已实现能力
 
-- **交易安全**：结算快照、库存预占与释放、订单归属校验、支付金额校验、条件更新与幂等处理。
-- **运营协同**：JWT + Spring Security + RBAC，覆盖商品、订单、会员、营销、财务与客服处理流程。
-- **搜索与异步**：Elasticsearch 商品搜索失败时回退 MySQL；Redis 负责缓存/锁，RabbitMQ 负责业务事件解耦。
-- **AI 可控**：模型负责理解与表达，Java 侧负责鉴权、资源归属、工具白名单和业务事实；无模型时保留本地兜底。
-- **人工接管**：C 端可转平台客服，B 端支持认领、回复、解决，消息与会话可恢复。
-- **响应式前台**：移动优先，桌面端自动切换导航与商品网格布局。
+| 范围 | 能力 |
+| --- | --- |
+| B 端运营 | 商品、SKU、订单、会员、优惠券、活动、税费、财务报表、退款与客服工单 |
+| C 端交易 | 商品浏览、购物车、一次性结算快照、下单、模拟支付、物流、退款/退货与会员积分 |
+| 搜索 | Elasticsearch 商品检索、筛选和排序；搜索故障时回退 MySQL |
+| AI 客服 | SSE 对话、BM25/RAG、9 类只读业务工具、来源展示、审计、降级与人工接管 |
 
-## 技术架构
+## 一致性与安全
+
+- Redis Lua 原子预占多 SKU 库存，MySQL 条件更新兜底；事务回滚补偿 Redis，取消或退款在数据库提交后释放库存。
+- 支付单创建使用订单行锁；支付宝回调校验 RSA2 签名、订单和金额，并通过条件更新处理重复通知。
+- Spring Security + JWT 区分员工与会员主体，B 端使用方法级 RBAC，C 端校验资源归属。
+- 生产配置不默认启用开发 profile 或内置密钥；JWT 密钥少于 32 字节时拒绝启动。
+- 图片上传限制大小和 MIME，并校验 JPEG、PNG、WebP、GIF 文件头及 MinIO 对象路径。
+- AI 工具只读，Java 侧再次校验白名单、参数与订单归属，模型不直接访问业务数据库。
+
+## 目录
 
 ```text
-mall-web / mall-storefront
-          │ REST + SSE
-          ▼
-Spring Boot 3.2.5（Java 23）
-  product · order · trade · member · marketing · finance · search · security
-          │                 │ HTTP + SSE
-          ▼                 ▼
-MySQL · Redis · RabbitMQ   FastAPI + LangGraph
-Elasticsearch · MinIO      FAQ/RAG · Tool Plan · AI Chat
+src/main/java/com/mall/   Spring Boot 单模块后端
+mall-web/                 Vue 3 + Ant Design Vue 运营后台
+mall-storefront/          Vue 3 + Vant 消费者前台
+mall-ai-service/          FastAPI + LangGraph AI 服务
+src/main/resources/db/    Flyway 迁移与开发数据
+docker-compose.yml        本地基础设施与 AI 服务编排
 ```
 
 ## 快速开始
 
-### 1. 准备环境
+环境要求：Java 23、Maven、Node.js 18+、Docker Desktop。
 
-- Java 23
-- Maven 3.9+
-- Node.js 18+
-- Docker Desktop
-
-### 2. 配置并启动基础设施
+### 1. 配置环境变量
 
 ```powershell
 Copy-Item .env.example .env
-docker compose up -d
 ```
 
-如需真实模型，在 `.env` 中填写 `AI_MODEL_API_BASE`、`AI_MODEL_API_KEY`、`AI_MODEL_NAME`。密钥只放在环境变量中，不提交到仓库。
+编辑 `.env`，替换所有 `[REDACTED_SECRET]`，并设置至少 32 字节的 `JWT_SECRET`。模型、Embedding、Rerank 与外部可观测平台均为可选配置。
 
-### 3. 导入开发种子并启动后端
+### 2. 启动基础设施
+
+```powershell
+docker compose up -d
+docker compose ps
+```
+
+### 3. 启动后端
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/import_dev_seed.ps1 -Reset
-mvn spring-boot:run
+mvn spring-boot:run "-Dspring-boot.run.profiles=dev"
 ```
 
-### 4. 启动两个前端
+### 4. 启动前端
 
 ```powershell
-cd mall-web
-npm install
-npm run dev
-
-# 新开终端
-cd mall-storefront
-npm install
-npm run dev
+npm --prefix mall-web install
+npm --prefix mall-web run dev
+npm --prefix mall-storefront install
+npm --prefix mall-storefront run dev
 ```
-
-开发种子会员示例：手机号 `13900000001`，密码 `password`。
 
 ## 本地端口
 
@@ -118,33 +107,26 @@ npm run dev
 ## 验证
 
 ```powershell
-# 后端单元与集成测试
-mvn test
+mvn clean test
 
-# 两个前端生产构建
-cd mall-web; npm run build
-cd ..\mall-storefront; npm run build
+npm --prefix mall-web run build
+npm --prefix mall-storefront run build
 
-# AI 服务测试（Docker 环境）
-docker compose exec ai-service pytest -q
+cd mall-ai-service
+python -m pytest -q
+python evaluate.py
 ```
 
-当前代码基线已覆盖 Java、Python AI、B/C 端构建及客服转人工链路验证；真实支付渠道、生产级 Rerank、完整多平台订单/WMS 等能力仍在规划中。
+2026-09-23 验证基线：Java 156/156、Python 82/82、离线评测 73/73；B/C 两端生产构建与 `docker compose config --quiet` 通过。
 
-## 文档导航
+## 能力边界
 
-| 文档 | 用途 |
-| --- | --- |
-| [当前实现基线与文档口径](Doc/当前实现基线与文档口径.md) | 当前代码、端口、验证与 TODO 的唯一汇总入口 |
-| [跨境电商全栈系统-项目概要文档](Doc/跨境电商全栈系统-项目概要文档.md) | 项目定位、模块说明与面试介绍 |
-| [C 端交易闭环实施说明](Doc/C端交易闭环实施说明.md) | C 端购买、支付、物流与售后范围 |
-| [B 端与 C 端功能差距审计](Doc/B端与C端功能差距审计.md) | 已实现能力与后续差距 |
-| [AI 客服实施方案](Doc/AI客服Agent-跨境电商智能助手实施方案.md) | AI Agent、RAG、工具调用与评测路线 |
-
-## 当前边界
-
-本项目是可运行的工程实践与求职展示项目，不把开发期模拟能力包装成生产能力：支付渠道联调、多币种/汇率、WMS、生产级 ES 集群、外部 LangFuse/OTel 后端和标注数据闭环，均以 TODO 形式保留。
+- 当前是单模块 Spring Boot 后端，不是完整微服务架构。
+- 支付以开发期模拟流程为主；真实渠道下单、退款、对账和微信回调尚未实现。
+- Embedding、Rerank、LangFuse 与外部 OTel 后端需要额外配置，不能视为默认启用。
+- Elasticsearch 当前使用单索引重建；生产级集群、别名切换与零停机重建仍是后续工作。
+- 通用行级数据权限尚未实现；已分配客服工单的写入使用显式条件 SQL。
 
 ---
 
-<p align="center">Build the commerce loop · Keep the AI grounded · Leave a clear handoff</p>
+<p align="center">Build the commerce loop · Keep the AI grounded</p>

@@ -8,7 +8,7 @@ B2C 跨境电商全栈系统 — 覆盖 C 端用户前台 + B 端运营后台 + 
 
 **Tech stack:** Java 23 + Spring Boot 3.2.5 + Spring Security + JWT + MyBatis-Plus 3.5.7 + MySQL 8 + Redis 7 + RabbitMQ + Elasticsearch 8 + Vue 3 (Composition API) + Ant Design Vue 4 + Vite 5 + Python 3.11 + FastAPI + LangGraph + optional OpenTelemetry/LangFuse
 
-> **Current status (2026-09-17):** The B-end operations console, C-end transaction MVP, AI customer-service P0 (SSE, retrieval, read-only tools, audit, and human handoff), and the C-end responsive storefront are implemented. `mall-storefront/` uses Vue 3 + Vant: mobile single-column + bottom navigation at ≤680px and desktop top navigation + product grid at ≥1025px; `mock-server.mjs` remains a backend-free preview tool. Runtime architecture, ports, startup, verification, and gaps are tracked in `Doc/当前实现基线与文档口径.md` and `Doc/B端与C端功能差距审计.md`.
+> **Current status (2026-09-23):** The B-end operations console, C-end transaction MVP, AI customer-service P0 (SSE, retrieval, read-only tools, audit, and human handoff), and the C-end responsive storefront are implemented. `mall-storefront/` uses Vue 3 + Vant: mobile single-column + bottom navigation at ≤680px and desktop top navigation + product grid at ≥1025px; `mock-server.mjs` remains a backend-free preview tool. Runtime architecture, startup, verification, and gaps are summarized in `README.md`.
 
 ## 项目结构
 
@@ -174,20 +174,10 @@ Dev profile (`application-dev.yml`) 会排除 Redis 和 RabbitMQ 的自动配置
 - `CouponServiceImplTest` — 优惠券服务
 - `SkuServiceImplTest` — SKU 服务
 
-## Key Design Documents
+## Project Documentation
 
-- **`Doc/当前实现基线与文档口径.md`** — 当前代码、目录、端口、启动方式和文档权威顺序（优先阅读）
-- **`Doc/B端与C端功能差距审计.md`** — 当前实现与完整 B/C 端需求的差距及 P0/P1/P2 排期
-- **`Doc/C端交易闭环实施说明.md`** — C 端购买闭环 MVP 的接口、边界和运行方式
-- **`Doc/跨境电商全栈系统-项目概要文档.md`** — 项目定位 + 三大子系统 + 技术架构 + 面试亮点（面试核心参考资料）
-- **`Doc/跨境电商全栈系统-需求设计文档.md`** — 全栈需求规格：B端 + C端 + AI、角色体系、API 设计、数据库总览
-- **`Doc/跨境电商C端架构设计方案.md`** — C 端业务流程、订单状态流转、API 设计、数据库设计
-- **`Doc/AI客服Agent-跨境电商智能助手设计方案.md`** — AI 客服 Agent 架构设计：双层架构、LangGraph 工作流、RAG 检索、评测体系
-- **`Doc/跨境电商全栈系统-实现流程文档.md`** — 剩余工作实施路线图：4 个 Phase、依赖关系、每步验证标准
-- **`Doc/AI客服Agent-跨境电商智能助手实施方案.md`** — AI 后续实施阶段、验收、可靠性和安全边界
-- **`Doc/CBEC-代码导读地图.md`** — 按阅读顺序理解关键代码和面试重点
-- **`Doc/CBEC-简历与面试要点.md`** — 基于当前代码证据的项目表述和面试问答
-- **`Doc/CBEC-交接文档-Codex-20260906.md`** — 2026-09-06 的历史交接快照，不替代当前基线
+- **`README.md`** — 公开项目说明、启动方式、验证记录和能力边界。
+- 当前代码、配置和测试优先于叙述性文档。
 
 ## CodeGraph
 

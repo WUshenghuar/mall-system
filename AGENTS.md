@@ -8,7 +8,7 @@ B2C cross-border e-commerce full-stack system: a single-module Spring Boot backe
 
 **Tech stack:** Java 23 + Spring Boot 3.2.5 + Spring Security + JWT + MyBatis-Plus 3.5.7 + MySQL 8 + Redis 7 + RabbitMQ + Elasticsearch 8 + MinIO + Vue 3 + Ant Design Vue 4/Vant 4 + Vite + Python 3.11 + FastAPI + LangGraph
 
-> **Current state (2026-09-17):** The root `pom.xml` is the active single-module build. B-end management, the C-end transaction MVP, customer-service P0 (SSE, knowledge retrieval, read-only tools, audit, and human handoff), and the `mall-storefront` Vue/Vant frontend are implemented. Current scope and known gaps are tracked in `Doc/当前实现基线与文档口径.md` and `Doc/B端与C端功能差距审计.md`.
+> **Current state (2026-09-23):** The root `pom.xml` is the active single-module build. B-end management, the C-end transaction MVP, customer-service P0 (SSE, knowledge retrieval, read-only tools, audit, and human handoff), and the `mall-storefront` Vue/Vant frontend are implemented. Runtime architecture, verification, and known gaps are summarized in `README.md`.
 
 ## Build & Run Commands
 
@@ -73,11 +73,10 @@ Local development requires these services (default ports):
 
 **Frontends:** `mall-web/` is the Vue 3 + Ant Design Vue B-end console; `mall-storefront/` is the Vue 3 + Vant C-end responsive storefront with catalog, checkout, orders, logistics, refunds/returns, promotions, and customer service.
 
-## Key Design Documents
+## Project Documentation
 
-- `Doc/跨境电商全栈系统-需求设计文档.md` — full requirements spec: roles, modules, DB schema, API design
-- `Doc/当前实现基线与文档口径.md` — current implementation, ports, verification, and TODO authority
-- `Doc/跨境电商全栈系统-实现流程文档.md` — dated historical roadmap, not current status
+- `README.md` is the public project overview, startup guide, verification record, and capability boundary.
+- Current code, configuration, and tests take precedence over narrative documentation.
 
 ## CodeGraph
 
