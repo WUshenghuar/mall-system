@@ -67,7 +67,7 @@
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 import { getRefundPage, approveRefund, rejectRefund, completeRefund } from '@/api/order'
 
 const loading = ref(false)

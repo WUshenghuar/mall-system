@@ -2,6 +2,7 @@ package com.mall.member.service.impl;
 
 import com.mall.member.entity.Member;
 import com.mall.member.entity.MemberPointsLog;
+import com.mall.common.exception.BusinessException;
 import com.mall.member.mapper.MemberMapper;
 import com.mall.member.mapper.MemberPointsLogMapper;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class MemberServiceImplTest {
+    @Test
+    void adjustPointsRejectsNegativeBalance() {
+        MemberMapper memberMapper = mock(MemberMapper.class);
+        Member member = new Member();
+        member.setId(9L);
+        member.setPoints(5);
+        when(memberMapper.selectByIdForUpdate(9L)).thenReturn(member);
+
+        MemberServiceImpl service = new MemberServiceImpl(memberMapper, mock(MemberPointsLogMapper.class));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.adjustPoints(9L, -10, "人工扣减"))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("积分余额不足");
+    }
+
     @Test
     void listPointsLogsReturnsNewestMemberHistory() {
         MemberPointsLogMapper logMapper = mock(MemberPointsLogMapper.class);
@@ -39,7 +54,7 @@ class MemberServiceImplTest {
         member.setPoints(12);
         member.setTotalAmount(new BigDecimal("900.00"));
         member.setLevel(0);
-        when(memberMapper.selectById(9L)).thenReturn(member);
+        when(memberMapper.selectByIdForUpdate(9L)).thenReturn(member);
 
         MemberServiceImpl service = new MemberServiceImpl(memberMapper, logMapper);
         service.recordOrderCompletion(9L, new BigDecimal("120.50"), "T-1");
@@ -57,7 +72,7 @@ class MemberServiceImplTest {
         MemberPointsLogMapper logMapper = mock(MemberPointsLogMapper.class);
         Member member = new Member();
         member.setId(9L); member.setPoints(120); member.setTotalAmount(new BigDecimal("1020.50")); member.setLevel(1);
-        when(memberMapper.selectById(9L)).thenReturn(member);
+        when(memberMapper.selectByIdForUpdate(9L)).thenReturn(member);
 
         new MemberServiceImpl(memberMapper, logMapper).recordOrderRefund(9L, new BigDecimal("120.50"), "T-1");
 

@@ -91,6 +91,7 @@ class TradeOrderServiceImplTest {
         assertThat(order.getTotalAmount()).isEqualByComparingTo("200.00");
         assertThat(order.getDiscountAmount()).isEqualByComparingTo("20.00");
         assertThat(order.getPayAmount()).isEqualByComparingTo("180.00");
+        assertThat(order.getOrderNo()).matches("T[0-9a-f]{31}");
         verify(issueMapper).markUsed(eq(11L), eq(99L), eq(9L), anyString());
     }
 

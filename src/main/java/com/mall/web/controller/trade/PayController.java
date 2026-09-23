@@ -4,6 +4,7 @@ import com.mall.common.result.Result;
 import com.mall.security.user.CurrentMember;
 import com.mall.trade.entity.TradePay;
 import com.mall.trade.service.PayService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ public class PayController {
     private boolean callbackEnabled;
 
     @PostMapping("/create")
-    public Result<TradePay> create(@RequestBody CreateReq req, Authentication auth) {
+    public Result<TradePay> create(@Valid @RequestBody CreateReq req, Authentication auth) {
         return Result.success(payService.createPay(req.getOrderNo(), req.getPayType(), CurrentMember.id(auth)));
     }
 
@@ -42,12 +43,6 @@ public class PayController {
     public String alipayNotify(@RequestParam Map<String, String> params) {
         if (!callbackEnabled) return "failure";
         return payService.handleAlipayNotify(params) ? "success" : "failure";
-    }
-
-    @PostMapping("/notify/wechat")
-    public String wechatNotify(@RequestParam Map<String, String> params) {
-        // TODO: 配置微信支付回调后调用 payService.handleWechatNotify(params)。
-        return "failure";
     }
 
     @Data

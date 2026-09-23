@@ -62,7 +62,7 @@ def sse(payload: dict) -> str:
 @router.post("/internal/tool-plan")
 async def tool_plan(request: ChatRequest, x_ai_service_token: str = Header(default=""),
                     x_trace_id: str = Header(default=""), traceparent: str = Header(default="")):
-    if x_ai_service_token != settings.service_token:
+    if not settings.service_token or x_ai_service_token != settings.service_token:
         raise HTTPException(status_code=401, detail="invalid AI service token")
     history = [item.model_dump() for item in request.history]
     request_trace_id = trace_id(x_trace_id if isinstance(x_trace_id, str) else "")
@@ -75,7 +75,7 @@ async def tool_plan(request: ChatRequest, x_ai_service_token: str = Header(defau
 @router.post("/internal/chat")
 async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""), x_trace_id: str = Header(default=""),
                traceparent: str = Header(default="")):
-    if x_ai_service_token != settings.service_token:
+    if not settings.service_token or x_ai_service_token != settings.service_token:
         raise HTTPException(status_code=401, detail="invalid AI service token")
     request_trace_id = trace_id(x_trace_id if isinstance(x_trace_id, str) else "")
 

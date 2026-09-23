@@ -1,7 +1,7 @@
 # CBEC 代码导读地图（按阅读顺序）
 
-> 生成时间：2026-09-11。目的：按“最快读懂全项目”的顺序标注每个关键类的一句话职责与面试可讲点。
-> 代码规模：以下规模仅作阅读导航，不作为当前统计口径；AI 已具备 Java SSE + Python 对话/RAG + 受控只读工具 Demo，高级能力仍在规划中。
+> 生成时间：2026-09-17。目的：按“最快读懂全项目”的顺序标注每个关键类的一句话职责与面试可讲点。
+> 代码规模：以下规模仅作阅读导航，不作为当前统计口径；AI 已具备 Java SSE + Python 对话/RAG + 受控只读工具规划、审计和人工接管 P0，高级治理仍在规划中。
 > 阅读前提：先读 `Doc/当前实现基线与文档口径.md`（30 分钟建立全局）。
 
 ---
@@ -29,10 +29,10 @@
 | JWT 过滤器 | `security/jwt/JwtAuthenticationFilter.java` | 从 Header 取 token，验签后写入上下文 | 无效 token 不拦截，只跳过（靠 Security 兜底） |
 | token 生成 | `security/jwt/JwtTokenProvider.java` | 签发/解析 JWT，含 principalType | MEMBER 与 SYS_USER 双身份 |
 | 用户体系 | `security/user/LoginUser.java` / `MemberPrincipal.java` / `UserDetailsServiceImpl.java` | B 端用户 / C 端会员分离 | `principalType` 区分两套认证 |
-| 行级权限 | `security/annotation/DataScope.java` + `aspect/DataScopeAspect.java` | 注解 + AOP 注入 SQL 过滤 | ⚠️ **重点**：store_manager 全量 / cs_specialist 仅分配订单 / 运营按分类，切面把 scopeSql 写入 ThreadLocal（DataScopeContext），由 MyBatis 拦截拼 SQL |
+| 行级权限 | 当前无通用实现 | 已认领客服工单的写操作使用条件 SQL | ⚠️ **重点**：订单等领域仍需先补归属字段，再实现统一行级权限 |
 | 当前用户 | `security/user/CurrentMember.java` | 从上下文取当前 C 端会员 | — |
 
-> 面试提问概率最高的是"@DataScope 怎么做到行级权限"和"B 端用户和 C 端会员怎么共用一个 Security 体系"——把这两个类读透。
+> 面试时应如实说明当前使用方法级 RBAC；通用行级权限需要先明确订单/退款的归属模型，不能用未消费的 AOP SQL 冒充完成。
 
 ---
 
@@ -101,7 +101,7 @@
 
 ## 第 6 步：C 端前端 mall-storefront（0.5 天）
 
-- 全部只有 8 个视图 ~360 行，半天读完整
+- 当前包含目录、详情、购物车、结算、订单、订单详情、退款、活动、优惠和账户等视图，按路由顺序阅读即可。
 - 重点：`src/api.js`（axios 封装 + ⚠️ 401/403 拦截器 bug）、`src/router.js`（会员路由守卫）
 - 响应式：`src/styles.css` 末尾 `@media(min-width:1025px)` 桌面断点（本次新增）
 
@@ -115,7 +115,7 @@
 | 2 | `ai/service/impl/AiChatServiceImpl` | 保存会话并路由订单/物流/退款/商品只读查询 | 资源归属校验、工具白名单 |
 | 3 | `ai/service/AiGatewayClient` | Java 23 兼容地转发 Python SSE | 跨语言边界、超时和错误映射 |
 | 4 | `mall-ai-service/app/api/chat.py` | 校验内部令牌并输出 `thinking/tool_call/sources/text/done` | SSE 事件协议、订单/会员/税费只读来源 |
-| 5 | `mall-ai-service/app/rag/retriever.py` | ES BM25 检索平台规则，失败时回退本地 Agent | RAG 降级和来源展示 |
+| 5 | `mall-ai-service/app/rag/retriever.py` | ES BM25、可选向量/RRF、可选 Rerank，失败时回退本地 Agent | RAG 降级和来源展示 |
 | 6 | `mall-storefront/src/components/CustomerServiceWidget.vue` | C 端聊天浮窗、快捷问题、来源和转人工入口 | 44px 触控区、登录边界 |
 | 7 | `ai/controller/AiSupportTicketController` + `AiSupportTicketServiceImpl` | 平台客服工单创建、认领、解决 | 状态条件更新、会员/客服权限分离 |
 
@@ -123,9 +123,9 @@
 
 ## 常见问题速查（面试自检）
 
-1. **一次下单的完整链路？** 购物车 → 结算快照 → Redis Lua 预占库存 → 建单（trade_order）→ MQ 发事件 → 支付 → 扣减 → 物流。
+1. **一次下单的完整链路？** 购物车 → 结算快照 → Redis Lua 预占库存 → 建单（trade_order）→ 本地事务事件刷新看板 → 支付 → 扣减 → 物流。
 2. **库存怎么防超卖？** Redis Lua 原子 DECRBY + 事务回滚补偿；Redis 不可用降级为数据库条件更新。
 3. **C 端会员与 B 端用户如何区分？** JWT principalType 字段，过滤器按类型加载不同 Principal。
-4. **行级数据权限？** @DataScope 注解 + AOP 向 SQL 注入成员过滤条件。
+4. **行级数据权限？** 当前只有方法级 RBAC 和工单条件更新；通用行级权限尚未实现，需要先补业务归属字段。
 5. **为什么有两套订单表？** order（早期/后台）与 trade（C 端交易）并存，文档标注为待统一的技术债——如实说明即可。
 6. **业务错误为何 HTTP 200？** GlobalExceptionHandler 未加 @ResponseStatus，靠 body code 传达——前端需自行判断 code。

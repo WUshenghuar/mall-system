@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 
 /**
  * 通用 CRUD 弹窗 composable

@@ -65,6 +65,16 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         }
     }
 
+    private void recreateIndex() {
+        try {
+            // ponytail: current single index accepts a brief rebuild window; use aliases when zero-downtime is required.
+            if (indexExists()) request("DELETE", "/" + INDEX_NAME, null);
+            request("PUT", "/" + INDEX_NAME, indexMapping());
+        } catch (IOException e) {
+            throw new BusinessException("ES索引重建失败: " + e.getMessage());
+        }
+    }
+
     @Override
     public void indexProduct(Map<String, Object> product) {
         try {
@@ -121,7 +131,7 @@ public class ProductSearchServiceImpl implements ProductSearchService {
 
     @Override
     public void syncAllProducts() {
-        createIndex();
+        recreateIndex();
         List<Spu> spus = spuMapper.selectList(null);
         Map<Long, List<Sku>> skusBySpuId = loadSkusBySpuId(spus);
         Map<Long, String> brandNames = loadBrandNames(spus);
@@ -231,6 +241,8 @@ public class ProductSearchServiceImpl implements ProductSearchService {
 
     Map<String, Object> searchRequest(String keyword, Long categoryId, Double minPrice, Double maxPrice,
                                       String sortField, String sortOrder, int page, int size) {
+        page = Math.max(page, 1);
+        size = Math.min(Math.max(size, 1), 100);
         Map<String, Object> bool = new LinkedHashMap<>();
         List<Map<String, Object>> filters = new ArrayList<>();
         filters.add(Map.of("term", Map.of("status", 1)));

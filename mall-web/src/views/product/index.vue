@@ -152,7 +152,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 import { getCategoryTree, getSpuPage, deleteSpu, publishSpu, createSpu, getBrandList } from '@/api/product'
 
 const router = useRouter()

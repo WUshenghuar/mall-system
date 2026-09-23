@@ -14,10 +14,18 @@ public class OrderMessageSender {
     private final RabbitTemplate rabbitTemplate;
 
     public void sendOrderCreate(Map<String, Object> message) {
-        rabbitTemplate.convertAndSend("order.exchange", "order.create", message);
+        sendConfirmed("order.create", message);
     }
 
     public void sendOrderPaid(Map<String, Object> message) {
-        rabbitTemplate.convertAndSend("order.exchange", "order.paid", message);
+        sendConfirmed("order.paid", message);
+    }
+
+    private void sendConfirmed(String routingKey, Map<String, Object> message) {
+        rabbitTemplate.invoke(operations -> {
+            operations.convertAndSend("order.exchange", routingKey, message);
+            operations.waitForConfirmsOrDie(5_000);
+            return null;
+        });
     }
 }

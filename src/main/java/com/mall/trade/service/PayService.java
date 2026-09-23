@@ -9,5 +9,4 @@ public interface PayService {
     TradePay getPayStatus(String orderNo, Long userId);
     void simulateSuccess(String payNo, Long userId);
     boolean handleAlipayNotify(Map<String, String> params);
-    void handleWechatNotify(Map<String, String> params);
 }

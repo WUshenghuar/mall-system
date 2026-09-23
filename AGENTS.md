@@ -6,9 +6,9 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 B2C cross-border e-commerce full-stack system: a single-module Spring Boot backend plus a Vue 3 B-end operations console. The backend is organized by domain packages (`product`, `order`, `trade`, `member`, `marketing`, `finance`, `search`, `system`) and protected by JWT/RBAC.
 
-**Tech stack:** Java 23 + Spring Boot 3.2.5 + Spring Security + JWT + MyBatis-Plus 3.5.7 + MySQL 8 + Redis 7 + RabbitMQ + Elasticsearch 8 + MinIO + Vue 3 + Ant Design Vue 4 + Vite
+**Tech stack:** Java 23 + Spring Boot 3.2.5 + Spring Security + JWT + MyBatis-Plus 3.5.7 + MySQL 8 + Redis 7 + RabbitMQ + Elasticsearch 8 + MinIO + Vue 3 + Ant Design Vue 4/Vant 4 + Vite + Python 3.11 + FastAPI + LangGraph
 
-> **Current state (2026-09-05):** The root `pom.xml` is the active single-module build. B-end management features and C-end transaction MVP APIs are implemented; `mall-storefront` provides the C-end Vue/Vant frontend MVP, while AI service implementation remains planned. Current scope and known gaps are tracked in `Doc/当前实现基线与文档口径.md` and `Doc/B端与C端功能差距审计.md`.
+> **Current state (2026-09-17):** The root `pom.xml` is the active single-module build. B-end management, the C-end transaction MVP, customer-service P0 (SSE, knowledge retrieval, read-only tools, audit, and human handoff), and the `mall-storefront` Vue/Vant frontend are implemented. Current scope and known gaps are tracked in `Doc/当前实现基线与文档口径.md` and `Doc/B端与C端功能差距审计.md`.
 
 ## Build & Run Commands
 
@@ -44,8 +44,8 @@ Local development requires these services (default ports):
 | MySQL 8 | 3306 | Core business data |
 | Redis 7 | 16379 (宿主机) / 6379 (容器) | Caching, distributed locks, cart |
 | RabbitMQ 3.x | 18110/18111 (宿主机) / 5672/15672 (容器) | Async order processing, stock peak-clipping |
-| Elasticsearch 8 | 9200 | Product full-text search |
-| MinIO | 9000/9001 | File storage (product images, customs docs) |
+| Elasticsearch 8 | 19200 (host) / 9200 (container) | Product full-text search and AI knowledge retrieval |
+| MinIO | 18120/18121 (host) / 9000/9001 (container) | File storage (product images, customs docs) |
 
 ## Architecture
 
@@ -54,7 +54,7 @@ Local development requires these services (default ports):
 | Module | Concern |
 |---|---|
 | `common` | Shared entities, results, exceptions, infrastructure configuration |
-| `security` | JWT auth, Spring Security config, `@DataScope` scaffold |
+| `security` | JWT auth and Spring Security configuration |
 | `product` | SPU/SKU, categories, brands, and stock |
 | `order` | B-end order lifecycle, refunds, logistics, RabbitMQ handling |
 | `trade` | C-end cart, order creation, payment records, and logistics APIs |
@@ -62,20 +62,22 @@ Local development requires these services (default ports):
 | `marketing` | Coupons, activities, and flash-sale/seckill configuration |
 | `finance` | Statements, tax config, and Excel export |
 | `search` | Elasticsearch product search and index jobs |
+| `ai` | Java SSE gateway, AI session/audit/handoff, knowledge and read-only tool routing |
 | `web` | Spring Boot entry point (`MallApplication`) and all controllers |
 
 **Layering within each business module:** `controller/` → `service/` → `mapper/` → `entity/`
 
-**Data permission model:** `@DataScope` and its AOP context exist, but the generated SQL is not yet consumed by MyBatis queries; treat row-level permissions as incomplete. Method-level `@PreAuthorize` permissions are active.
+**Data permission model:** Method-level `@PreAuthorize` permissions are active. Generic row-level permissions are not implemented; assigned support-ticket writes use explicit conditional SQL.
 
 **Role hierarchy:** Store Manager (full access) → Operations (product/category/marketing, no delete/pricing) → CS (orders/logistics, no product modification) → Finance (read-only statements/export).
 
-**Frontend** (separate `mall-web/` project): Vue 3 SPA with dynamic routing by role, Pinia state, Ant Design Vue components, and Vite build. It currently contains the B-end console; C-end pages are not implemented.
+**Frontends:** `mall-web/` is the Vue 3 + Ant Design Vue B-end console; `mall-storefront/` is the Vue 3 + Vant C-end responsive storefront with catalog, checkout, orders, logistics, refunds/returns, promotions, and customer service.
 
 ## Key Design Documents
 
 - `Doc/跨境电商全栈系统-需求设计文档.md` — full requirements spec: roles, modules, DB schema, API design
-- `Doc/跨境电商全栈系统-实现流程文档.md` — phased implementation plan and current status snapshot
+- `Doc/当前实现基线与文档口径.md` — current implementation, ports, verification, and TODO authority
+- `Doc/跨境电商全栈系统-实现流程文档.md` — dated historical roadmap, not current status
 
 ## CodeGraph
 

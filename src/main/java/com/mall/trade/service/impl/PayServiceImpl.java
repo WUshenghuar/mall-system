@@ -14,12 +14,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.Signature;
 import java.security.spec.X509EncodedKeySpec;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,15 +32,13 @@ public class PayServiceImpl implements PayService {
     private String alipayPublicKey;
 
     private String generatePayNo() {
-        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        int rand = ThreadLocalRandom.current().nextInt(1000, 9999);
-        return "P" + date + rand;
+        return "P" + UUID.randomUUID().toString().replace("-", "").substring(0, 31);
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TradePay createPay(String orderNo, Integer payType, Long userId) {
-        if (!Integer.valueOf(1).equals(payType) && !Integer.valueOf(2).equals(payType)) {
+        if (!Integer.valueOf(1).equals(payType)) {
             throw new com.mall.common.exception.BusinessException("支付方式不支持");
         }
         var order = tradeOrderService.getOwnedByOrderNoForUpdate(orderNo, userId);
@@ -109,14 +105,10 @@ public class PayServiceImpl implements PayService {
         return completePayment(pay, params.toString());
     }
 
-    @Override
-    public void handleWechatNotify(Map<String, String> params) {
-        // TODO: 接入微信支付 v3 回调验签、金额校验、幂等和订单状态更新。
-    }
-
     private boolean completePayment(TradePay pay, String callbackContent) {
         if (payMapper.markSuccess(pay.getId(), callbackContent) != 1) {
-            return false;
+            TradePay current = payMapper.selectByIdForUpdate(pay.getId());
+            return current != null && Integer.valueOf(1).equals(current.getPayStatus());
         }
         if (!tradeOrderService.markPaid(pay.getOrderNo(), pay.getPayType())) {
             throw new com.mall.common.exception.BusinessException("订单支付状态异常");

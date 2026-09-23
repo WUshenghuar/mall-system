@@ -4,6 +4,7 @@ import com.mall.system.entity.SysUser;
 import com.mall.system.mapper.SysMenuMapper;
 import com.mall.system.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -13,8 +14,12 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class UserDetailsServiceImpl implements UserDetailsService {
+    private static final String DEVELOPMENT_PASSWORD_HASH =
+            "$2a$10$eym7/7xeUDaruwSFuFFVuOx1SsjUK908k2730/c5XQ5E9B07vd6eW";
     private final SysUserMapper userMapper;
     private final SysMenuMapper menuMapper;
+    @Value("${security.allow-default-accounts:false}")
+    private boolean allowDefaultAccounts;
 
     @Override
     public LoginUser loadUserByUsername(String username) {
@@ -34,6 +39,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     }
 
     private LoginUser buildLoginUser(SysUser user) {
+        if (!allowDefaultAccounts && DEVELOPMENT_PASSWORD_HASH.equals(user.getPassword())) {
+            throw new UsernameNotFoundException("默认密码仅允许在开发环境使用，请先修改密码");
+        }
         List<String> roles = userMapper.selectRoleKeysByUserId(user.getId());
         List<String> permissions = menuMapper.selectPermsByUserId(user.getId());
         return new LoginUser(user, roles, permissions);

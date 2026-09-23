@@ -73,7 +73,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 import { claimSupportTicket, getAiAuditPage, getAiFeedbackStats, getAiKnowledge, getAiRuntimeMetrics, getAiRuntimeStatus, getSupportTicketConversation, getSupportTicketPage, replySupportTicket, resolveSupportTicket, saveAiKnowledge } from '@/api/ai'
 
 const loading = ref(false), list = ref([]), statusFilter = ref('')

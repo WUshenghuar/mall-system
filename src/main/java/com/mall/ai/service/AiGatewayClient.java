@@ -31,7 +31,7 @@ import java.util.function.Consumer;
 public class AiGatewayClient {
     private final ObjectMapper objectMapper;
     @Value("${ai.service.base-url:http://localhost:8101}") private String baseUrl;
-    @Value("${ai.service.token:change-me-local-only}") private String serviceToken;
+    @Value("${ai.service.token:}") private String serviceToken;
 
     public Map<String, Object> runtimeStatus() {
         try {

@@ -138,7 +138,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 import { getSkuList, createSku, updateSku, deleteSku, batchSkuPrice, updateSkuStock, uploadProductImage, deleteProductImage } from '@/api/product'
 
 const route = useRoute()

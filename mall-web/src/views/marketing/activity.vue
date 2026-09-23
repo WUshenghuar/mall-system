@@ -93,7 +93,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import dayjs from 'dayjs'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 import { getActivityPage, createActivity, updateActivity, deleteActivity, getActivitySkus, saveActivitySku, deleteActivitySku } from '@/api/marketing'
 
 const loading = ref(false)

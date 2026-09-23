@@ -64,7 +64,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 import { getMemberPage, adjustPoints } from '@/api/member'
 
 const loading = ref(false)

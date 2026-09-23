@@ -3,6 +3,7 @@ package com.mall.web.controller.order;
 import com.mall.common.result.Result;
 import com.mall.security.user.LoginUser;
 import com.mall.trade.service.TradeRefundService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -19,10 +20,10 @@ public class TradeRefundAdminController {
     public Result<?> page(@RequestParam(defaultValue = "1") Integer page, @RequestParam(defaultValue = "10") Integer size,
                           @RequestParam(required = false) Integer status) { return Result.success(tradeRefundService.selectAdminPage(page, size, status)); }
     @PostMapping("/{id}/approve") @PreAuthorize("hasAuthority('order:refund:approve')")
-    public Result<Void> approve(@PathVariable Long id, @RequestBody CommentReq req, Authentication auth) { tradeRefundService.approve(id, ((LoginUser) auth.getPrincipal()).getUserId(), req.getComment()); return Result.success(null); }
+    public Result<Void> approve(@PathVariable Long id, @Valid @RequestBody CommentReq req, Authentication auth) { tradeRefundService.approve(id, ((LoginUser) auth.getPrincipal()).getUserId(), req.getComment()); return Result.success(null); }
     @PostMapping("/{id}/reject") @PreAuthorize("hasAuthority('order:refund:approve')")
-    public Result<Void> reject(@PathVariable Long id, @RequestBody CommentReq req, Authentication auth) { tradeRefundService.reject(id, ((LoginUser) auth.getPrincipal()).getUserId(), req.getComment()); return Result.success(null); }
+    public Result<Void> reject(@PathVariable Long id, @Valid @RequestBody CommentReq req, Authentication auth) { tradeRefundService.reject(id, ((LoginUser) auth.getPrincipal()).getUserId(), req.getComment()); return Result.success(null); }
     @PostMapping("/{id}/complete") @PreAuthorize("hasAuthority('order:refund:approve')")
-    public Result<Void> complete(@PathVariable Long id, @RequestBody CommentReq req, Authentication auth) { tradeRefundService.complete(id, ((LoginUser) auth.getPrincipal()).getUserId(), req.getComment()); return Result.success(null); }
+    public Result<Void> complete(@PathVariable Long id, @Valid @RequestBody CommentReq req, Authentication auth) { tradeRefundService.complete(id, ((LoginUser) auth.getPrincipal()).getUserId(), req.getComment()); return Result.success(null); }
     @Data public static class CommentReq { @NotBlank private String comment; }
 }

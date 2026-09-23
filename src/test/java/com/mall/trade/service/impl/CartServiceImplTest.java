@@ -12,6 +12,16 @@ import static org.mockito.Mockito.when;
 class CartServiceImplTest {
 
     @Test
+    void addCartRejectsMissingSkuAndNonPositiveQuantity() {
+        CartServiceImpl service = new CartServiceImpl(mock(TradeCartMapper.class));
+
+        assertThatThrownBy(() -> service.addCart(100L, null, 1))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("商品");
+        assertThatThrownBy(() -> service.addCart(100L, 7L, 0))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("数量");
+    }
+
+    @Test
     void updateCartRejectsAnotherMembersCart() {
         TradeCartMapper mapper = mock(TradeCartMapper.class);
         CartServiceImpl service = new CartServiceImpl(mapper);

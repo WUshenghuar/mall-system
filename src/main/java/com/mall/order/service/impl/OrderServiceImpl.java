@@ -65,8 +65,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public String createOrder(Long userId, Long skuId, Integer quantity, Long couponId) {
         // 生成订单号
-        String orderNo = "ORD" + System.currentTimeMillis()
-                + String.format("%04d", (int) (Math.random() * 10000));
+        String orderNo = "ORD" + UUID.randomUUID().toString().replace("-", "").substring(0, 29);
 
         // Redis 可用时：分布式锁 + 预扣库存
         if (redisTemplate != null) {
@@ -78,13 +77,17 @@ public class OrderServiceImpl implements OrderService {
                 throw new BusinessException("操作太频繁，请稍后重试");
             }
             try {
-                Long stock = redisTemplate.opsForValue()
-                        .decrement(STOCK_KEY + skuId);
+                Long stock = redisTemplate.opsForValue().increment(STOCK_KEY + skuId, -quantity.longValue());
                 if (stock == null || stock < 0) {
-                    redisTemplate.opsForValue().increment(STOCK_KEY + skuId);
+                    redisTemplate.opsForValue().increment(STOCK_KEY + skuId, quantity.longValue());
                     throw new BusinessException("库存不足");
                 }
-                sendCreateMessage(userId, skuId, quantity, couponId, orderNo);
+                try {
+                    sendCreateMessage(userId, skuId, quantity, couponId, orderNo);
+                } catch (RuntimeException e) {
+                    redisTemplate.opsForValue().increment(STOCK_KEY + skuId, quantity.longValue());
+                    throw e;
+                }
             } finally {
                 String val = (String) redisTemplate.opsForValue().get(lockKey);
                 if (lockValue.equals(val)) {
@@ -118,6 +121,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void processOrderMessage(Map<String, Object> msg) {
         String orderNo = (String) msg.get("orderNo");
+        if (orderMapper.selectCount(Wrappers.<Order>lambdaQuery().eq(Order::getOrderNo, orderNo)) > 0) return;
         Long userId = Long.valueOf(msg.get("userId").toString());
         Long skuId = Long.valueOf(msg.get("skuId").toString());
         Integer quantity = Integer.valueOf(msg.get("quantity").toString());

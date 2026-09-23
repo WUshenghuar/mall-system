@@ -4,6 +4,7 @@ import com.mall.common.exception.BusinessException;
 import com.mall.common.result.Result;
 import com.mall.security.jwt.JwtTokenProvider;
 import com.mall.security.user.LoginUser;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +25,7 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
 
     @PostMapping("/login")
-    public Result<Map<String, Object>> login(@RequestBody LoginRequest req) {
+    public Result<Map<String, Object>> login(@Valid @RequestBody LoginRequest req) {
         try {
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword())

@@ -57,6 +57,11 @@ public class CouponServiceImpl implements CouponService {
     @Transactional
     public void update(Coupon coupon) {
         normalizeCoupon(coupon);
+        coupon.setStatus(null);
+        coupon.setIssuedCount(null);
+        coupon.setCreateTime(null);
+        coupon.setUpdateTime(null);
+        coupon.setDeleted(null);
         couponMapper.updateById(coupon);
     }
 
@@ -78,6 +83,9 @@ public class CouponServiceImpl implements CouponService {
     @Override
     @Transactional
     public void audit(Long id, Integer status, String comment) {
+        if (!Integer.valueOf(2).equals(status) && !Integer.valueOf(3).equals(status)) {
+            throw new BusinessException("优惠券审核状态不合法");
+        }
         Coupon coupon = couponMapper.selectById(id);
         if (coupon == null) throw new BusinessException("优惠券不存在");
         if (coupon.getStatus() != 1) throw new BusinessException("该优惠券不是待审核状态");

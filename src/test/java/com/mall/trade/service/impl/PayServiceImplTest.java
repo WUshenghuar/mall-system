@@ -48,10 +48,32 @@ class PayServiceImplTest {
     }
 
     @Test
+    void createPayUsesCollisionResistantDatabaseSafeNumber() {
+        TradePayMapper payMapper = mock(TradePayMapper.class);
+        TradeOrderService orderService = mock(TradeOrderService.class);
+        TradeOrder order = new TradeOrder();
+        order.setOrderStatus(0);
+        order.setPayAmount(new BigDecimal("19.90"));
+        when(orderService.getOwnedByOrderNoForUpdate("T-1", 9L)).thenReturn(order);
+
+        TradePay pay = new PayServiceImpl(payMapper, orderService).createPay("T-1", 1, 9L);
+
+        assertThat(pay.getPayNo()).matches("P[0-9a-f]{31}");
+    }
+
+    @Test
     void createPayRejectsUnknownPaymentType() {
         PayServiceImpl service = new PayServiceImpl(mock(TradePayMapper.class), mock(TradeOrderService.class));
 
         assertThatThrownBy(() -> service.createPay("T-1", 9, 9L))
+                .hasMessage("支付方式不支持");
+    }
+
+    @Test
+    void createPayRejectsWechatUntilCallbackIsImplemented() {
+        PayServiceImpl service = new PayServiceImpl(mock(TradePayMapper.class), mock(TradeOrderService.class));
+
+        assertThatThrownBy(() -> service.createPay("T-1", 2, 9L))
                 .hasMessage("支付方式不支持");
     }
 
@@ -87,6 +109,30 @@ class PayServiceImplTest {
 
         verify(payMapper, times(1)).markSuccess(eq(1L), anyString());
         verify(orderService, times(1)).markPaid("T-1", 1);
+    }
+
+    @Test
+    void concurrentCallbackLoserStillAcknowledgesCommittedSuccess() throws Exception {
+        TradePayMapper payMapper = mock(TradePayMapper.class);
+        TradeOrderService orderService = mock(TradeOrderService.class);
+        TradePay pending = new TradePay();
+        pending.setId(1L); pending.setOrderNo("T-1"); pending.setPayType(1); pending.setPayStatus(0);
+        pending.setPayAmount(new BigDecimal("100.00"));
+        TradePay succeeded = new TradePay();
+        succeeded.setId(1L); succeeded.setPayStatus(1);
+        TradeOrder order = new TradeOrder(); order.setOrderNo("T-1"); order.setPayAmount(new BigDecimal("100.00"));
+        when(payMapper.selectOne(any())).thenReturn(pending);
+        when(payMapper.markSuccess(eq(1L), anyString())).thenReturn(0);
+        when(payMapper.selectByIdForUpdate(1L)).thenReturn(succeeded);
+        when(orderService.getByOrderNo("T-1")).thenReturn(order);
+
+        KeyPair keyPair = KeyPairGenerator.getInstance("RSA").generateKeyPair();
+        PayServiceImpl service = new PayServiceImpl(payMapper, orderService);
+        ReflectionTestUtils.setField(service, "alipayPublicKey",
+                Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded()));
+
+        assertThat(service.handleAlipayNotify(signedCallback(keyPair, "100.00"))).isTrue();
+        verify(orderService, never()).markPaid(anyString(), any());
     }
 
     @Test

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 
 const request = axios.create({
   baseURL: '/api',

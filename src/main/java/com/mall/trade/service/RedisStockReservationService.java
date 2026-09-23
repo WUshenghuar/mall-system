@@ -59,10 +59,18 @@ public class RedisStockReservationService {
 
     public void release(Long skuId, int quantity) {
         StringRedisTemplate redis = redisTemplateProvider.getIfAvailable();
-        if (redis != null) {
-            String key = key(skuId);
+        if (redis == null) return;
+        String key = key(skuId);
+        Runnable action = () -> {
             redis.opsForValue().increment(key, quantity);
             redis.expire(key, Duration.ofHours(6));
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCommit() { action.run(); }
+            });
+        } else {
+            action.run();
         }
     }
 

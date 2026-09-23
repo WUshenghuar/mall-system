@@ -84,7 +84,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import dayjs from 'dayjs'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 import { getTaxPage, createTax, updateTax, deleteTax } from '@/api/finance'
 
 const loading = ref(false)

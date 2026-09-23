@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
@@ -25,8 +26,11 @@ public class FileService {
      */
     public String upload(MultipartFile file) {
         ensureBucket();
+        String originalName = StringUtils.cleanPath(String.valueOf(file.getOriginalFilename()));
+        String fileName = originalName.substring(originalName.lastIndexOf('/') + 1);
+        if (!StringUtils.hasText(fileName) || "null".equals(fileName) || fileName.contains("..")) fileName = "upload";
         String objectName = UUID.randomUUID().toString().substring(0, 8)
-                + "-" + file.getOriginalFilename();
+                + "-" + fileName;
         try (InputStream is = file.getInputStream()) {
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(minioConfig.getBucket())
@@ -46,11 +50,11 @@ public class FileService {
      * 生成预签名 URL（有效期 7 天）
      */
     public String getPresignedUrl(String objectPath) {
-        String[] parts = objectPath.split("/", 2);
+        String objectName = objectName(objectPath);
         try {
             return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                    .bucket(parts[0])
-                    .object(parts[1])
+                    .bucket(minioConfig.getBucket())
+                    .object(objectName)
                     .method(Method.GET)
                     .expiry(7, TimeUnit.DAYS)
                     .build());
@@ -61,15 +65,28 @@ public class FileService {
     }
 
     public void delete(String objectPath) {
-        String[] parts = objectPath.split("/", 2);
+        String objectName = objectName(objectPath);
         try {
             minioClient.removeObject(RemoveObjectArgs.builder()
-                    .bucket(parts[0])
-                    .object(parts[1])
+                    .bucket(minioConfig.getBucket())
+                    .object(objectName)
                     .build());
         } catch (Exception e) {
             log.error("Delete failed", e);
+            throw new com.mall.common.exception.BusinessException("文件删除失败: " + e.getMessage());
         }
+    }
+
+    private String objectName(String objectPath) {
+        String prefix = minioConfig.getBucket() + "/";
+        if (!StringUtils.hasText(objectPath) || !objectPath.startsWith(prefix)) {
+            throw new com.mall.common.exception.BusinessException("文件路径不合法");
+        }
+        String objectName = objectPath.substring(prefix.length());
+        if (!StringUtils.hasText(objectName) || objectName.contains("..")) {
+            throw new com.mall.common.exception.BusinessException("文件路径不合法");
+        }
+        return objectName;
     }
 
     private void ensureBucket() {

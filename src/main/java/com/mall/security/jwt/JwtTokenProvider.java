@@ -16,9 +16,13 @@ public class JwtTokenProvider {
     private final SecretKey key;
     private final long expiration;
 
-    public JwtTokenProvider(@Value("${jwt.secret:mall-system-secret-key-2026}") String secret,
+    public JwtTokenProvider(@Value("${jwt.secret:}") String secret,
                             @Value("${jwt.expiration:86400000}") long expiration) {
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = secret == null ? new byte[0] : secret.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            throw new IllegalStateException("JWT_SECRET must contain at least 32 UTF-8 bytes");
+        }
+        this.key = Keys.hmacShaKeyFor(keyBytes);
         this.expiration = expiration;
     }
 

@@ -17,7 +17,7 @@ class KnowledgePayload(BaseModel):
 
 
 def verify_token(token: str) -> None:
-    if token != settings.service_token:
+    if not settings.service_token or token != settings.service_token:
         raise HTTPException(status_code=401, detail="invalid AI service token")
 
 

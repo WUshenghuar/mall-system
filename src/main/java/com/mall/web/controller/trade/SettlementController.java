@@ -4,6 +4,7 @@ import com.mall.common.result.Result;
 import com.mall.security.user.CurrentMember;
 import com.mall.trade.service.SettlementService;
 import com.mall.trade.service.SettlementSnapshotService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,7 @@ public class SettlementController {
     }
 
     @PostMapping("/check")
-    public Result<Map<String, Object>> check(@RequestBody SettlementReq req, Authentication auth) {
+    public Result<Map<String, Object>> check(@Valid @RequestBody SettlementReq req, Authentication auth) {
         return Result.success(settlementSnapshotService.create(CurrentMember.id(auth), req.getCartIds(), req.getAddressId(), req.getCouponId()));
     }
 

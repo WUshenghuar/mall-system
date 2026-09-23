@@ -48,6 +48,23 @@ class CouponServiceImplTest {
     }
 
     @Test
+    @DisplayName("update: 运营编辑不能绕过审核或篡改发行量")
+    void updateDoesNotChangeManagedFields() {
+        Coupon update = new Coupon();
+        update.setId(200L);
+        update.setCouponName("更新后的草稿券");
+        update.setStatus(2);
+        update.setIssuedCount(99);
+
+        couponService.update(update);
+
+        Coupon coupon = couponService.getById(200L);
+        assertThat(coupon.getCouponName()).isEqualTo("更新后的草稿券");
+        assertThat(coupon.getStatus()).isZero();
+        assertThat(coupon.getIssuedCount()).isZero();
+    }
+
+    @Test
     @DisplayName("audit: 审核通过状态变为 2")
     void shouldApproveCoupon() {
         couponService.audit(201L, 2, "审核通过");
@@ -63,6 +80,13 @@ class CouponServiceImplTest {
 
         Coupon coupon = couponService.getById(201L);
         assertThat(coupon.getStatus()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("audit: 只允许通过或驳回状态")
+    void shouldRejectUnknownAuditStatus() {
+        assertThatThrownBy(() -> couponService.audit(201L, 99, null))
+                .hasMessageContaining("审核状态不合法");
     }
 
     @Test

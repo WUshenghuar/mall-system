@@ -8,6 +8,13 @@ from app.api import knowledge
 from app.rag import retriever
 
 
+def test_empty_service_token_never_authenticates(monkeypatch):
+    monkeypatch.setattr(knowledge, "settings", SimpleNamespace(service_token=""))
+    with pytest.raises(HTTPException) as error:
+        knowledge.verify_token("")
+    assert error.value.status_code == 401
+
+
 def test_knowledge_write_does_not_overwrite_when_embedding_fails(monkeypatch):
     async def fail_embedding(text):
         raise RuntimeError("embedding unavailable")

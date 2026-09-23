@@ -4,6 +4,7 @@ import com.mall.common.result.Result;
 import com.mall.order.entity.Order;
 import com.mall.order.service.OrderService;
 import com.mall.security.user.LoginUser;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -19,7 +20,7 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping("/create")
-    public Result<String> create(@RequestBody CreateReq req, Authentication auth) {
+    public Result<String> create(@Valid @RequestBody CreateReq req, Authentication auth) {
         LoginUser user = (LoginUser) auth.getPrincipal();
         String orderNo = orderService.createOrder(user.getUserId(),
                 req.getSkuId(), req.getQuantity(), req.getCouponId());

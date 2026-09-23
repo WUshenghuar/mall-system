@@ -41,12 +41,11 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -71,9 +70,7 @@ public class TradeOrderServiceImpl implements TradeOrderService {
     private final TaxConfigService taxConfigService;
 
     private String generateOrderNo() {
-        String date = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-        int rand = ThreadLocalRandom.current().nextInt(1000, 9999);
-        return "T" + date + rand;
+        return "T" + UUID.randomUUID().toString().replace("-", "").substring(0, 31);
     }
 
     @Override

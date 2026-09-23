@@ -5,6 +5,7 @@ import com.mall.security.user.CurrentMember;
 import com.mall.trade.entity.TradeOrder;
 import com.mall.trade.service.TradeOrderService;
 import com.mall.trade.service.SettlementSnapshotService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class TradeOrderController {
     private final SettlementSnapshotService settlementSnapshotService;
 
     @PostMapping
-    public Result<TradeOrder> create(@RequestBody CreateReq req, Authentication auth) {
+    public Result<TradeOrder> create(@Valid @RequestBody CreateReq req, Authentication auth) {
         Long userId = CurrentMember.id(auth);
         SettlementSnapshotService.Snapshot snapshot = settlementSnapshotService.consume(req.getSnapshotToken(), userId);
         return Result.success(tradeOrderService.createOrder(userId, snapshot.addressId(), snapshot.couponId(), req.getRemark(), snapshot.itemsJson()));

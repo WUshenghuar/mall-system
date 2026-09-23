@@ -19,6 +19,8 @@ public class CartServiceImpl implements CartService {
 
     @Override
     public TradeCart addCart(Long userId, Long skuId, Integer quantity) {
+        if (skuId == null) throw new BusinessException("商品不能为空");
+        if (quantity == null || quantity <= 0) throw new BusinessException("商品数量必须大于 0");
         LambdaQueryWrapper<TradeCart> qw = Wrappers.lambdaQuery(TradeCart.class)
                 .eq(TradeCart::getUserId, userId)
                 .eq(TradeCart::getSkuId, skuId);

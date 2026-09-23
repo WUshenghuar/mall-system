@@ -4,7 +4,10 @@ import com.mall.common.result.Result;
 import com.mall.security.user.CurrentMember;
 import com.mall.trade.entity.TradeCart;
 import com.mall.trade.service.CartService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +24,7 @@ public class CartController {
     private final CartService cartService;
 
     @PostMapping
-    public Result<TradeCart> add(@RequestBody AddReq req, Authentication auth) {
+    public Result<TradeCart> add(@Valid @RequestBody AddReq req, Authentication auth) {
         return Result.success(cartService.addCart(CurrentMember.id(auth), req.getSkuId(), req.getQuantity()));
     }
 
@@ -31,7 +34,7 @@ public class CartController {
     }
 
     @PutMapping("/{id}")
-    public Result<Void> update(@PathVariable Long id, @RequestBody UpdateReq req, Authentication auth) {
+    public Result<Void> update(@PathVariable Long id, @Valid @RequestBody UpdateReq req, Authentication auth) {
         cartService.updateCart(id, CurrentMember.id(auth), req.getQuantity(), req.getChecked());
         return Result.success(null);
     }
@@ -43,7 +46,7 @@ public class CartController {
     }
 
     @DeleteMapping("/batch")
-    public Result<Void> deleteBatch(@RequestBody BatchDeleteReq req, Authentication auth) {
+    public Result<Void> deleteBatch(@Valid @RequestBody BatchDeleteReq req, Authentication auth) {
         cartService.deleteBatch(CurrentMember.id(auth), req.getIds());
         return Result.success(null);
     }
@@ -61,12 +64,12 @@ public class CartController {
 
     @Data
     public static class UpdateReq {
-        private Integer quantity;
-        private Integer checked;
+        @Min(1) private Integer quantity;
+        @Min(0) @Max(1) private Integer checked;
     }
 
     @Data
     public static class BatchDeleteReq {
-        @NotNull private List<Long> ids;
+        @NotEmpty private List<Long> ids;
     }
 }

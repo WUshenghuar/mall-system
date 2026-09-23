@@ -45,16 +45,14 @@ public class MemberServiceImpl implements MemberService {
     }
 
     @Override
-    public void update(Member member) {
-        memberMapper.updateById(member);
-    }
-
-    @Override
     @Transactional
     public void adjustPoints(Long id, int points, String reason) {
-        Member member = memberMapper.selectById(id);
+        Member member = memberMapper.selectByIdForUpdate(id);
         if (member == null) throw new BusinessException("会员不存在");
-        member.setPoints(member.getPoints() + points);
+        long adjusted = (member.getPoints() == null ? 0L : member.getPoints()) + points;
+        if (adjusted < 0) throw new BusinessException("积分余额不足");
+        if (adjusted > Integer.MAX_VALUE) throw new BusinessException("积分数值超限");
+        member.setPoints((int) adjusted);
         memberMapper.updateById(member);
 
         MemberPointsLog log = new MemberPointsLog();
@@ -82,7 +80,7 @@ public class MemberServiceImpl implements MemberService {
     @Transactional
     public void recordOrderCompletion(Long id, BigDecimal amount, String orderNo) {
         if (amount == null || amount.signum() <= 0) return;
-        Member member = memberMapper.selectById(id);
+        Member member = memberMapper.selectByIdForUpdate(id);
         if (member == null) throw new BusinessException("会员不存在");
         BigDecimal total = member.getTotalAmount() == null ? BigDecimal.ZERO : member.getTotalAmount();
         int points = amount.setScale(0, RoundingMode.DOWN).intValue();
@@ -103,7 +101,7 @@ public class MemberServiceImpl implements MemberService {
     @Transactional
     public void recordOrderRefund(Long id, BigDecimal amount, String orderNo) {
         if (amount == null || amount.signum() <= 0) return;
-        Member member = memberMapper.selectById(id);
+        Member member = memberMapper.selectByIdForUpdate(id);
         if (member == null) throw new BusinessException("会员不存在");
         BigDecimal total = member.getTotalAmount() == null ? BigDecimal.ZERO : member.getTotalAmount();
         int points = amount.setScale(0, RoundingMode.DOWN).intValue();

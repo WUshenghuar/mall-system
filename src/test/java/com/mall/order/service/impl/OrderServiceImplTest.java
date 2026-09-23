@@ -1,13 +1,23 @@
 package com.mall.order.service.impl;
 
 import com.mall.order.entity.Order;
+import com.mall.order.mapper.OrderItemMapper;
+import com.mall.order.mapper.OrderMapper;
+import com.mall.order.mq.OrderMessageSender;
 import com.mall.order.service.OrderService;
+import com.mall.finance.mapper.TaxConfigMapper;
+import com.mall.product.mapper.SkuMapper;
+import com.mall.product.mapper.SpuMapper;
 import com.mall.web.MallApplication;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -15,11 +25,37 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
 @SpringBootTest(classes = MallApplication.class, webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @Transactional
 @Sql(scripts = "/test-data-order.sql")
 class OrderServiceImplTest {
+
+    @Test
+    void createOrderRestoresReservedQuantityWhenMessagePublishFails() {
+        OrderServiceImpl service = new OrderServiceImpl(mock(OrderMapper.class), mock(OrderItemMapper.class),
+                mock(SkuMapper.class), mock(SpuMapper.class), mock(TaxConfigMapper.class));
+        RedisTemplate<String, Object> redis = mock(RedisTemplate.class);
+        ValueOperations<String, Object> values = mock(ValueOperations.class);
+        OrderMessageSender sender = mock(OrderMessageSender.class);
+        when(redis.opsForValue()).thenReturn(values);
+        when(values.setIfAbsent(startsWith("lock:order:create:"), anyString(), eq(10L), any())).thenReturn(true);
+        when(values.increment("stock:sku:100", -3L)).thenReturn(7L);
+        doThrow(new RuntimeException("broker offline")).when(sender).sendOrderCreate(anyMap());
+        ReflectionTestUtils.setField(service, "redisTemplate", redis);
+        ReflectionTestUtils.setField(service, "messageSender", sender);
+
+        assertThatThrownBy(() -> service.createOrder(1L, 100L, 3, null))
+                .hasMessageContaining("broker offline");
+
+        verify(values).increment("stock:sku:100", -3L);
+        verify(values).increment("stock:sku:100", 3L);
+        ArgumentCaptor<Map<String, Object>> message = ArgumentCaptor.forClass(Map.class);
+        verify(sender).sendOrderCreate(message.capture());
+        assertThat(message.getValue().get("orderNo")).asString().matches("ORD[0-9a-f]{29}");
+    }
 
     @Autowired
     private OrderService orderService;
@@ -43,6 +79,21 @@ class OrderServiceImplTest {
         assertThat(order.getOrderStatus()).isEqualTo(0);
         assertThat(order.getPayAmount())
                 .isGreaterThan(order.getTotalAmount()); // 含运费+关税
+    }
+
+    @Test
+    @DisplayName("processOrderMessage: 重复消息保持幂等")
+    void shouldIgnoreDuplicateOrderMessage() {
+        Map<String, Object> msg = new HashMap<>();
+        msg.put("orderNo", "ORD-TEST-IDEMPOTENT");
+        msg.put("userId", 1L);
+        msg.put("skuId", 100L);
+        msg.put("quantity", 1);
+
+        orderService.processOrderMessage(msg);
+        orderService.processOrderMessage(msg);
+
+        assertThat(orderService.getByOrderNo("ORD-TEST-IDEMPOTENT")).isNotNull();
     }
 
     @Test

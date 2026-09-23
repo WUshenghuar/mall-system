@@ -4,9 +4,32 @@ spring:
       - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
   datasource:
     url: jdbc:mysql://localhost:3306/mall_system?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_ROOT_PASSWORD:123456}
+  rabbitmq:
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
 
 elasticsearch:
   enabled: true
+
+jwt:
+  secret: ${JWT_SECRET:mall-system-dev-only-secret-key-2026}
+
+security:
+  allow-default-accounts: true
+
+ai:
+  service:
+    token: ${AI_SERVICE_TOKEN:change-me-local-only}
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+minio:
+  access-key: ${MINIO_ROOT_USER:minioadmin}
+  secret-key: ${MINIO_ROOT_PASSWORD:minioadmin}
 
 trade:
   payment:

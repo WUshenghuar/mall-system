@@ -123,7 +123,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import dayjs from 'dayjs'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 import { getCouponPage, createCoupon, updateCoupon, deleteCoupon, submitAudit, auditCoupon } from '@/api/marketing'
 
 const loading = ref(false)

@@ -62,7 +62,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 import { getTradeOrderPage, shipTradeOrder } from '@/api/order'
 
 const loading = ref(false)

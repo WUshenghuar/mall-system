@@ -22,10 +22,10 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-vue': ['vue', 'vue-router', 'pinia'],
-          'vendor-ui': ['ant-design-vue', '@ant-design/icons-vue'],
-          'vendor-http': ['axios', 'nprogress']
+        manualChunks(id) {
+          if (id.includes('node_modules/ant-design-vue') || id.includes('node_modules/@ant-design/icons-vue')) return 'vendor-ui'
+          if (id.includes('node_modules/vue') || id.includes('node_modules/pinia')) return 'vendor-vue'
+          if (id.includes('node_modules/axios') || id.includes('node_modules/nprogress')) return 'vendor-http'
         }
       }
     }

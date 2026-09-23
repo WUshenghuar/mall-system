@@ -14,13 +14,35 @@ import static org.mockito.Mockito.when;
 
 class FileControllerTest {
     @Test
+    void genericUploadRejectsNonImageBeforeStorageCall() {
+        FileService fileService = mock(FileService.class);
+        FileController controller = new FileController(fileService);
+        MockMultipartFile file = new MockMultipartFile("file", "notes.html", "text/html", "<script/>".getBytes());
+
+        assertThatThrownBy(() -> controller.upload(file))
+                .hasMessage("上传文件必须是 5MB 以内的图片文件");
+        verifyNoInteractions(fileService);
+    }
+
+    @Test
+    void genericUploadRejectsSpoofedImageContentType() {
+        FileService fileService = mock(FileService.class);
+        FileController controller = new FileController(fileService);
+        MockMultipartFile file = new MockMultipartFile("file", "payload.jpg", "image/jpeg", "<script/>".getBytes());
+
+        assertThatThrownBy(() -> controller.upload(file))
+                .hasMessage("上传文件必须是 5MB 以内的图片文件");
+        verifyNoInteractions(fileService);
+    }
+
+    @Test
     void productImageRejectsNonImageBeforeStorageCall() {
         FileService fileService = mock(FileService.class);
         FileController controller = new FileController(fileService);
         MockMultipartFile file = new MockMultipartFile("file", "notes.txt", "text/plain", "not image".getBytes());
 
         assertThatThrownBy(() -> controller.uploadProductImage(file))
-                .hasMessage("商品图片必须是 5MB 以内的图片文件");
+                .hasMessage("上传文件必须是 5MB 以内的图片文件");
         verifyNoInteractions(fileService);
     }
 
@@ -31,7 +53,8 @@ class FileControllerTest {
         when(fileService.getPresignedUrl("mall-product/cover.jpg")).thenReturn("http://localhost/cover.jpg");
         FileController controller = new FileController(fileService);
 
-        var result = controller.uploadProductImage(new MockMultipartFile("file", "cover.jpg", "image/jpeg", new byte[]{1}));
+        var result = controller.uploadProductImage(new MockMultipartFile("file", "cover.jpg", "image/jpeg",
+                new byte[]{(byte) 0xff, (byte) 0xd8, (byte) 0xff, 0}));
 
         assertThat(result.getData()).containsEntry("path", "mall-product/cover.jpg")
                 .containsEntry("url", "http://localhost/cover.jpg");

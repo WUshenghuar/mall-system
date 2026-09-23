@@ -58,7 +58,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 import { getBrandPage, createBrand, updateBrand, deleteBrand } from '@/api/product'
 
 const loading = ref(false)

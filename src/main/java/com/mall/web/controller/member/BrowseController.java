@@ -3,6 +3,7 @@ package com.mall.web.controller.member;
 import com.mall.common.result.Result;
 import com.mall.member.service.BrowseHistoryService;
 import com.mall.security.user.CurrentMember;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,7 @@ public class BrowseController {
     private final BrowseHistoryService browseHistoryService;
 
     @PostMapping
-    public Result<Void> add(@RequestBody AddReq req, Authentication auth) {
+    public Result<Void> add(@Valid @RequestBody AddReq req, Authentication auth) {
         browseHistoryService.add(CurrentMember.id(auth), req.getSpuId());
         return Result.success(null);
     }

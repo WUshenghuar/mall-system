@@ -27,14 +27,6 @@ public class MemberController {
         return Result.success(memberService.getById(id));
     }
 
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAuthority('member:detail')")
-    public Result<Void> update(@PathVariable Long id, @RequestBody Member member) {
-        member.setId(id);
-        memberService.update(member);
-        return Result.success(null);
-    }
-
     @PostMapping("/{id}/points")
     @PreAuthorize("hasAuthority('member:points:adjust')")
     public Result<Void> adjustPoints(@PathVariable Long id, @RequestParam int points,

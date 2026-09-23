@@ -3,7 +3,7 @@
 > 在现有B端后台管理系统基础上，补充C端用户前台功能
 > 实现完整的电商业务闭环：用户浏览 → 购物车 → 下单 → 支付 → 物流 → 售后
 
-> **方案状态（2026-09-05）：** 本文保留早期多模块/微服务设计，属于目标架构，不是当前目录结构。当前实际架构为根目录单 Maven 模块；B 端前端为 `mall-web`，C 端前端为 `mall-storefront`，B/C API 均由 Spring Boot 根模块提供。请以《当前实现基线与文档口径》阅读当前代码，以《B端与C端功能差距审计》阅读未实现范围。
+> **方案状态（2026-09-17）：** 本文保留早期多模块/微服务设计，属于目标架构，不是当前目录结构。当前实际架构为根目录单 Maven 模块；B 端前端为 `mall-web`，C 端前端为 `mall-storefront`，B/C API 均由 Spring Boot 根模块提供。请以《当前实现基线与文档口径》阅读当前代码，以《B端与C端功能差距审计》阅读未实现范围。
 
 ## 当前落地架构修订
 
@@ -15,10 +15,10 @@ Spring Boot 单模块
 
 mall-web/          B 端 Vue 3 + Ant Design Vue
 mall-storefront/   C 端 Vue 3 + Vant，移动优先响应式（手机单列 + 桌面 ≥1025px 自适应）
-mall-ai-service/   Python 包骨架，待实现
+mall-ai-service/   Python FastAPI + LangGraph，已实现 AI P0 对话/RAG/只读工具规划基线
 ```
 
-当前 C 端已落地会员认证、商品目录、购物车、结算、订单、模拟支付、物流、收藏和足迹基础能力；多语言、多币种、真实支付、售后和 AI 仍是后续范围。下方原始模块拆分和 `/api/logistics/*` 等路径仅作历史设计参考。
+当前 C 端已落地会员认证、商品目录、购物车、结算税费、优惠券/活动、订单、模拟支付、物流、收藏/足迹、退款/退货退款和客服入口；多语言、多币种、真实支付、复杂售后和 AI 高级治理仍是后续范围。下方原始模块拆分和 `/api/logistics/*` 等路径仅作历史设计参考。
 
 ---
 
@@ -426,6 +426,8 @@ CREATE TABLE member_browse_history (
 
 ### 5.1 C端核心API
 
+> 下表按当前根模块实际路由修订；早期 `/api/logistics/*` 等路径仅保留在目标设计语境中，不是当前接口。
+
 ```yaml
 # ==================== 购物车 API ====================
 POST   /api/trade/cart                 # 添加到购物车
@@ -445,13 +447,14 @@ GET    /api/trade/order/list           # 订单列表
 GET    /api/trade/order/{orderNo}      # 订单详情
 POST   /api/trade/order/{orderNo}/cancel  # 取消订单
 POST   /api/trade/order/{orderNo}/confirm  # 确认收货
-GET    /api/trade/order/{orderNo}/logistics  # 物流信息
+GET    /api/trade/logistics/{orderNo}        # 物流信息
 
 # ==================== 支付 API ====================
 POST   /api/trade/pay/create           # 创建支付
 GET    /api/trade/pay/status/{orderNo}  # 查询支付状态
 POST   /api/trade/pay/notify/alipay    # 支付宝回调
-POST   /api/trade/pay/notify/wechat    # 微信回调
+POST   /api/trade/pay/notify/wechat    # 规划：微信回调（当前未实现）
+POST   /api/trade/pay/{payNo}/simulate-success # 开发期模拟支付
 
 # ==================== 地址 API ====================
 GET    /api/member/address             # 地址列表
@@ -461,14 +464,20 @@ DELETE /api/member/address/{id}        # 删除地址
 PUT    /api/member/address/{id}/default  # 设为默认
 
 # ==================== 商品 API（C端） ====================
-GET    /api/product/spu/{id}           # 商品详情
-GET    /api/product/sku/{id}           # SKU详情
-GET    /api/product/spu/list           # 商品列表
+GET    /api/store/products/{spuId}     # 商品详情
+GET    /api/store/products             # 商品列表/筛选
 POST   /api/member/favorite            # 收藏商品
 DELETE /api/member/favorite/{spuId}    # 取消收藏
 GET    /api/member/favorite/list       # 收藏列表
 POST   /api/member/browse              # 浏览记录
 GET    /api/member/browse/list         # 浏览历史
+
+# ==================== 售后/营销 API ====================
+POST   /api/trade/refund               # 申请退款/退货退款
+GET    /api/trade/refund               # 我的售后
+POST   /api/trade/refund/{id}/return   # 提交退货物流
+GET    /api/store/coupons              # 可领取优惠券
+GET    /api/store/activities           # 进行中活动
 ```
 
 ### 5.2 请求/响应示例
@@ -891,22 +900,21 @@ Schema校验防止LLM传非法参数，回答生成后再过一遍LLM自检。"
 ├── MySQL 8.0
 ├── Redis 7
 ├── RabbitMQ 3
-├── Elasticsearch 8.10
+├── Elasticsearch 8.x
 ├── MinIO（对象存储）
 └── Python 3.11 + FastAPI + LangGraph
 
 前端：
-├── Vue 3 + TypeScript
-├── Vite
-├── Pinia（状态管理）
-├── Element Plus（UI组件）
+├── Vue 3 + Vite
+├── Pinia + Vue Router
+├── Ant Design Vue 4（B端）
+├── Vant 4（C端）
 └── Axios（HTTP请求）
 
 DevOps：
 ├── Docker + Docker Compose
-├── Nginx
-├── GitHub Actions（CI/CD）
-└── LangFuse（AI可观测性）
+├── OpenTelemetry Collector（本地 smoke，可选）
+└── LangFuse OTLP（可选配置）
 
 测试：
 ├── JUnit 5

@@ -169,7 +169,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 import request from '@/utils/request'
 
 const activeTab = ref('users')

@@ -71,7 +71,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { message } from 'ant-design-vue'
+import message from 'ant-design-vue/es/message'
 import { getStatementPage, getStatementDetail, confirmStatement, exportStatement, generateStatement } from '@/api/finance'
 
 const loading = ref(false)
