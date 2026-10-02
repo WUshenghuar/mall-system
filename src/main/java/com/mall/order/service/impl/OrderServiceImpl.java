@@ -19,6 +19,7 @@ import com.mall.product.mapper.SkuMapper;
 import com.mall.product.mapper.SpuMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -168,7 +169,11 @@ public class OrderServiceImpl implements OrderService {
         order.setOrderStatus(0);
         order.setPayStatus(0);
         order.setLogisticsStatus(0);
-        orderMapper.insert(order);
+        try {
+            orderMapper.insert(order);
+        } catch (DuplicateKeyException e) {
+            return;
+        }
 
         OrderItem item = new OrderItem();
         item.setOrderId(order.getId());

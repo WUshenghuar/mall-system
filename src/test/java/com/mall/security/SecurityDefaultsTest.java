@@ -26,8 +26,12 @@ class SecurityDefaultsTest {
 
     @Test
     void jwtProviderRejectsMissingOrWeakSecretWithActionableMessage() {
+        assertThatThrownBy(() -> new JwtTokenProvider("", 60_000))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("JWT_SECRET");
         assertThatThrownBy(() -> new JwtTokenProvider("short", 60_000))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("JWT_SECRET");
+        assertThat(new JwtTokenProvider("0123456789abcdef0123456789abcdef", 60_000)).isNotNull();
     }
 }

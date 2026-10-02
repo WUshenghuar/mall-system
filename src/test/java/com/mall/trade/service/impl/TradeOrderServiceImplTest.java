@@ -34,6 +34,43 @@ import static org.mockito.Mockito.*;
 
 class TradeOrderServiceImplTest {
     @Test
+    void insufficientStockForMultipleUnitsDoesNotCreateOrder() {
+        TradeOrderMapper orderMapper = mock(TradeOrderMapper.class);
+        TradeOrderItemMapper itemMapper = mock(TradeOrderItemMapper.class);
+        TradeCartMapper cartMapper = mock(TradeCartMapper.class);
+        SkuMapper skuMapper = mock(SkuMapper.class);
+        SkuStockMapper stockMapper = mock(SkuStockMapper.class);
+        MemberAddressMapper addressMapper = mock(MemberAddressMapper.class);
+        RedisStockReservationService reservation = mock(RedisStockReservationService.class);
+        TradeEventPublisher publisher = mock(TradeEventPublisher.class);
+        MemberAddress address = new MemberAddress();
+        address.setUserId(9L);
+        TradeCart cart = new TradeCart();
+        cart.setUserId(9L); cart.setSkuId(7L); cart.setQuantity(2); cart.setChecked(1);
+        Sku sku = new Sku();
+        sku.setId(7L); sku.setSkuCode("SKU-7"); sku.setStatus(1); sku.setPrice(new BigDecimal("100.00"));
+        SkuStock stock = new SkuStock();
+        stock.setSkuId(7L); stock.setStock(1); stock.setLockedStock(0);
+        when(addressMapper.selectById(5L)).thenReturn(address);
+        when(cartMapper.selectList(any())).thenReturn(List.of(cart));
+        when(skuMapper.selectBatchIds(any())).thenReturn(List.of(sku));
+        when(stockMapper.selectList(any())).thenReturn(List.of(stock));
+        when(reservation.reserveAll(any(), any())).thenReturn(false);
+        TradeOrderServiceImpl service = new TradeOrderServiceImpl(orderMapper, itemMapper, cartMapper,
+                mock(TradeLogisticsMapper.class), skuMapper, stockMapper, addressMapper, new ObjectMapper(),
+                publisher, reservation, mock(CouponService.class), mock(MemberService.class), mock(CouponIssueMapper.class),
+                mock(ActivityService.class), mock(SpuMapper.class), mock(TaxConfigService.class));
+
+        assertThatThrownBy(() -> service.createOrder(9L, 5L, null, null,
+                "[{\"skuId\":7,\"quantity\":2}]"))
+                .isInstanceOf(BusinessException.class).hasMessageContaining("库存不足");
+
+        verify(reservation).reserveAll(java.util.Map.of(7L, 2), java.util.Map.of(7L, 1));
+        verify(orderMapper, never()).insert(any(TradeOrder.class));
+        verify(publisher, never()).publish(anyString(), anyString());
+    }
+
+    @Test
     void orderDetailRejectsAnotherMember() {
         TradeOrderMapper orderMapper = mock(TradeOrderMapper.class);
         TradeOrder order = new TradeOrder();

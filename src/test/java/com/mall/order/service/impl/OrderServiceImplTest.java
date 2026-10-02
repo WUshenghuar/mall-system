@@ -57,6 +57,27 @@ class OrderServiceImplTest {
         assertThat(message.getValue().get("orderNo")).asString().matches("ORD[0-9a-f]{29}");
     }
 
+    @Test
+    void createOrderRestoresReservedQuantityWhenStockIsInsufficient() {
+        OrderServiceImpl service = new OrderServiceImpl(mock(OrderMapper.class), mock(OrderItemMapper.class),
+                mock(SkuMapper.class), mock(SpuMapper.class), mock(TaxConfigMapper.class));
+        RedisTemplate<String, Object> redis = mock(RedisTemplate.class);
+        ValueOperations<String, Object> values = mock(ValueOperations.class);
+        OrderMessageSender sender = mock(OrderMessageSender.class);
+        when(redis.opsForValue()).thenReturn(values);
+        when(values.setIfAbsent(startsWith("lock:order:create:"), anyString(), eq(10L), any())).thenReturn(true);
+        when(values.increment("stock:sku:100", -3L)).thenReturn(-1L);
+        ReflectionTestUtils.setField(service, "redisTemplate", redis);
+        ReflectionTestUtils.setField(service, "messageSender", sender);
+
+        assertThatThrownBy(() -> service.createOrder(1L, 100L, 3, null))
+                .hasMessageContaining("库存不足");
+
+        verify(values).increment("stock:sku:100", -3L);
+        verify(values).increment("stock:sku:100", 3L);
+        verify(sender, never()).sendOrderCreate(anyMap());
+    }
+
     @Autowired
     private OrderService orderService;
 
