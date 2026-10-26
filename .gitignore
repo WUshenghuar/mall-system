@@ -56,6 +56,14 @@ mall-web/dist/
 .cursor/
 .agents/
 .claude/
+.codex/
+.ua/
+.mcp.json.tmp
+desktop-preview-shots.mjs
+mobile-preview-shots.mjs
+mall-storefront/screenshots/
+**/__pycache__/
+*.pyc
 
 # Claude Code
 memory/
