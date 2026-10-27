@@ -17,13 +17,16 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AddressController {
 
+    /** 处理会员收货地址的查询、增删改及默认地址设置。 */
     private final AddressService addressService;
 
+    /** 查询当前会员的全部收货地址。 */
     @GetMapping
     public Result<List<MemberAddress>> list(Authentication auth) {
         return Result.success(addressService.getList(CurrentMember.id(auth)));
     }
 
+    /** 查询地址详情，并确认该地址属于当前登录会员。 */
     @GetMapping("/{id}")
     public Result<MemberAddress> detail(@PathVariable Long id, Authentication auth) {
         MemberAddress address = addressService.getById(id);
@@ -33,6 +36,7 @@ public class AddressController {
         return Result.success(address);
     }
 
+    /** 新增收货地址；会员 ID 从认证主体中获取，不接受请求体指定归属。 */
     @PostMapping
     public Result<Void> add(@Valid @RequestBody MemberAddress address, Authentication auth) {
         address.setUserId(CurrentMember.id(auth));
@@ -40,6 +44,7 @@ public class AddressController {
         return Result.success(null);
     }
 
+    /** 更新地址前验证所有权，并以路径 ID 作为待更新地址的主键。 */
     @PutMapping("/{id}")
     public Result<Void> update(@PathVariable Long id, @Valid @RequestBody MemberAddress address, Authentication auth) {
         MemberAddress existing = addressService.getById(id);
@@ -49,6 +54,7 @@ public class AddressController {
         return Result.success(null);
     }
 
+    /** 删除地址前验证所有权，避免通过猜测 ID 操作其他会员的地址。 */
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id, Authentication auth) {
         MemberAddress existing = addressService.getById(id);
@@ -57,6 +63,7 @@ public class AddressController {
         return Result.success(null);
     }
 
+    /** 将指定地址设为当前会员的默认地址；服务负责维护默认地址约束。 */
     @PutMapping("/{id}/default")
     public Result<Void> setDefault(@PathVariable Long id, Authentication auth) {
         MemberAddress existing = addressService.getById(id);

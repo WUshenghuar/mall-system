@@ -19,9 +19,12 @@ import java.util.Map;
 @RequestMapping("/api/system")
 @RequiredArgsConstructor
 public class SystemController {
+    /** 提供后台用户分页查询。 */
     private final SysUserService userService;
+    /** 提供系统角色查询。 */
     private final SysRoleService roleService;
 
+    /** 分页查询系统用户，需要系统用户列表权限。 */
     @GetMapping("/user/list")
     @PreAuthorize("hasAuthority('system:user:list')")
     public Result<Object> userList(@RequestParam(defaultValue = "1") Integer page,
@@ -29,6 +32,7 @@ public class SystemController {
         return Result.success(userService.selectUserPage(page, size));
     }
 
+    /** 查询角色列表，当前接口返回第一页、最多 100 条角色记录。 */
     @GetMapping("/role/list")
     @PreAuthorize("hasAuthority('system:role:config')")
     public Result<List<SysRoleVO>> roleList() {

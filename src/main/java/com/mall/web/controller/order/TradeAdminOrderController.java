@@ -16,8 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/order/trade")
 @RequiredArgsConstructor
 public class TradeAdminOrderController {
+    /** 提供后台交易订单检索能力。 */
     private final TradeOrderService tradeOrderService;
 
+    /** 后台分页查询交易订单，可选按状态和订单号关键字筛选。 */
     @GetMapping("/page")
     @PreAuthorize("hasAuthority('order:list')")
     public Result<?> page(@RequestParam(defaultValue = "1") Integer page,
@@ -27,6 +29,7 @@ public class TradeAdminOrderController {
         return Result.success(tradeOrderService.selectAdminPage(page, size, orderStatus, keyword));
     }
 
+    /** 按订单号查询详情；未找到时返回明确的 404 业务响应。 */
     @GetMapping("/{orderNo}")
     @PreAuthorize("hasAuthority('order:detail')")
     public Result<TradeOrder> detail(@PathVariable String orderNo) {

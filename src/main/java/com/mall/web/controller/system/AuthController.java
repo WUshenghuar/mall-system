@@ -22,9 +22,12 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+    /** 委托 Spring Security 认证管理器校验后台用户名和密码。 */
     private final AuthenticationManager authenticationManager;
+    /** 为认证成功的后台用户签发 JWT。 */
     private final JwtTokenProvider jwtTokenProvider;
 
+    /** 后台登录入口；认证成功时返回 JWT、用户标识、姓名及权限列表。 */
     @PostMapping("/login")
     public Result<Map<String, Object>> login(@Valid @RequestBody LoginRequest req) {
         try {
@@ -44,6 +47,7 @@ public class AuthController {
         }
     }
 
+    /** 返回当前认证后台用户的基本资料和权限列表。 */
     @GetMapping("/userinfo")
     public Result<Map<String, Object>> getUserInfo(Authentication auth) {
         LoginUser loginUser = (LoginUser) auth.getPrincipal();
@@ -55,6 +59,7 @@ public class AuthController {
         return Result.success(data);
     }
 
+    /** 后台登录请求；用户名和密码均不能为空。 */
     @Data
     public static class LoginRequest {
         @NotBlank private String username;

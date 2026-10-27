@@ -22,25 +22,31 @@ import java.util.List;
 @RequestMapping("/api/store")
 @RequiredArgsConstructor
 public class StoreMarketingController {
+    /** 查询可领取优惠券、会员券包及优惠券领取状态。 */
     private final CouponService couponService;
+    /** 查询当前有效的营销活动。 */
     private final ActivityService activityService;
 
+    /** 查询当前可领取的优惠券列表。 */
     @GetMapping("/coupons")
     public Result<List<Coupon>> coupons() {
         return Result.success(couponService.listAvailable());
     }
 
+    /** 将指定优惠券发放给当前登录会员。 */
     @PostMapping("/coupons/{couponId}/claim")
     public Result<Void> claim(@PathVariable Long couponId, Authentication auth) {
         couponService.claim(couponId, CurrentMember.id(auth));
         return Result.success(null);
     }
 
+    /** 查询当前会员的优惠券列表及其状态信息。 */
     @GetMapping("/member/coupons")
     public Result<List<MemberCouponVO>> memberCoupons(Authentication auth) {
         return Result.success(couponService.listMemberCoupons(CurrentMember.id(auth)));
     }
 
+    /** 查询当前有效的营销活动列表。 */
     @GetMapping("/activities")
     public Result<List<Activity>> activities() {
         return Result.success(activityService.selectActive());

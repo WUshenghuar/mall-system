@@ -15,9 +15,12 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class LogisticsController {
 
+    /** 查询指定订单的物流记录。 */
     private final LogisticsService logisticsService;
+    /** 验证当前会员对订单的访问权。 */
     private final TradeOrderService tradeOrderService;
 
+    /** 先校验订单归属，再返回该订单的物流信息。 */
     @GetMapping("/{orderNo}")
     public Result<TradeLogistics> get(@PathVariable String orderNo, Authentication auth) {
         tradeOrderService.getOwnedByOrderNo(orderNo, CurrentMember.id(auth));

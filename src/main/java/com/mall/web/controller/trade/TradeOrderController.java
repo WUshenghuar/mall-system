@@ -18,7 +18,9 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class TradeOrderController {
 
+    /** 创建并维护 C 端交易订单。 */
     private final TradeOrderService tradeOrderService;
+    /** 校验并消费与当前会员关联的一次性结算快照。 */
     private final SettlementSnapshotService settlementSnapshotService;
 
     /** 消费一次性结算快照后创建订单，不接受客户端直接提交商品数量和价格。 */
@@ -29,6 +31,7 @@ public class TradeOrderController {
         return Result.success(tradeOrderService.createOrder(userId, snapshot.addressId(), snapshot.couponId(), req.getRemark(), snapshot.itemsJson()));
     }
 
+    /** 分页查询当前会员订单，可选按订单状态过滤。 */
     @GetMapping("/list")
     public Result<?> list(
             @RequestParam(defaultValue = "1") Integer page,
@@ -38,23 +41,27 @@ public class TradeOrderController {
         return Result.success(tradeOrderService.selectPage(page, size, CurrentMember.id(auth), orderStatus));
     }
 
+    /** 查询指定订单详情；订单归属由服务校验。 */
     @GetMapping("/{orderNo}")
     public Result<TradeOrder> detail(@PathVariable String orderNo, Authentication auth) {
         return Result.success(tradeOrderService.getOwnedByOrderNo(orderNo, CurrentMember.id(auth)));
     }
 
+    /** 取消当前会员的指定订单；订单状态及资源释放由服务处理。 */
     @PostMapping("/{orderNo}/cancel")
     public Result<Void> cancel(@PathVariable String orderNo, Authentication auth) {
         tradeOrderService.cancelOrder(orderNo, CurrentMember.id(auth));
         return Result.success(null);
     }
 
+    /** 确认当前会员已收到指定订单，并由服务执行状态流转。 */
     @PostMapping("/{orderNo}/confirm")
     public Result<Void> confirm(@PathVariable String orderNo, Authentication auth) {
         tradeOrderService.confirmReceive(orderNo, CurrentMember.id(auth));
         return Result.success(null);
     }
 
+    /** 创建订单请求；仅包含一次性结算快照令牌和可选备注，不直接接受价格或商品数量。 */
     @Data
     public static class CreateReq {
         private String remark;

@@ -13,8 +13,15 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "elasticsearch.enabled", havingValue = "true")
 public class SearchController {
+    /** 提供商品搜索及搜索索引维护能力。 */
     private final ProductSearchService searchService;
 
+    /**
+     * 按关键字、分类、价格区间和排序条件搜索商品。
+     *
+     * <p>所有筛选项均可选；页码默认从 1 开始，每页默认返回 20 条。
+     * 控制器仅在 Elasticsearch 功能配置开启时注册。</p>
+     */
     @GetMapping("/product")
     public Result<Object> search(@RequestParam(required = false) String keyword,
                                   @RequestParam(required = false) Long categoryId,
@@ -28,6 +35,7 @@ public class SearchController {
                 minPrice, maxPrice, sortField, sortOrder, page, size));
     }
 
+    /** 触发商品全量索引同步；操作受商品编辑权限保护。 */
     @PostMapping("/sync")
     @PreAuthorize("hasAuthority('product:spu:edit')")
     public Result<Void> sync() {

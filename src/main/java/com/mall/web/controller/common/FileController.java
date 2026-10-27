@@ -14,15 +14,28 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-/** 提供商品图片上传和删除接口，并在存储前校验文件大小、类型及图片签名。 */
+/**
+ * 文件存储控制器。
+ *
+ * <p>提供图片上传和删除入口。上传时在交由文件服务保存之前检查文件大小、声明类型及文件头签名；
+ * 仅当应用上下文中存在 {@link FileService} Bean 时才注册本控制器。</p>
+ */
 @RestController
 @ConditionalOnBean(FileService.class)
 @RequestMapping("/api/file")
 @RequiredArgsConstructor
 public class FileController {
+    /** 上传接口接受的图片 MIME 类型白名单。 */
     private static final Set<String> PRODUCT_IMAGE_TYPES = Set.of("image/jpeg", "image/png", "image/webp", "image/gif");
+    /** 执行对象存储上传、预签名地址生成及文件删除。 */
     private final FileService fileService;
 
+    /**
+     * 上传图片并返回存储路径及访问 URL。
+     *
+     * <p>文件必须非空、大小不超过 5 MiB，且声明 MIME 类型与支持的图片文件头相符；
+     * 校验通过后由文件服务上传并生成预签名访问地址。</p>
+     */
     @PostMapping("/upload")
     public Result<Map<String, String>> upload(@RequestParam("file") MultipartFile file) {
         if (file.isEmpty() || file.getSize() > 5 * 1024 * 1024
@@ -31,18 +44,21 @@ public class FileController {
         }
         String path = fileService.upload(file);
         String url = fileService.getPresignedUrl(path);
+        // 同时返回对象存储路径和可访问 URL，供前端分别保存及展示使用。
         Map<String, String> data = new HashMap<>();
         data.put("path", path);
         data.put("url", url);
         return Result.success(data);
     }
 
+    /** 商品 SPU 图片上传入口，额外要求具备商品编辑权限。 */
     @PostMapping("/product-image")
     @PreAuthorize("hasAuthority('product:spu:edit')")
     public Result<Map<String, String>> uploadProductImage(@RequestParam("file") MultipartFile file) {
         return upload(file);
     }
 
+    /** 删除指定对象存储路径对应的文件，需要商品编辑权限。 */
     @DeleteMapping
     @PreAuthorize("hasAuthority('product:spu:edit')")
     public Result<Void> delete(@RequestParam String path) {
@@ -50,7 +66,12 @@ public class FileController {
         return Result.success(null);
     }
 
-    /** 对象存储接收文件前同时检查声明类型和文件头，不能只信任浏览器 MIME 值。 */
+    /**
+     * 对照声明 MIME 类型校验图片文件签名。
+     *
+     * <p>文件头检查可降低仅伪造浏览器 MIME 值上传非图片内容的风险；
+     * 输入流读取失败时按签名无效处理。</p>
+     */
     private boolean hasValidImageSignature(MultipartFile file) {
         try (var input = file.getInputStream()) {
             byte[] header = input.readNBytes(12);
@@ -68,6 +89,7 @@ public class FileController {
         }
     }
 
+    /** 判断字节数组是否以指定签名字节序列开头。 */
     private boolean startsWith(byte[] value, byte[] prefix) {
         return value.length >= prefix.length && Arrays.equals(value, 0, prefix.length, prefix, 0, prefix.length);
     }

@@ -14,13 +14,20 @@ import java.math.BigDecimal;
 @RequestMapping("/api/store")
 @RequiredArgsConstructor
 public class StoreProductController {
+    /** 提供面向 C 端的分类和商品目录查询。 */
     private final StoreCatalogService storeCatalogService;
 
+    /** 查询 C 端展示的商品分类。 */
     @GetMapping("/categories")
     public Result<List<Category>> categories() {
         return Result.success(storeCatalogService.categories());
     }
 
+    /**
+     * 分页查询商品目录，可按分类、关键字及价格区间筛选。
+     *
+     * <p>页码默认 1、每页默认 20 条；排序字段默认按销量排序。</p>
+     */
     @GetMapping("/products")
     public Result<?> products(@RequestParam(defaultValue = "1") int page,
                               @RequestParam(defaultValue = "20") int size,
@@ -32,6 +39,7 @@ public class StoreProductController {
         return Result.success(storeCatalogService.products(page, size, categoryId, keyword, minPrice, maxPrice, sortField));
     }
 
+    /** 查询指定 SPU 的 C 端商品详情。 */
     @GetMapping("/products/{spuId}")
     public Result<?> detail(@PathVariable Long spuId) {
         return Result.success(storeCatalogService.detail(spuId));

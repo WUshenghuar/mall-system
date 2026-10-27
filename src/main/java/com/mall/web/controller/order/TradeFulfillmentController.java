@@ -14,8 +14,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/order/trade")
 @RequiredArgsConstructor
 public class TradeFulfillmentController {
+    /** 更新交易订单发货状态并创建物流信息。 */
     private final TradeOrderService tradeOrderService;
 
+    /** 提交发货及承运信息；订单状态和物流记录由交易订单服务统一处理。 */
     @PostMapping("/{orderNo}/ship")
     @PreAuthorize("hasAuthority('order:edit')")
     public Result<Void> ship(@PathVariable String orderNo, @Valid @RequestBody ShipReq req) {
@@ -23,6 +25,7 @@ public class TradeFulfillmentController {
         return Result.success(null);
     }
 
+    /** 发货请求体；物流单号及承运公司均不能为空。 */
     @Data
     public static class ShipReq {
         @NotBlank private String logisticsNo;
