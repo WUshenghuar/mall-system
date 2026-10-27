@@ -13,9 +13,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /** 提供后台角色分页数据，并将实体转换为接口展示对象。 */
+/**
+ * 系统角色服务实现类
+ * 实现了SysRoleService接口，提供角色相关的业务逻辑处理
+ */
 @Service
 @RequiredArgsConstructor
 public class SysRoleServiceImpl implements SysRoleService {
+    // 使用final修饰的SysRoleMapper依赖，通过构造器注入
     private final SysRoleMapper roleMapper;
 
     @Override

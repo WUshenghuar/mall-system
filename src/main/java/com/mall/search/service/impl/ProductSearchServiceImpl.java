@@ -32,21 +32,38 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** 将商品主数据映射为 Elasticsearch 文档，并提供索引同步和商品检索。 */
+/**
+ * 商品搜索服务实现类
+ * 使用Elasticsearch实现商品搜索功能
+ * 支持索引创建、商品索引、删除和搜索功能
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @ConditionalOnProperty(name = "elasticsearch.enabled", havingValue = "true")
 public class ProductSearchServiceImpl implements ProductSearchService {
 
-    private final ObjectMapper objectMapper;
-    private final SpuMapper spuMapper;
-    private final SkuMapper skuMapper;
-    private final BrandMapper brandMapper;
+
+
+    // 注入相关Mapper
+    private final ObjectMapper objectMapper;  // 用于JSON序列化和反序列化
+    private final SpuMapper spuMapper;        // SPU数据访问层
+    private final SkuMapper skuMapper;        // SKU数据访问层
+    private final BrandMapper brandMapper;    // 品牌数据访问层
+    // 从配置文件中获取Elasticsearch主机地址
     @Value("${elasticsearch.hosts:localhost:9200}")
     private String hosts;
-    private static final String INDEX_NAME = "mall_product";
-    private static final int BULK_SIZE = 500;
 
+
+    // 常量定义
+    private static final String INDEX_NAME = "mall_product";  // Elasticsearch索引名称
+    private static final int BULK_SIZE = 500;                // 批量操作大小限制
+
+    /**
+     * 创建Elasticsearch索引
+     * 如果索引已存在且分析器支持，则直接返回
+     * 如果索引已存在但分析器不支持，则重建索引
+     */
     @Override
     public void createIndex() {
         try {
@@ -66,6 +83,10 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         }
     }
 
+    /**
+     * 重建索引
+     * 删除现有索引并创建新索引
+     */
     private void recreateIndex() {
         try {
             // ponytail: current single index accepts a brief rebuild window; use aliases when zero-downtime is required.
@@ -76,6 +97,10 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         }
     }
 
+    /**
+     * 索引单个商品
+     * @param product 商品数据
+     */
     @Override
     public void indexProduct(Map<String, Object> product) {
         try {
@@ -85,6 +110,10 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         }
     }
 
+    /**
+     * 根据SPU ID索引商品
+     * @param spuId 商品SPU ID
+     */
     @Override
     public void indexProduct(Long spuId) {
         Spu spu = spuMapper.selectById(spuId);
@@ -99,6 +128,10 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         indexProduct(buildProductDocument(spu, skus, brandNames));
     }
 
+    /**
+     * 从索引中删除商品
+     * @param spuId 商品SPU ID
+     */
     @Override
     public void deleteProduct(Long spuId) {
         try {
@@ -171,65 +204,113 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         return document;
     }
 
+    /**
+     * 根据SPU ID列表加载对应的SKU列表
+     * @param spus SPU对象列表
+     * @return 以SPU ID为键，对应的SKU列表为值的Map
+     */
     private Map<Long, List<Sku>> loadSkusBySpuId(List<Spu> spus) {
+        // 如果SPU列表为空，直接返回空Map
         if (spus.isEmpty()) {
             return Map.of();
         }
+        // 从SPU对象列表中提取SPU ID列表
         List<Long> spuIds = spus.stream().map(Spu::getId).toList();
+        // 查询所有属于这些SPU ID的SKU，并按SPU ID分组
         return skuMapper.selectList(com.baomidou.mybatisplus.core.toolkit.Wrappers.<Sku>lambdaQuery()
                         .in(Sku::getSpuId, spuIds))
                 .stream()
                 .collect(Collectors.groupingBy(Sku::getSpuId));
     }
 
+    /**
+     * 根据商品列表加载品牌名称信息
+     * @param spus 商品列表
+     * @return 品牌ID与品牌名称的映射关系
+     */
     private Map<Long, String> loadBrandNames(List<Spu> spus) {
+        // 从商品列表中提取品牌ID，过滤掉null值，并去重
         List<Long> brandIds = spus.stream()
-                .map(Spu::getBrandId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
+                .map(Spu::getBrandId)    // 提取每个商品的品牌ID
+                .filter(Objects::nonNull) // 过滤掉null值
+                .distinct()              // 去重
+                .toList();               // 转换为List
+        // 如果品牌ID列表为空，返回空Map
         if (brandIds.isEmpty()) {
             return Map.of();
         }
+        // 查询品牌信息，并构建ID与名称的映射关系
         return brandMapper.selectBatchIds(brandIds).stream()
-                .collect(Collectors.toMap(Brand::getId, Brand::getBrandName));
+                .collect(Collectors.toMap(Brand::getId, Brand::getBrandName)); // 将品牌列表转换为ID到名称的Map
     }
 
+    /**
+     * 批量索引文档到Elasticsearch
+     * @param documents 包含要索引的文档的列表，每个文档是一个Map，包含字段名和对应的值
+     */
     void bulkIndex(List<Map<String, Object>> documents) {
+        // 如果文档列表为空，直接返回
         if (documents.isEmpty()) {
             return;
         }
         try {
+            // 构建批量请求的请求体
             StringBuilder body = new StringBuilder();
+            // 遍历每个文档，构建批量请求的格式
             for (Map<String, Object> document : documents) {
+                // 添加索引元数据，包括索引名称和文档ID
                 body.append("{\"index\":{\"_index\":\"").append(INDEX_NAME)
                         .append("\",\"_id\":\"").append(document.get("spuId")).append("\"}}\n")
+                        // 添加文档内容，将Map转换为JSON字符串
                         .append(objectMapper.writeValueAsString(document)).append('\n');
             }
+            // 发送批量请求到Elasticsearch，refresh=true确保立即刷新索引
             Map<String, Object> response = requestRaw("POST", "/_bulk?refresh=true", body.toString(),
                     "application/x-ndjson");
+            // 检查响应中是否有错误
             if (Boolean.TRUE.equals(response.get("errors"))) {
+                // 如果有错误，抛出业务异常
                 throw new BusinessException("ES商品索引批量写入失败");
             }
         } catch (IOException e) {
+            // 记录错误日志
             log.error("ES bulk index request failed", e);
+            // 抛出包含详细错误信息的业务异常
             throw new BusinessException("ES商品索引批量写入失败: " + e.getMessage());
         }
     }
 
+    /**
+     * 创建索引映射配置，定义Elasticsearch索引中各个字段的数据类型和属性
+     * @return 返回一个包含索引映射配置的Map对象
+     */
     private Map<String, Object> indexMapping() {
+        // 使用Map.of方法创建不可变的映射配置
+        // 外层Map包含"mappings"键，其值是另一个Map
         return Map.of("mappings", Map.of("properties", Map.ofEntries(
+                // spuId字段：长整型，用于存储商品SPU ID
                 Map.entry("spuId", Map.of("type", "long")),
+                // spuName字段：文本类型，使用standard分词器进行文本分析
                 Map.entry("spuName", Map.of("type", "text", "analyzer", "standard")),
+                // categoryId字段：长整型，用于存储商品分类ID
                 Map.entry("categoryId", Map.of("type", "long")),
+                // categoryPath字段：关键字类型，用于存储商品分类路径
                 Map.entry("categoryPath", Map.of("type", "keyword")),
+                // brand字段：关键字类型，用于存储品牌信息
                 Map.entry("brand", Map.of("type", "keyword")),
+                // originCountry字段：关键字类型，用于存储原产国信息
                 Map.entry("originCountry", Map.of("type", "keyword")),
+                // createTime字段：日期类型，用于创建时间
                 Map.entry("createTime", Map.of("type", "date")),
+                // minPrice字段：双精度浮点型，用于存储最低价格
                 Map.entry("minPrice", Map.of("type", "double")),
+                // currency字段：关键字类型，用于存储货币类型
                 Map.entry("currency", Map.of("type", "keyword")),
+                // salesCount字段：长整型，用于存储销售数量
                 Map.entry("salesCount", Map.of("type", "long")),
+                // rating字段：双精度浮点型，用于存储商品评分
                 Map.entry("rating", Map.of("type", "double")),
+                // status字段：字节类型，用于存储商品状态
                 Map.entry("status", Map.of("type", "byte")))));
     }
 
@@ -283,25 +364,52 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
     }
 
+    /**
+     * 将输入的对象转换为包含Map的List
+     * @param value 输入的对象，期望是List类型
+     * @return 如果输入是List类型，则返回每个元素经过map方法转换后的List；否则返回空List
+     */
+    /**
+     * 处理输入对象并将其转换为特定格式的列表
+     * @param value 输入的对象，可以是任意类型
+     * @return 返回一个Map列表，如果输入不是List类型则返回空列表
+     */
     private List<Map<String, Object>> list(Object value) {
+        // 使用模式匹配检查输入是否为List类型
         if (!(value instanceof List<?> values)) {
+            // 如果不是List类型，返回空List
             return List.of();
         }
+        // 如果是List类型，使用Stream对流进行处理：
+        // 1. 将List转换为Stream
+        // 2. 对每个元素应用map方法进行转换
+        // 3. 将结果收集为新的List
         return values.stream().map(this::map).toList();
     }
 
+    /**
+     * 检查指定的索引是否存在
+     * @return 如果索引存在返回true，不存在返回false
+     * @throws IOException 如果HTTP请求失败或返回意外的状态码
+     */
     private boolean indexExists() throws IOException {
+        // 创建一个HEAD请求连接，用于检查索引是否存在
         HttpURLConnection connection = open("HEAD", "/" + INDEX_NAME);
         try {
+            // 获取HTTP响应状态码
             int status = connection.getResponseCode();
+            // 如果状态码为200 OK，表示索引存在
             if (status == HttpURLConnection.HTTP_OK) {
                 return true;
             }
+            // 如果状态码为404 Not Found，表示索引不存在
             if (status == HttpURLConnection.HTTP_NOT_FOUND) {
                 return false;
             }
+            // 如果返回其他状态码，抛出异常
             throw new IOException("ES index check failed: HTTP " + status);
         } finally {
+            // 确保连接被关闭，避免资源泄漏
             connection.disconnect();
         }
     }

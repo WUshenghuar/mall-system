@@ -12,10 +12,18 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /** 管理会员购物车条目，并在每次读写时校验条目归属。 */
+/**
+ * 购物车服务实现类
+ * 提供购物车相关的业务逻辑实现，包括添加商品、获取购物车列表、更新购物车、删除购物车等功能
+ */
 @Service
 @RequiredArgsConstructor
 public class CartServiceImpl implements CartService {
 
+    /**
+     * 购物车数据访问层
+     * 用于与数据库进行交互，执行购物车相关的数据操作
+     */
     private final TradeCartMapper cartMapper;
 
     /** 同一会员已存在相同 SKU 时累加数量，并将该条目重新勾选。 */
@@ -42,11 +50,20 @@ public class CartServiceImpl implements CartService {
         return newCart;
     }
 
+    /**
+     * 根据用户ID获取购物车列表
+     * @param userId 用户ID
+     * @return 返回该用户的购物车列表，按创建时间降序排列
+     */
     @Override
     public List<TradeCart> getCartList(Long userId) {
+        // 创建Lambda查询包装器，设置查询条件
         LambdaQueryWrapper<TradeCart> qw = Wrappers.lambdaQuery(TradeCart.class)
+                // 设置查询条件：用户ID等于传入的userId
                 .eq(TradeCart::getUserId, userId)
+                // 设置排序条件：按创建时间降序排列
                 .orderByDesc(TradeCart::getCreateTime);
+        // 执行查询并返回结果列表
         return cartMapper.selectList(qw);
     }
 

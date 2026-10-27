@@ -6,9 +6,18 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 /** 使用 Redis 维护秒杀 SKU 库存，并提供初始化和原子尝试扣减入口。 */
+/**
+ * 秒杀服务实现类
+ * 提供秒杀商品库存管理功能，包括初始化库存和原子扣减库存操作
+ */
 @Service
 public class SeckillServiceImpl implements SeckillService {
 
+    /**
+     * Redis模板对象
+     * 用于与Redis数据库进行交互，实现缓存功能
+     * 使用required=false表示该依赖不是必须的，即使没有注入该服务也能正常运行
+     */
     @Autowired(required = false)
     private RedisTemplate<String, Object> redisTemplate;
 

@@ -5,6 +5,10 @@ import com.mall.marketing.entity.CouponIssue;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 
+/**
+ * 优惠券发放数据访问接口，继承自BaseMapper，提供优惠券发放的基本数据操作
+ * @param <CouponIssue> 优惠券发放实体类
+ */
 public interface CouponIssueMapper extends BaseMapper<CouponIssue> {
     /** 只允许当前会员未使用的券绑定到订单；并发重复核销只能成功一次。 */
     @Update("UPDATE mk_coupon_issue SET status = 1, used_time = NOW(), order_no = #{orderNo}, update_time = NOW() "

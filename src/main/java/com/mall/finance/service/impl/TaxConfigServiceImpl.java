@@ -16,9 +16,14 @@ import java.util.List;
 import java.util.Map;
 
 /** 管理税率配置，并按商品、来源地和目的地匹配适用税率。 */
+/**
+ * 税费配置服务实现类
+ * 实现了税费配置的增删改查以及适用税率的计算功能
+ */
 @Service
 @RequiredArgsConstructor
 public class TaxConfigServiceImpl implements TaxConfigService {
+    // 使用final确保依赖注入的不可变性
     private final TaxConfigMapper taxConfigMapper;
 
     @Override
@@ -28,24 +33,44 @@ public class TaxConfigServiceImpl implements TaxConfigService {
                 Wrappers.<TaxConfig>lambdaQuery().orderByDesc(TaxConfig::getCreateTime));
     }
 
+    /**
+     * 根据ID获取税务配置信息
+     * @param id 税务配置的唯一标识符
+     * @return 返回对应ID的TaxConfig对象，如果不存在则返回null
+     */
     @Override
     public TaxConfig getById(Long id) {
+        // 使用MyBatis-Plus的selectById方法从数据库中查询指定ID的税务配置信息
         return taxConfigMapper.selectById(id);
     }
 
-    @Override
+    /**
+     * 保存税务配置信息
+     * @param config 税务配置对象，包含需要保存的配置信息
+     * @Override 注解表明此方法是重写父类的方法
+     */
+    @Override  // 标记此方法是重写父类的方法
     public void save(TaxConfig config) {
         taxConfigMapper.insert(config);
     }
 
+    /**
+     * 更新税务配置信息
+     * @param config 包含更新后税务配置信息的对象
+     */
     @Override
     public void update(TaxConfig config) {
+        // 通过调用Mapper的updateById方法来更新数据库中的税务配置记录
         taxConfigMapper.updateById(config);
     }
 
+    /**
+     * 删除指定ID的税务配置信息
+     * @param id 要删除的税务配置ID
+     */
     @Override
-    public void delete(Long id) {
-        taxConfigMapper.deleteById(id);
+    public void delete(Long id) {  // 实现删除税务配置的方法
+        taxConfigMapper.deleteById(id);  // 调用Mapper层的删除方法，根据ID删除税务配置
     }
 
     /** 每种税种选取匹配维度最具体且处于有效期的配置，再汇总其税率。 */

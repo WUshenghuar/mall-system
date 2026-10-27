@@ -8,13 +8,21 @@ import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
 
+/**
+ * 商品标准单元(SPU)实体类
+ * 继承自BaseEntity，包含商品基本信息
+ */
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("pm_spu")
 public class Spu extends BaseEntity {
+    /** 商品编码 */
     private String spuCode;
+    /** 商品名称 */
     private String spuName;
+    /** 商品分类ID */
     private Long categoryId;
+    /** 品牌ID */
     private Long brandId;
     /** JSON: {"en":"...","zh":"...","fr":"..."} */
     private String description;

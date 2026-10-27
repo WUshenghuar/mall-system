@@ -15,12 +15,21 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /** 提供受权限保护的 AI 知识库条目查询和维护入口。 */
+/**
+ * AI知识库控制器
+ * 提供知识文档的列表查询和保存功能
+ */
 @RestController
 @RequestMapping("/api/ai/knowledge")
 @RequiredArgsConstructor
 public class AiKnowledgeController {
     private final AiKnowledgeService knowledgeService;
 
+    /**
+     * 获取知识文档列表
+     * @return 返回知识文档列表的Result对象
+     * 需要order:support:list权限
+     */
     @GetMapping
     @PreAuthorize("hasAuthority('order:support:list')")
     public Result<List<AiKnowledgeDocument>> list() {

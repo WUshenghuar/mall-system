@@ -11,10 +11,16 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 /** 记录会员商品浏览事件，并按最近浏览时间分页查询历史。 */
+/**
+ * 浏览历史服务实现类
+ * 使用@Service注解标记为服务层组件
+ * 通过@RequiredArgsConstructor实现构造器注入，确保依赖注入的不可变性
+ */
 @Service
 @RequiredArgsConstructor
 public class BrowseHistoryServiceImpl implements BrowseHistoryService {
 
+    // 使用final修饰的成员变量，通过构造器注入，保证线程安全和不可变性
     private final MemberBrowseHistoryMapper browseHistoryMapper;
 
     /** 每次浏览写入一条记录，保留访问时间用于近期浏览排序。 */

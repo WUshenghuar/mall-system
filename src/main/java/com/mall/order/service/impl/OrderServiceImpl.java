@@ -34,21 +34,30 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 /** 管理订单创建与状态更新，并在消息组件不可用时保留同步创建路径。 */
+/**
+ * 订单服务实现类
+ * 提供订单创建、支付、查询、取消等功能，支持分布式锁和消息队列
+ */
 @Slf4j
 @Service
 public class OrderServiceImpl implements OrderService {
+    // 注入订单相关数据访问层
     private final OrderMapper orderMapper;
     private final OrderItemMapper orderItemMapper;
     private final SkuMapper skuMapper;
     private final SpuMapper spuMapper;
     private final TaxConfigMapper taxConfigMapper;
 
+    // 可选注入Redis模板和消息发送器
     @Autowired(required = false)
     private RedisTemplate<String, Object> redisTemplate;
 
     @Autowired(required = false)
     private OrderMessageSender messageSender;
 
+    /**
+     * 构造函数，注入所有必要的Mapper
+     */
     public OrderServiceImpl(OrderMapper orderMapper,
                              OrderItemMapper orderItemMapper,
                              SkuMapper skuMapper,
@@ -61,8 +70,11 @@ public class OrderServiceImpl implements OrderService {
         this.taxConfigMapper = taxConfigMapper;
     }
 
-    private static final String STOCK_KEY = "stock:sku:";
-    private static final String LOCK_KEY = "lock:order:create:";
+
+
+    // Redis键常量定义
+    private static final String STOCK_KEY = "stock:sku:"; // 库存键前缀
+    private static final String LOCK_KEY = "lock:order:create:"; // 分布式锁键前缀
 
     /** 接收订单创建请求；启用 Redis 时先串行化同一用户对同一 SKU 的请求并预扣库存。 */
     @Override
@@ -195,31 +207,54 @@ public class OrderServiceImpl implements OrderService {
     /**
      * 查询商品分类对应的关税税率
      */
+    /**
+     * 根据分类ID获取关税税率
+     * @param categoryId 分类ID
+     * @return 返回对应的关税税率，如果查询失败或参数无效则返回0
+     */
     private BigDecimal getTariffRate(Long categoryId) {
+        // 检查mapper是否初始化或categoryId是否为null
         if (taxConfigMapper == null || categoryId == null) {
             return BigDecimal.ZERO;
         }
+        // 查询最新的关税配置信息
         TaxConfig config = taxConfigMapper.selectOne(
                 Wrappers.<TaxConfig>lambdaQuery()
+                        // 按分类ID查询
                         .eq(TaxConfig::getCategoryId, categoryId)
+                        // 按生效日期降序排列
                         .orderByDesc(TaxConfig::getEffectiveDate)
+                        // 限制只返回1条记录
                         .last("LIMIT 1"));
+        // 如果配置存在且税率不为null则返回税率，否则返回0
         return config != null && config.getTaxRate() != null
                 ? config.getTaxRate() : BigDecimal.ZERO;
     }
 
     /** 将待支付订单置为已支付；重复回调或非待支付订单不重复推进状态。 */
+    /**
+     * 处理支付成功的订单
+     * @param orderNo 订单编号
+     * @Transactional 添加事务注解，确保方法内的数据库操作是一个事务
+     */
     @Override
     @Transactional
     public void paySuccess(String orderNo) {
+        // 根据订单编号查询订单信息
         Order order = orderMapper.selectOne(
                 Wrappers.<Order>lambdaQuery().eq(Order::getOrderNo, orderNo));
+        // 如果订单不存在或订单状态不是待支付(0)，则直接返回
         if (order == null || order.getOrderStatus() != 0) return;
 
+        // 更新订单状态为已支付(1)
         order.setOrderStatus(1);
+        // 更新支付状态为已支付(1)
         order.setPayStatus(1);
+        // 设置支付时间为当前时间
         order.setPayTime(LocalDateTime.now());
+        // 更新订单信息到数据库
         orderMapper.updateById(order);
+        // 记录订单支付成功的日志
         log.info("Order paid: {}", orderNo);
     }
 
@@ -233,22 +268,46 @@ public class OrderServiceImpl implements OrderService {
         return orderMapper.selectPage(new Page<>(page, size), wrapper);
     }
 
+    /**
+     * 根据订单ID获取订单信息
+     * @param id 订单ID
+     * @return 返回对应的订单对象
+     */
     @Override
     public Order getById(Long id) {
+        // 调用orderMapper的selectById方法查询数据库获取订单信息
         return orderMapper.selectById(id);
     }
 
+    /**
+     * 根据订单号查询订单信息
+     * @param orderNo 订单号
+     * @return 返回查询到的订单对象，如果不存在则返回null
+     */
     @Override
     public Order getByOrderNo(String orderNo) {
+        // 使用MyBatis-Plus的lambda查询构造器
+        // 创建一个Order表的查询条件
+        // 设置查询条件为订单号等于传入的orderNo参数
+        // 执行查询并返回结果
         return orderMapper.selectOne(
                 Wrappers.<Order>lambdaQuery().eq(Order::getOrderNo, orderNo));
     }
 
+    /**
+     * 取消订单方法
+     * @param id 订单ID
+     * @throws BusinessException 当订单不存在时抛出业务异常
+     */
     @Override
     public void cancelOrder(Long id) {
+        // 根据ID查询订单
         Order order = orderMapper.selectById(id);
+        // 如果订单不存在，抛出业务异常
         if (order == null) throw new BusinessException("订单不存在");
+        // 设置订单状态为已取消（状态码5）
         order.setOrderStatus(5);
+        // 更新订单信息
         orderMapper.updateById(order);
     }
 }

@@ -20,13 +20,22 @@ import java.math.RoundingMode;
 import java.util.List;
 
 /** 管理会员资料、积分流水和订单累计消费，并依据消费额重新计算会员等级。 */
+/**
+ * 会员服务实现类
+ * 提供会员相关的业务逻辑处理，包括会员信息查询、积分管理、等级更新等功能
+ */
 @Service
 @RequiredArgsConstructor
 public class MemberServiceImpl implements MemberService {
-    private static final BigDecimal GOLD_THRESHOLD = new BigDecimal("1000");
-    private static final BigDecimal PLATINUM_THRESHOLD = new BigDecimal("5000");
-    private final MemberMapper memberMapper;
-    private final MemberPointsLogMapper pointsLogMapper;
+
+    // 会员等级阈值常量定义
+    private static final BigDecimal GOLD_THRESHOLD = new BigDecimal("1000");      // 黄金会员消费金额阈值
+    private static final BigDecimal PLATINUM_THRESHOLD = new BigDecimal("5000");  // 白金会员消费金额阈值
+
+
+    // 数据访问层依赖
+    private final MemberMapper memberMapper;          // 会员数据访问接口
+    private final MemberPointsLogMapper pointsLogMapper;  // 会员积分流水数据访问接口
 
     @Override
     public IPage<Member> selectPage(Integer page, Integer size, String keyword, Integer level) {
@@ -40,9 +49,14 @@ public class MemberServiceImpl implements MemberService {
         return memberMapper.selectPage(new Page<>(page, size), wrapper);
     }
 
+    /**
+     * 根据会员ID获取会员信息
+     * @param id 会员ID，Long类型
+     * @return 返回对应的Member对象，如果不存在则返回null
+     */
     @Override
-    public Member getById(Long id) {
-        return memberMapper.selectById(id);
+    public Member getById(Long id) { // 重写接口中的getById方法
+        return memberMapper.selectById(id); // 调用memberMapper的selectById方法查询数据库
     }
 
     /** 锁定会员记录后校验余额并同时写入积分流水，确保余额和账目一起提交。 */
@@ -64,17 +78,33 @@ public class MemberServiceImpl implements MemberService {
         pointsLogMapper.insert(log);
     }
 
+    /**
+     * 根据会员ID获取会员的总消费金额
+     * @param id 会员ID
+     * @return 会员的总消费金额，如果会员不存在则返回0
+     */
     @Override
     public BigDecimal getTotalAmount(Long id) {
+        // 通过会员ID查询会员信息
         Member member = memberMapper.selectById(id);
+        // 使用三元运算符判断会员是否存在，存在则返回总金额，不存在则返回BigDecimal.ZERO(0)
         return member != null ? member.getTotalAmount() : BigDecimal.ZERO;
     }
 
+    /**
+     * 查询会员积分日志列表
+     * @param id 会员ID
+     * @return 会员积分日志列表，按创建时间降序排列，最多返回20条记录
+     */
     @Override
     public List<MemberPointsLog> listPointsLogs(Long id) {
+        // 使用MyBatis-Plus的LambdaQueryWrapper构建查询条件
         return pointsLogMapper.selectList(Wrappers.<MemberPointsLog>lambdaQuery()
+                // 设置查询条件：会员ID等于传入的id
                 .eq(MemberPointsLog::getMemberId, id)
+                // 按创建时间降序排列
                 .orderByDesc(MemberPointsLog::getCreateTime)
+                // 限制查询结果最多返回20条记录
                 .last("LIMIT 20"));
     }
 
@@ -121,7 +151,16 @@ public class MemberServiceImpl implements MemberService {
         }
     }
 
+    /**
+     * 根据总金额解析会员等级
+     * @param totalAmount 交易总金额
+     * @return 返回会员等级，0表示普通会员，1表示黄金会员，2表示白金会员
+     */
     private int resolveLevel(BigDecimal totalAmount) {
+        // 使用三元运算符判断总金额对应的会员等级
+        // 首先判断是否达到白金会员阈值，若达到则返回2
+        // 若未达到，则判断是否达到黄金会员阈值，若达到则返回1
+        // 否则返回0，表示普通会员
         return totalAmount.compareTo(PLATINUM_THRESHOLD) >= 0 ? 2
                 : totalAmount.compareTo(GOLD_THRESHOLD) >= 0 ? 1 : 0;
     }

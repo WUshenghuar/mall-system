@@ -19,10 +19,19 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /** 提供会员转人工与客服认领、回复、结单的工单接口。 */
+/**
+ * AI支持工单控制器
+ * 提供工单的创建、查询、处理等功能
+ */
+/**
+ * AI支持工单控制器
+ * 提供AI支持工单的创建、查询、处理等功能
+ */
 @RestController
 @RequestMapping("/api/ai/tickets")
 @RequiredArgsConstructor
 public class AiSupportTicketController {
+    // 注入AI支持工单服务
     private final AiSupportTicketService ticketService;
 
     @PostMapping

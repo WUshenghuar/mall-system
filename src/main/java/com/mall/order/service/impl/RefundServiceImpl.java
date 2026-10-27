@@ -15,9 +15,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 
 /** 处理后台退款申请的录入、审批和驳回，并记录经办人及处理意见。 */
+/**
+ * 退款服务实现类
+ * 使用@Service注解标记为服务层组件
+ * 使用@RequiredArgsConstructor生成基于final字段的构造器注入
+ */
 @Service
 @RequiredArgsConstructor
 public class RefundServiceImpl implements RefundService {
+    // 注入退款数据访问层
     private final RefundMapper refundMapper;
 
     @Override

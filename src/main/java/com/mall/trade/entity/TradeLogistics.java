@@ -5,11 +5,15 @@ import com.mall.common.entity.BaseEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+/**
+ * 交易物流实体类
+ * 继承自BaseEntity，包含物流相关信息
+ */
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("trade_logistics")
 public class TradeLogistics extends BaseEntity {
-    private String orderNo;
+    private String orderNo; // 订单编号
     /** 物流单号 */
     private String logisticsNo;
     /** 物流公司 */

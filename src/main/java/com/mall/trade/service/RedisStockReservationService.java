@@ -14,12 +14,18 @@ import java.util.Map;
 import java.util.ArrayList;
 
 /** 维护 Redis 中的可售库存预留，并与数据库事务提交或回滚保持一致。 */
+/**
+ * Redis库存预扣服务类
+ * 使用Redis实现库存的原子性预扣和回补，支持事务同步
+ */
 @Service
 @RequiredArgsConstructor
 public class RedisStockReservationService {
+    // 定义Redis Lua脚本，用于原子性检查并预扣库存
     private static final DefaultRedisScript<Long> RESERVE = new DefaultRedisScript<>(
             "local n=tonumber(redis.call('GET',KEYS[1]) or '-1'); local q=tonumber(ARGV[1]); "
                     + "if n<q then return 0 end; redis.call('DECRBY',KEYS[1],q); return 1", Long.class);
+    // 注入StringRedisTemplate的ObjectProvider，用于延迟获取Redis模板
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
 
     /** 使用 Lua 原子检查并预扣单个 SKU；数据库事务失败时在完成回调中恢复数量。 */

@@ -8,11 +8,17 @@ import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
 
+/**
+ * SKU（Stock Keeping Unit）实体类，继承自BaseEntity
+ * 用于存储商品的具体规格信息
+ */
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("pm_sku")
 public class Sku extends BaseEntity {
+    /** 商品SPU ID */
     private Long spuId;
+    /** SKU编码 */
     private String skuCode;
     /** JSON: [{"k":"颜色","v":"黑色"},{"k":"容量","v":"128GB"}] */
     private String attrs;

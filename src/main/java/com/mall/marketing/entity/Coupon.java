@@ -11,6 +11,10 @@ import java.time.LocalDateTime;
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("mk_coupon")
+/**
+ * 优惠券实体类
+ * 继承自BaseEntity，包含优惠券的基本信息
+ */
 public class Coupon extends BaseEntity {
     private String couponName;
     /** FULL_REDUCTION / DISCOUNT / SHIPPING */

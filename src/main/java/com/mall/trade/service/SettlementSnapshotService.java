@@ -15,15 +15,24 @@ import java.util.Map;
 import java.util.UUID;
 
 /** 将结算预览固化为短时、单次使用且绑定会员的下单快照。 */
+/**
+ * 结算快照服务类，用于处理订单创建过程中的数据快照和校验
+ * 使用Redis存储快照数据，确保订单创建时的数据一致性
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class SettlementSnapshotService {
+    // Redis键前缀，用于标识结算快照数据
     private static final String KEY_PREFIX = "trade:settlement:snapshot:";
+    // 快照数据在Redis中的存活时间，15分钟
     private static final Duration TTL = Duration.ofMinutes(15);
 
+    // 结算服务，用于处理订单相关的业务逻辑
     private final SettlementService settlementService;
+    // Redis操作模板，用于存储和获取快照数据
     private final StringRedisTemplate stringRedisTemplate;
+    // 对象映射器，用于Java对象与JSON之间的转换
     private final ObjectMapper objectMapper;
 
     /** 保存结算时的商品、地址和优惠券数据，订单创建时不再信任客户端重传内容。 */

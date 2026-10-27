@@ -34,18 +34,21 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /** 提供会员 AI 聊天 SSE 接口及客服运行状态、反馈和审计查询入口。 */
-@RestController
+/**
+ * AI聊天控制器，处理与AI客服相关的HTTP请求
+ */
+@RestController // 标识这是一个Spring MVC的控制器组件
 @RequestMapping("/api/ai")
-@RequiredArgsConstructor
+@RequiredArgsConstructor // 使用Lombok生成构造函数，注入所有final字段
 public class AiChatController {
     // 同一 requestId 可在 2 秒限流窗口内重试；相同会员的其他请求会被限流。
-    private static final DefaultRedisScript<Long> RATE_LIMIT = new DefaultRedisScript<>(
-            "local current=redis.call('GET',KEYS[1]); if not current or current==ARGV[1] then "
+    private static final DefaultRedisScript<Long> RATE_LIMIT = new DefaultRedisScript<>( // 使用Redis实现限流
+            "local current=redis.call('GET',KEYS[1]); if not current or current==ARGV[1] then " // Lua脚本：检查并设置限流
                     + "redis.call('SET',KEYS[1],ARGV[1],'EX',ARGV[2]); return 1 end; return 0", Long.class);
-    private final AiChatService aiChatService;
-    private final ObjectMapper objectMapper;
-    private final AsyncTaskExecutor aiChatExecutor;
-    private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
+    private final AiChatService aiChatService; // AI聊天服务接口
+    private final ObjectMapper objectMapper; // JSON对象映射器
+    private final AsyncTaskExecutor aiChatExecutor; // 异步任务执行器
+    private final ObjectProvider<StringRedisTemplate> redisTemplateProvider; // Redis模板提供者
 
     /** 建立异步聊天流；客户端断开或超时会取消后台任务，避免继续占用模型调用资源。 */
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

@@ -20,12 +20,16 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 /** 配置无状态 JWT 认证和 HTTP 访问边界；细粒度权限由方法级安全注解控制。 */
-@Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
-@RequiredArgsConstructor
+/**
+ * Spring Security安全配置类
+ * 配置JWT认证、跨域请求、安全过滤器链等安全相关功能
+ */
+@Configuration // 标记为配置类，用于定义Spring Bean
+@EnableWebSecurity // 启用Spring Security的安全功能
+@EnableMethodSecurity // 启用基于方法的注解安全控制
+@RequiredArgsConstructor // 使用Lombok生成构造函数，自动注入final字段
 public class SecurityConfig {
-    private final JwtAuthenticationFilter jwtFilter;
+    private final JwtAuthenticationFilter jwtFilter; // JWT认证过滤器依赖注入
 
     /** 放行登录、公开浏览、支付通知及容器内部派发，其余请求统一要求已认证身份。 */
     @Bean

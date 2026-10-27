@@ -14,11 +14,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /** 管理会员注册、密码认证和账户状态检查，并生成 Spring Security 使用的会员主体。 */
+/**
+ * 会员认证服务实现类
+ * 提供会员注册、认证、信息加载等功能
+ */
 @Service
 @RequiredArgsConstructor
 public class MemberAuthServiceImpl implements MemberAuthService {
+    // 注入会员数据访问层
     private final MemberMapper memberMapper;
+    // 注入会员账户数据访问层
     private final MemberAccountMapper accountMapper;
+    // 注入密码编码器
     private final PasswordEncoder passwordEncoder;
 
     /** 创建会员资料和独立认证账户；密码只以编码后的摘要写入账户表。 */

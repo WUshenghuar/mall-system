@@ -12,9 +12,14 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /** 提供后台用户分页信息及其角色标识，供管理界面和权限流程使用。 */
+/**
+ * 系统用户服务实现类
+ * 实现了用户相关的业务逻辑，包括分页查询用户信息、获取用户角色等功能
+ */
 @Service
 @RequiredArgsConstructor
 public class SysUserServiceImpl implements SysUserService {
+    // 注入用户数据访问层，用于数据库操作
     private final SysUserMapper userMapper;
 
     /** 分页组装用户资料和角色标识；角色关系按整页批量查询以避免 N+1 次 SQL。 */

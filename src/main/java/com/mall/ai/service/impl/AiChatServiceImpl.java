@@ -47,17 +47,22 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** 编排 AI 对话、只读业务查询、幂等重放和审计，再将上下文交给 AI 网关生成回复。 */
+/**
+ * AI聊天服务实现类，提供AI对话、业务查询、工具调用等功能
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AiChatServiceImpl implements AiChatService {
-    private static final int MAX_BUSINESS_CONTEXT_CHARS = 5500;
-    private static final long PLANNER_BUDGET_MS = 3500;
-    private static final int PLANNER_MIN_CALL_MS = 250;
-    private static final Pattern ORDER_NO = Pattern.compile("T\\d{18}");
-    private static final Pattern TOOL_CALL_ID = Pattern.compile("[A-Za-z0-9_-]{1,64}");
-    private static final Duration TOOL_STATE_TTL = Duration.ofMinutes(5);
-    private static final Duration TOOL_STATE_VERSION_TTL = Duration.ofMinutes(10);
+
+    // 常量定义
+    private static final int MAX_BUSINESS_CONTEXT_CHARS = 5500; // 业务上下文最大字符数
+    private static final long PLANNER_BUDGET_MS = 3500; // 规划器预算时间（毫秒）
+    private static final int PLANNER_MIN_CALL_MS = 250; // 规划器最小调用时间（毫秒）
+    private static final Pattern ORDER_NO = Pattern.compile("T\\d{18}"); // 订单号正则表达式
+    private static final Pattern TOOL_CALL_ID = Pattern.compile("[A-Za-z0-9_-]{1,64}"); // 工具调用ID正则表达式
+    private static final Duration TOOL_STATE_TTL = Duration.ofMinutes(5); // 工具状态TTL
+    private static final Duration TOOL_STATE_VERSION_TTL = Duration.ofMinutes(10); // 工具状态版本TTL
     private static final DefaultRedisScript<Long> SAVE_TOOL_STATE = new DefaultRedisScript<>(
             "local latest=tonumber(redis.call('GET',KEYS[2]) or '-1'); "
                     + "if latest>tonumber(ARGV[3]) then return 0 end; "

@@ -18,10 +18,16 @@ import java.util.UUID;
 import java.util.List;
 
 /** 管理 AI 转人工工单，限制会员数据归属并将人工消息关联回原会话。 */
+/**
+ * AI支持工单服务实现类
+ * 提供会员创建工单、客服认领工单、回复工单等功能
+ */
 @Service
 @RequiredArgsConstructor
 public class AiSupportTicketServiceImpl implements AiSupportTicketService {
+    // AI会话数据访问层
     private final AiConversationMapper conversationMapper;
+    // AI支持工单数据访问层
     private final AiSupportTicketMapper ticketMapper;
 
     /** 同一会员会话已有处理中工单时复用它，避免重复创建转人工请求。 */

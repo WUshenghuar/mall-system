@@ -12,9 +12,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /** 提供商品品牌的分页查询和基础维护。 */
+/**
+ * 品牌服务实现类
+ * 使用@Service注解标记为服务层组件
+ * 使用@RequiredArgsConstructor生成基于final字段的构造器注入
+ */
 @Service
 @RequiredArgsConstructor
 public class BrandServiceImpl implements BrandService {
+    // 使用final确保brandMapper不可变，通过构造器注入
     private final BrandMapper brandMapper;
 
     @Override

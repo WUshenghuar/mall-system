@@ -25,17 +25,30 @@ import java.util.Map;
 import java.math.BigDecimal;
 
 /** 为 C 端组装可售分类、商品卡片和详情，并补充最低价及图片展示字段。 */
+/**
+ * 商城目录服务实现类
+ * 实现了商品分类、商品列表查询、商品详情等功能
+ */
 @Service
 @RequiredArgsConstructor
 public class StoreCatalogServiceImpl implements StoreCatalogService {
+    // 分类数据访问层
     private final CategoryMapper categoryMapper;
+    // 标准商品单元(SPU)数据访问层
     private final SpuMapper spuMapper;
+    // 库存保存单元(SKU)数据访问层
     private final SkuMapper skuMapper;
+    // JSON对象映射器，用于处理JSON数据
     private final ObjectMapper objectMapper;
 
+    // 文件服务，可选注入
     @Autowired(required = false)
     private FileService fileService;
 
+    /**
+     * 获取所有启用的商品分类列表
+     * @return 按排序号升序排列的分类列表
+     */
     @Override
     public List<Category> categories() {
         return categoryMapper.selectList(Wrappers.<Category>lambdaQuery()
@@ -100,22 +113,36 @@ public class StoreCatalogServiceImpl implements StoreCatalogService {
     }
 
     /** 只返回已上架 SPU 和在售 SKU，详情卡片价格取有价 SKU 中的最低值。 */
+    /**
+     * 获取商品详情信息
+     * @param spuId 商品SPU ID
+     * @return 包含商品SPU信息和SKU信息的Map集合
+     */
     @Override
     public Map<String, Object> detail(Long spuId) {
+        // 根据SPU ID查询商品信息
         Spu spu = spuMapper.selectById(spuId);
+        // 判断商品是否存在或已下架
         if (spu == null || !Integer.valueOf(1).equals(spu.getStatus())) {
             throw new BusinessException("商品不存在或已下架");
         }
+        // 查询该商品所有有效的SKU信息
         List<Sku> skus = skuMapper.selectList(Wrappers.<Sku>lambdaQuery()
                 .eq(Sku::getSpuId, spuId).eq(Sku::getStatus, 1));
+        // 处理每个SKU的图片URL，只取第一张图片
         skus.forEach(sku -> sku.setImageUrl(firstImage(sku.getImages())));
+        // 筛选出有价格的SKU，找到价格最低的SKU
         skus.stream().filter(sku -> sku.getPrice() != null)
                 .min(java.util.Comparator.comparing(Sku::getPrice))
                 .ifPresent(sku -> {
+                    // 设置商品最低价格
                     spu.setMinPrice(sku.getPrice());
+                    // 设置商品货币类型，如果SKU没有设置货币类型则默认为USD
                     spu.setCurrency(StringUtils.hasText(sku.getCurrency()) ? sku.getCurrency() : "USD");
+                    // 设置商品封面图，使用最低价格SKU的第一张图片
                     spu.setCoverImage(firstImage(sku.getImages()));
                 });
+        // 返回包含SPU和SKU信息的Map
         return Map.of("spu", spu, "skus", skus);
     }
 }

@@ -15,10 +15,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /** 管理 SPU 基础信息和上下架状态，并在搜索服务可用时同步索引。 */
+/**
+ * SPU服务实现类，实现了SpuService接口，提供商品标准单元(SPU)的相关业务操作。
+ * 使用@Service注解标记为Spring服务组件，并通过@RequiredArgsConstructor实现构造器注入。
+ */
 @Service
 @RequiredArgsConstructor
 public class SpuServiceImpl implements SpuService {
+    // 注入SPU数据访问层，用于数据库操作
     private final SpuMapper spuMapper;
+    // 注入商品搜索服务的提供者，用于延迟获取服务实例
     private final ObjectProvider<ProductSearchService> productSearchServiceProvider;
 
     @Override
