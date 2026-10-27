@@ -1,5 +1,6 @@
 package com.mall.common.exception;
 
+/** 携带业务响应码的运行时异常，由全局异常处理器转换为统一响应。 */
 public class BusinessException extends RuntimeException {
     private final int code;
 

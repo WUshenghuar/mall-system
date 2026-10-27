@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/** 维护会员收货地址，并协调默认地址标记。 */
 @Service
 @RequiredArgsConstructor
 public class AddressServiceImpl implements AddressService {
@@ -32,6 +33,7 @@ public class AddressServiceImpl implements AddressService {
         return addressMapper.selectById(id);
     }
 
+    /** 会员首次新增地址时自动设为默认地址。 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void add(MemberAddress address) {
@@ -51,6 +53,7 @@ public class AddressServiceImpl implements AddressService {
         addressMapper.deleteById(id);
     }
 
+    /** 在事务内清除该会员其他默认标记，再设定目标地址；调用前应由入口校验地址归属。 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void setDefault(Long id, Long userId) {

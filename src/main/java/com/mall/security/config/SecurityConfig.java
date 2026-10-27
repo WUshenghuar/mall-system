@@ -19,6 +19,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
+/** 配置无状态 JWT 认证和 HTTP 访问边界；细粒度权限由方法级安全注解控制。 */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -26,6 +27,7 @@ import java.util.List;
 public class SecurityConfig {
     private final JwtAuthenticationFilter jwtFilter;
 
+    /** 放行登录、公开浏览、支付通知及容器内部派发，其余请求统一要求已认证身份。 */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http

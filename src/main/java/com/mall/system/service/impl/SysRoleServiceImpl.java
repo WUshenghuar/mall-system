@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/** 提供后台角色分页数据，并将实体转换为接口展示对象。 */
 @Service
 @RequiredArgsConstructor
 public class SysRoleServiceImpl implements SysRoleService {

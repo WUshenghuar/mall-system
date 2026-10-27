@@ -1,3 +1,4 @@
+"""从环境变量加载模型、检索和遥测配置及其可选能力状态。"""
 from dataclasses import dataclass
 import math
 import os

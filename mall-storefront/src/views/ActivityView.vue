@@ -7,6 +7,7 @@ import { useRouter } from 'vue-router'
 import { Empty, showToast } from 'vant'
 import { memberApi, storeApi } from '../api'
 const router = useRouter(), tab = ref('favorite'), favorites = ref([]), history = ref([])
+// 收藏与足迹接口只提供 SPU 标识，补充名称失败时仍保留可识别的商品编号。
 async function enrich(items) { return Promise.all(items.map(async item => { try { const product = (await storeApi.detail(item.spuId)).data?.spu; return { ...item, title: product?.spuName || `商品 #${item.spuId}` } } catch { return { ...item, title: `商品 #${item.spuId}` } }})) }
 onMounted(async () => { try { const [fav, hist] = await Promise.all([memberApi.favorites({ page: 1, size: 30 }), memberApi.browseHistory({ page: 1, size: 30 })]); favorites.value = await enrich(fav.data?.records || []); history.value = await enrich(hist.data?.records || []) } catch (e) { showToast(e) } })
 const ActivityList = defineComponent({ props: ['items', 'empty'], setup(props) { return () => props.items?.length ? h('div', { class: 'activity-list' }, props.items.map(item => h('div', { class: 'card activity-card', key: item.id }, [h('b', item.title), h('p', { class: 'note' }, item.createTime || '')]))) : h(Empty, { description: props.empty }) } })

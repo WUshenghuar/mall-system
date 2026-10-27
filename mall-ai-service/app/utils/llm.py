@@ -1,3 +1,4 @@
+"""封装模型工具规划、流式生成及不依赖模型的安全回退。"""
 import asyncio
 import json
 import re
@@ -18,6 +19,7 @@ CALL_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 
 
 def safe_history(history: list[dict[str, str]]) -> list[dict[str, str]]:
+    """仅保留有限长度的 user/assistant 历史，并丢弃指令式内容。"""
     result = []
     for item in history[-10:]:
         if not isinstance(item, dict):
@@ -62,6 +64,7 @@ async def plan_tool(message: str, history: list[dict[str, str]], tool_results: l
 
 
 async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: list | None = None) -> dict:
+    """向模型请求受白名单约束的只读工具计划，异常时返回空计划交给上层兜底。"""
     if is_prompt_injection(message) or not getattr(settings, "enabled", True) or not settings.has_model:
         return {"tool": "", "arguments": {}}
     messages = [{"role": "system", "content": "你是平台客服意图路由器。只允许选择只读查询工具，不执行任何写操作；无法确定时不要选择工具。"}]
@@ -145,6 +148,7 @@ async def _plan_tool(message: str, history: list[dict[str, str]], tool_results: 
 
 
 async def stream_reply(message: str, history: list[dict[str, str]], context: list[dict], business_context: str = "") -> AsyncIterator[str]:
+    """优先依据业务查询和检索上下文生成回复；尚未输出时才可回退到已验证内容。"""
     if not getattr(settings, "enabled", True):
         yield "AI 客服当前暂时停用，请转人工客服获取帮助。"
         return
@@ -222,6 +226,7 @@ async def stream_reply(message: str, history: list[dict[str, str]], context: lis
                                 break
     except Exception:
         _mark_model_failure()
+        # 已发送部分回答时不能切换内容源，否则会拼接出互相矛盾的回复。
         if emitted:
             raise
     if not emitted:

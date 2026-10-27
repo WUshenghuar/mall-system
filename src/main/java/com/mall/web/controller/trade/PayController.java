@@ -14,6 +14,7 @@ import org.springframework.security.core.Authentication;
 
 import java.util.Map;
 
+/** 提供会员支付单创建、状态查询、受配置控制的模拟支付和网关回调入口。 */
 @RestController
 @RequestMapping("/api/trade/pay")
 @RequiredArgsConstructor
@@ -39,6 +40,7 @@ public class PayController {
         return Result.success(null);
     }
 
+    /** 仅在回调开关开启时接收第三方通知，关闭时明确返回失败响应。 */
     @PostMapping("/notify/alipay")
     public String alipayNotify(@RequestParam Map<String, String> params) {
         if (!callbackEnabled) return "failure";

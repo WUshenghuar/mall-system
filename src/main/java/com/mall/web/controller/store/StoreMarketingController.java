@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/** 提供 C 端可领取优惠券、会员券包和进行中活动查询。 */
 @RestController
 @RequestMapping("/api/store")
 @RequiredArgsConstructor

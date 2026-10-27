@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/** 提供会员转人工与客服认领、回复、结单的工单接口。 */
 @RestController
 @RequestMapping("/api/ai/tickets")
 @RequiredArgsConstructor

@@ -1,3 +1,4 @@
+"""提供给模型规划器的只读工具白名单，不包含会改变业务状态的操作。"""
 TOOL_NAMES = {
     "query_order",
     "query_logistics",

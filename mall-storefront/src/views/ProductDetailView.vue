@@ -40,7 +40,7 @@ import { memberApi, storeApi, tradeApi } from '../api'
 const route = useRoute(), router = useRouter(), product = ref(null), loading = ref(true), adding = ref(false), selectedSkuId = ref(null), imageBroken = ref(false)
 const spu = computed(() => product.value?.spu || {}), skus = computed(() => product.value?.skus || []), selectedSku = computed(() => skus.value.find(item => item.id === selectedSkuId.value) || skus.value[0]), heroImage = computed(() => imageBroken.value ? '' : spu.value.coverImage || selectedSku.value?.imageUrl || '')
 const descriptionText = computed(() => { const value = spu.value.description; if (!value) return ''; if (typeof value !== 'string') return value.zh || value.en || ''; try { const parsed = JSON.parse(value); return parsed.zh || parsed.en || value } catch { return value } })
-
+// 登录会员打开详情时记录足迹；加入购物车只传 SKU，价格和库存会在结算时重核。
 async function load() { try { product.value = (await storeApi.detail(route.params.id)).data; selectedSkuId.value = skus.value[0]?.id || null; if (localStorage.getItem('member-token')) memberApi.recordBrowse(route.params.id) } catch (error) { showToast(error) } finally { loading.value = false } }
 async function favorite() { if (!localStorage.getItem('member-token')) { showToast('请先登录'); router.push('/account'); return }; try { await memberApi.addFavorite(spu.value.id); showToast('已收藏') } catch (error) { showToast(error) } }
 async function add() { if (!localStorage.getItem('member-token')) { showToast('请先登录'); router.push('/account'); return }; if (!selectedSku.value || adding.value) return; adding.value = true; try { await tradeApi.addCart({ skuId: selectedSku.value.id, quantity: 1 }); showToast('已加入购物车') } catch (error) { showToast(error) } finally { adding.value = false } }

@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供运营后台 SPU 查询、维护、上下架和搜索索引联动入口。 */
 @RestController
 @RequestMapping("/api/product/spu")
 @RequiredArgsConstructor

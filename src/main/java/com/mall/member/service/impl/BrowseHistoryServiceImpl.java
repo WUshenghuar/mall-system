@@ -10,12 +10,14 @@ import com.mall.member.service.BrowseHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/** 记录会员商品浏览事件，并按最近浏览时间分页查询历史。 */
 @Service
 @RequiredArgsConstructor
 public class BrowseHistoryServiceImpl implements BrowseHistoryService {
 
     private final MemberBrowseHistoryMapper browseHistoryMapper;
 
+    /** 每次浏览写入一条记录，保留访问时间用于近期浏览排序。 */
     @Override
     public void add(Long userId, Long spuId) {
         MemberBrowseHistory history = new MemberBrowseHistory();

@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供运营后台商品分类树查询和分类维护入口。 */
 @RestController
 @RequestMapping("/api/product/category")
 @RequiredArgsConstructor

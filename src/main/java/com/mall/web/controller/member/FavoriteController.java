@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供会员 SPU 收藏增删、列表和收藏状态查询接口。 */
 @RestController
 @RequestMapping("/api/member/favorite")
 @RequiredArgsConstructor

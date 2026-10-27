@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+/** 提供商品品牌的分页查询和基础维护。 */
 @Service
 @RequiredArgsConstructor
 public class BrandServiceImpl implements BrandService {

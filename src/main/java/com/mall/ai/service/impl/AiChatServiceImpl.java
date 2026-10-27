@@ -46,6 +46,7 @@ import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/** 编排 AI 对话、只读业务查询、幂等重放和审计，再将上下文交给 AI 网关生成回复。 */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -81,6 +82,7 @@ public class AiChatServiceImpl implements AiChatService {
     @Autowired(required = false)
     private StringRedisTemplate toolStateRedis;
 
+    /** 处理一轮对话；按 requestId 去重，生成受限的只读业务上下文并持久化流式回复。 */
     @Override
     public void stream(Long memberId, String conversationId, AiChatRequest request, Consumer<String> eventConsumer) {
         String requestId = StringUtils.hasText(request.getRequestId()) ? request.getRequestId().trim() : null;
@@ -340,6 +342,7 @@ public class AiChatServiceImpl implements AiChatService {
         return toolResults.stream().anyMatch(result -> callId.equals(result.get("callId")));
     }
 
+    /** 只接受当前业务支持的工具及参数类型，模型输出不会未经约束地用于业务查询。 */
     private Map<String, Object> plannedArguments(Map<String, Object> plan) {
         String tool = plannedTool(plan);
         Object value = plan == null ? null : plan.get("arguments");

@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 
 public interface CouponIssueMapper extends BaseMapper<CouponIssue> {
+    /** 只允许当前会员未使用的券绑定到订单；并发重复核销只能成功一次。 */
     @Update("UPDATE mk_coupon_issue SET status = 1, used_time = NOW(), order_no = #{orderNo}, update_time = NOW() "
             + "WHERE id = #{issueId} AND coupon_id = #{couponId} AND member_id = #{memberId} AND status = 0")
     int markUsed(@Param("issueId") Long issueId, @Param("couponId") Long couponId,

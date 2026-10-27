@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供后台退款申请列表、提交、审批和驳回接口。 */
 @RestController
 @RequestMapping("/api/order/refund")
 @RequiredArgsConstructor

@@ -1,3 +1,4 @@
+"""离线评估客服策略、检索和重排质量，并可选调用模型裁判。"""
 import json
 import asyncio
 import re
@@ -107,6 +108,7 @@ def redact_eval_text(value: str) -> str:
 
 
 async def judge_answer(message: str, answer: str, expected: str) -> dict[str, int | bool] | None:
+    """把问题和回答作为待评审数据发送，并在请求前遮盖订单号、邮箱和长数字。"""
     if not getattr(settings, "has_model", False):
         return None
     payload = {"model": settings.model_name, "temperature": 0, "messages": [

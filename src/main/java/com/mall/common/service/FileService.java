@@ -13,6 +13,7 @@ import java.io.InputStream;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+/** 管理 MinIO 对象路径、上传和临时访问地址，业务数据保存路径而非预签名 URL。 */
 @Slf4j
 @Service
 @ConditionalOnBean(MinioClient.class)

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/** 提供当前登录会员专属的购物车增删改查和条目计数接口。 */
 @RestController
 @RequestMapping("/api/trade/cart")
 @RequiredArgsConstructor

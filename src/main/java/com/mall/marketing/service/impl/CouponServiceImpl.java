@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/** 管理优惠券发布、领取和使用校验，区分券定义与会员持有的券实例。 */
 @Service
 @RequiredArgsConstructor
 public class CouponServiceImpl implements CouponService {
@@ -104,6 +105,7 @@ public class CouponServiceImpl implements CouponService {
                 .orderByAsc(Coupon::getValidEnd));
     }
 
+    /** 锁定券定义并条件递增发行数，避免并发领取突破总量；领取记录与计数在同一事务提交。 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void claim(Long couponId, Long memberId) {
@@ -147,6 +149,7 @@ public class CouponServiceImpl implements CouponService {
         return result;
     }
 
+    /** 校验会员持有的有效券并计算折扣；这里只返回券实例 ID，实际核销由下单事务完成。 */
     @Override
     public DiscountResult validateAndCalculateDiscount(Long memberId, Long couponId, BigDecimal totalAmount) {
         if (couponId == null) return new DiscountResult(BigDecimal.ZERO.setScale(2), null);

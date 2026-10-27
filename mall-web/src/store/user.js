@@ -13,6 +13,7 @@ export const useUserStore = defineStore('user', {
       const res = await request.post('/auth/login', { username, password })
       this.token = res.data.token
       this.permissions = res.data.permissions || []
+      // 持久化令牌和权限供页面刷新后的路由守卫使用；接口授权仍由后端判定。
       localStorage.setItem('token', this.token)
       localStorage.setItem('permissions', JSON.stringify(this.permissions))
       await this.fetchUserInfo()

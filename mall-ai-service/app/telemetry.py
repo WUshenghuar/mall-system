@@ -1,3 +1,4 @@
+"""按环境配置可选 OpenTelemetry/Langfuse 导出，并允许无依赖降级运行。"""
 import os
 import base64
 from contextlib import contextmanager, nullcontext
@@ -90,6 +91,7 @@ def _metric_interval() -> int:
 
 
 def configure_telemetry() -> bool:
+    """仅在导出端点配置且 SDK 可用时注册进程级 provider。"""
     global _active_requests, _configured, _rerank_counter, _tool_plan_counter, _tool_plan_duration, _request_counter, _request_duration
     if _configured or trace is None:
         return _configured

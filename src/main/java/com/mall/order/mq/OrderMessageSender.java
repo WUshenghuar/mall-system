@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
+/** 将订单事件发往 RabbitMQ 并等待发布确认；确认只保证到达代理，不代表消费完成。 */
 @Component
 @ConditionalOnBean(RabbitTemplate.class)
 @RequiredArgsConstructor

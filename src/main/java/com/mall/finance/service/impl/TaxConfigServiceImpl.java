@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/** 管理税率配置，并按商品、来源地和目的地匹配适用税率。 */
 @Service
 @RequiredArgsConstructor
 public class TaxConfigServiceImpl implements TaxConfigService {
@@ -47,6 +48,7 @@ public class TaxConfigServiceImpl implements TaxConfigService {
         taxConfigMapper.deleteById(id);
     }
 
+    /** 每种税种选取匹配维度最具体且处于有效期的配置，再汇总其税率。 */
     @Override
     public BigDecimal findApplicableRate(Long categoryId, String originCountry, String destCountry) {
         LocalDate today = LocalDate.now();

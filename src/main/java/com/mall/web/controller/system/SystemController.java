@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
+/** 提供后台用户和角色查询入口，并通过方法级权限限制访问范围。 */
 @RestController
 @RequestMapping("/api/system")
 @RequiredArgsConstructor

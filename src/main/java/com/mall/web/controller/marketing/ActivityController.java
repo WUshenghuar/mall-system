@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供运营后台营销活动、活动 SKU 和秒杀库存配置接口。 */
 @RestController
 @RequestMapping("/api/marketing/activity")
 @RequiredArgsConstructor

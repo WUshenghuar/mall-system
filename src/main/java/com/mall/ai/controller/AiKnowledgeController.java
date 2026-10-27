@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/** 提供受权限保护的 AI 知识库条目查询和维护入口。 */
 @RestController
 @RequestMapping("/api/ai/knowledge")
 @RequiredArgsConstructor

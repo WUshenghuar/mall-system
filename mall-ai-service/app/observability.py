@@ -1,3 +1,4 @@
+"""维护进程内请求延迟与结果窗口，并生成健康度快照。"""
 from collections import Counter, deque
 import re
 from threading import Lock
@@ -38,6 +39,7 @@ class RequestMetrics:
             outcomes = dict(self._outcomes)
             active = self._active
         total = sum(outcomes.values())
+        # SLA 错误率只看最近窗口；outcomes 则保留进程启动以来的累计值。
         window_total = sum(window_outcomes.values())
 
         def percentile(ratio: float) -> float:

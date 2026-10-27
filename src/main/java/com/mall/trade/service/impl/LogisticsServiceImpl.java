@@ -9,6 +9,7 @@ import com.mall.trade.service.LogisticsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/** 维护订单物流记录，并允许发货时创建或更新对应记录。 */
 @Service
 @RequiredArgsConstructor
 public class LogisticsServiceImpl implements LogisticsService {
@@ -22,6 +23,7 @@ public class LogisticsServiceImpl implements LogisticsService {
         return logisticsMapper.selectOne(qw);
     }
 
+    /** 首次发货时创建物流记录，重复调用则更新现有运单信息。 */
     @Override
     public void ship(String orderNo, String logisticsNo, String logisticsCompany) {
         TradeLogistics logistics = getByOrderNo(orderNo);

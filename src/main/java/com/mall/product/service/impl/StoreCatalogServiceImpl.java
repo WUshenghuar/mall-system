@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.math.BigDecimal;
 
+/** 为 C 端组装可售分类、商品卡片和详情，并补充最低价及图片展示字段。 */
 @Service
 @RequiredArgsConstructor
 public class StoreCatalogServiceImpl implements StoreCatalogService {
@@ -46,6 +47,7 @@ public class StoreCatalogServiceImpl implements StoreCatalogService {
         return products(page, size, categoryId, keyword, null, null, "sales");
     }
 
+    /** 校验价格区间和排序字段，分页查询上架商品并按在售 SKU 补充最低价和封面。 */
     @Override
     public IPage<?> products(int page, int size, Long categoryId, String keyword,
                              BigDecimal minPrice, BigDecimal maxPrice, String sortField) {
@@ -97,6 +99,7 @@ public class StoreCatalogServiceImpl implements StoreCatalogService {
         }
     }
 
+    /** 只返回已上架 SPU 和在售 SKU，详情卡片价格取有价 SKU 中的最低值。 */
     @Override
     public Map<String, Object> detail(Long spuId) {
         Spu spu = spuMapper.selectById(spuId);

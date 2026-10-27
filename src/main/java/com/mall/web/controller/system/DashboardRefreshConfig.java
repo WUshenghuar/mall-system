@@ -10,6 +10,7 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 
 import java.nio.charset.StandardCharsets;
 
+/** 按配置建立仪表盘 Redis Pub/Sub 监听器，空闲时延迟启动。 */
 @Configuration
 @ConditionalOnProperty(name = "dashboard.redis-pubsub-enabled", havingValue = "true", matchIfMissing = true)
 public class DashboardRefreshConfig {

@@ -20,6 +20,7 @@ const router = createRouter({ history: createWebHistory(), routes: [
   { path: '/account', component: AccountView }
 ] })
 
+// 需要会员身份的页面保留目标地址，登录后可继续原导航。
 router.beforeEach(to => {
   if (to.matched.some(record => record.meta.requiresMember) && !localStorage.getItem('member-token')) {
     return { path: '/account', query: { redirect: to.fullPath } }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/** 提供运营后台交易订单分页和详情查询接口。 */
 @RestController
 @RequestMapping("/api/order/trade")
 @RequiredArgsConstructor

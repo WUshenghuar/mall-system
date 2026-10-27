@@ -22,6 +22,7 @@ const formatTime = value => value?.replace('T', ' ').slice(0, 16) || '--'
 const discountText = coupon => coupon.couponType === 'DISCOUNT' ? `${coupon.discount} 折` : `¥${coupon.discount}`
 function openProduct(spuId) { if (spuId) router.push(`/products/${spuId}`) }
 function openActivity(activity) { const spuId = activity.skuItems?.find(item => item.spuId)?.spuId; if (spuId) openProduct(spuId); else router.push('/') }
+// 匿名用户只加载公开活动和券；会员令牌存在时才查询已领取券用于去重展示。
 async function load() { loading.value = true; try { const requests = [marketingApi.coupons(), marketingApi.activities()]; if (localStorage.getItem('member-token')) requests.push(marketingApi.memberCoupons()); const results = await Promise.all(requests); coupons.value = results[0].data || []; activities.value = results[1].data || []; claimedCouponIds.value = new Set((results[2]?.data || []).map(coupon => coupon.couponId)) } catch (e) { showToast(e) } finally { loading.value = false } }
 async function claim(id) { if (!localStorage.getItem('member-token')) { showToast('请先登录后领取'); router.push('/account'); return }; claiming.value = id; try { await marketingApi.claimCoupon(id); claimedCouponIds.value = new Set([...claimedCouponIds.value, id]); showToast('优惠券已放入账户') } catch (e) { showToast(e) } finally { claiming.value = null } }
 onMounted(load)

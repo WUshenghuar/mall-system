@@ -1,3 +1,4 @@
+"""调用兼容 embeddings API，并校验返回向量维度是否与索引映射一致。"""
 from typing import Any
 
 import httpx

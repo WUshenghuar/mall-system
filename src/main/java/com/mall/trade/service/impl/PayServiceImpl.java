@@ -20,6 +20,7 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/** 管理支付记录，验证网关回调签名和金额并协调订单支付状态。 */
 @Service
 @RequiredArgsConstructor
 public class PayServiceImpl implements PayService {
@@ -35,6 +36,7 @@ public class PayServiceImpl implements PayService {
         return "P" + UUID.randomUUID().toString().replace("-", "").substring(0, 31);
     }
 
+    /** 锁定并校验待支付订单；若已有未完成支付单则复用，避免重复创建支付记录。 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TradePay createPay(String orderNo, Integer payType, Long userId) {
@@ -83,6 +85,7 @@ public class PayServiceImpl implements PayService {
         completePayment(pay, "SIMULATED_SUCCESS");
     }
 
+    /** 先验签并比对支付金额，再推进支付状态；已成功的重复通知视为已处理。 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean handleAlipayNotify(Map<String, String> params) {

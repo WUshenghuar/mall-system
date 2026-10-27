@@ -6,6 +6,7 @@ const request = axios.create({
   timeout: 15000
 })
 
+// 统一附加后台 JWT，并在响应拦截器中解包业务响应和处理失效会话。
 request.interceptors.request.use(config => {
   const token = localStorage.getItem('token')
   if (token) {

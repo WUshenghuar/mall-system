@@ -11,11 +11,13 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/** 提供后台用户分页信息及其角色标识，供管理界面和权限流程使用。 */
 @Service
 @RequiredArgsConstructor
 public class SysUserServiceImpl implements SysUserService {
     private final SysUserMapper userMapper;
 
+    /** 分页组装用户资料和角色标识；角色关系按整页批量查询以避免 N+1 次 SQL。 */
     @Override
     public IPage<Map<String, Object>> selectUserPage(Integer page, Integer size) {
         IPage<SysUser> userPage = userMapper.selectPage(new Page<>(page, size), null);

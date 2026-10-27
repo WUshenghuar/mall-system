@@ -134,6 +134,7 @@ async function handleRejectConfirm() {
   } catch { /* ignore */ } finally { rejecting.value = false }
 }
 
+// 定时同步退款审核与退货进度，离开页面时清理轮询。
 onMounted(() => { fetchData(); refreshTimer = window.setInterval(fetchData, 15000) })
 onUnmounted(() => window.clearInterval(refreshTimer))
 </script>

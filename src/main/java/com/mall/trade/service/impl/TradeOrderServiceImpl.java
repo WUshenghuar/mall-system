@@ -48,6 +48,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+/** 编排 C 端下单、订单状态流转及库存、优惠券、物流等交易侧副作用。 */
 @Service
 @RequiredArgsConstructor
 public class TradeOrderServiceImpl implements TradeOrderService {
@@ -73,6 +74,7 @@ public class TradeOrderServiceImpl implements TradeOrderService {
         return "T" + UUID.randomUUID().toString().replace("-", "").substring(0, 31);
     }
 
+    /** 校验购物车、地址和价格后在数据库事务中创建订单，并协调库存预留、优惠券核销和已选购物车清理。 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public TradeOrder createOrder(Long userId, Long addressId, Long couponId, String remark, String itemsJson) {
@@ -166,6 +168,7 @@ public class TradeOrderServiceImpl implements TradeOrderService {
         CouponService.DiscountResult coupon = couponId == null
                 ? new CouponService.DiscountResult(BigDecimal.ZERO.setScale(2), null)
                 : couponService.validateAndCalculateDiscount(userId, couponId, totalAmount);
+        // Redis 原子预留后再锁定数据库库存；事务回滚时由预留服务补回 Redis 数量。
         if (!redisStockReservationService.reserveAll(quantities, availableStock)) {
             throw new BusinessException("商品库存不足，请刷新后重试");
         }
@@ -305,6 +308,7 @@ public class TradeOrderServiceImpl implements TradeOrderService {
         memberService.recordOrderCompletion(userId, order.getPayAmount(), orderNo);
     }
 
+    /** 只有订单仍处于待支付状态时才确认付款并扣减已锁库存，重复支付通知不会重复扣库存。 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean markPaid(String orderNo, Integer payType) {
@@ -350,6 +354,7 @@ public class TradeOrderServiceImpl implements TradeOrderService {
         }
     }
 
+    /** 定时取消过期未支付订单；条件状态更新避免与并发支付流程互相覆盖。 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public int cancelExpiredOrders() {

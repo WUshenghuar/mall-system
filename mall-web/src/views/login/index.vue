@@ -146,6 +146,7 @@ const userStore = useUserStore()
 const form = reactive({ username: 'admin', password: 'admin123' })
 const loading = ref(false)
 
+// 登录与权限同步交由 user store 处理；页面仅在成功后进入工作台。
 async function handleLogin() {
   loading.value = true
   try {

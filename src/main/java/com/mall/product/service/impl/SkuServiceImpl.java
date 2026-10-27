@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+/** 管理 SKU 数据、库存缓存和商品图片，并在 SKU 变更后尝试同步搜索索引。 */
 @Service
 public class SkuServiceImpl implements SkuService {
     private final SkuMapper skuMapper;
@@ -74,6 +75,7 @@ public class SkuServiceImpl implements SkuService {
         reindex(sku.getSpuId());
     }
 
+    /** 更新 SKU 并在图片变更时清理旧文件，随后尝试更新所属 SPU 的搜索索引。 */
     @Override
     public void update(Sku sku) {
         Sku storedSku = skuMapper.selectById(sku.getId());

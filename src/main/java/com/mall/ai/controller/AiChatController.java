@@ -33,10 +33,12 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+/** 提供会员 AI 聊天 SSE 接口及客服运行状态、反馈和审计查询入口。 */
 @RestController
 @RequestMapping("/api/ai")
 @RequiredArgsConstructor
 public class AiChatController {
+    // 同一 requestId 可在 2 秒限流窗口内重试；相同会员的其他请求会被限流。
     private static final DefaultRedisScript<Long> RATE_LIMIT = new DefaultRedisScript<>(
             "local current=redis.call('GET',KEYS[1]); if not current or current==ARGV[1] then "
                     + "redis.call('SET',KEYS[1],ARGV[1],'EX',ARGV[2]); return 1 end; return 0", Long.class);
@@ -45,6 +47,7 @@ public class AiChatController {
     private final AsyncTaskExecutor aiChatExecutor;
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
 
+    /** 建立异步聊天流；客户端断开或超时会取消后台任务，避免继续占用模型调用资源。 */
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter chat(@Valid @RequestBody AiChatRequest request, Authentication auth) {
         Long memberId = CurrentMember.id(auth);
@@ -100,6 +103,7 @@ public class AiChatController {
                     StringUtils.hasText(requestId) ? requestId : "no-request-id", "2");
             return Long.valueOf(1L).equals(result);
         } catch (RuntimeException ignored) {
+            // 限流存储暂不可用时优先保持客服可用，避免 Redis 故障阻断聊天。
             return true;
         }
     }

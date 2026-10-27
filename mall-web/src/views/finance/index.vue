@@ -154,6 +154,7 @@ async function confirm(id) {
   } catch { /* ignore */ }
 }
 
+// 对账单按自然月生成且不能重复创建；生成后的明细可单独确认和导出。
 async function generate() {
   try {
     await generateStatement()

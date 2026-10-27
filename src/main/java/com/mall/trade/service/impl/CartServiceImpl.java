@@ -11,12 +11,14 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+/** 管理会员购物车条目，并在每次读写时校验条目归属。 */
 @Service
 @RequiredArgsConstructor
 public class CartServiceImpl implements CartService {
 
     private final TradeCartMapper cartMapper;
 
+    /** 同一会员已存在相同 SKU 时累加数量，并将该条目重新勾选。 */
     @Override
     public TradeCart addCart(Long userId, Long skuId, Integer quantity) {
         if (skuId == null) throw new BusinessException("商品不能为空");

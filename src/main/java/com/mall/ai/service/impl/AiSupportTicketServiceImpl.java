@@ -17,12 +17,14 @@ import org.springframework.util.StringUtils;
 import java.util.UUID;
 import java.util.List;
 
+/** 管理 AI 转人工工单，限制会员数据归属并将人工消息关联回原会话。 */
 @Service
 @RequiredArgsConstructor
 public class AiSupportTicketServiceImpl implements AiSupportTicketService {
     private final AiConversationMapper conversationMapper;
     private final AiSupportTicketMapper ticketMapper;
 
+    /** 同一会员会话已有处理中工单时复用它，避免重复创建转人工请求。 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public AiSupportTicket create(Long memberId, String conversationId, String message) {
@@ -85,12 +87,14 @@ public class AiSupportTicketServiceImpl implements AiSupportTicketService {
         return conversationMapper.selectRecent(ticket.getMemberId(), ticket.getConversationId(), 20);
     }
 
+    /** 通过条件认领更新保证工单只能由一名客服取得处理权。 */
     @Override
     @Transactional
     public void claim(Long id, Long operatorId) {
         if (ticketMapper.claim(id, operatorId) != 1) throw new BusinessException("工单已被其他客服领取或已关闭");
     }
 
+    /** 仅允许认领该工单的客服回复，并把回复写回关联会话供会员查看。 */
     @Override
     @Transactional
     public void reply(Long id, Long operatorId, String reply) {
@@ -110,6 +114,7 @@ public class AiSupportTicketServiceImpl implements AiSupportTicketService {
         }
     }
 
+    /** 会员补充留言时按 requestId 去重，并仅允许写入本人工单的处理中状态。 */
     @Override
     @Transactional
     public void memberMessage(Long id, Long memberId, String requestId, String message) {

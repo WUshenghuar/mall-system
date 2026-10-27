@@ -18,6 +18,7 @@ public interface TradeOrderMapper extends BaseMapper<TradeOrder> {
     @Select("SELECT COALESCE(SUM(pay_amount), 0) FROM trade_order "
             + "WHERE pay_time IS NOT NULL AND pay_time >= #{start} AND order_status <> 0")
     BigDecimal sumPaidAmountSince(@Param("start") LocalDateTime start);
+    /** 按会员、订单号和预期状态更新，返回 0 表示状态已被其他流程推进。 */
     @Update("UPDATE trade_order SET order_status = #{targetStatus}, update_time = NOW() "
             + "WHERE order_no = #{orderNo} AND user_id = #{userId} AND order_status = #{expectedStatus}")
     int transitionOwned(@Param("orderNo") String orderNo, @Param("userId") Long userId,

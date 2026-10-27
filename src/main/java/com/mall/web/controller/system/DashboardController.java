@@ -24,6 +24,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/** 提供后台经营统计和实时刷新流，并限制仅后台用户访问。 */
 @RestController
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor

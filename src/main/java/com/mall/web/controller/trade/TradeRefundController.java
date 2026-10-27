@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供会员退款申请、进度查询和退货物流提交接口。 */
 @RestController
 @RequestMapping("/api/trade/refund")
 @RequiredArgsConstructor

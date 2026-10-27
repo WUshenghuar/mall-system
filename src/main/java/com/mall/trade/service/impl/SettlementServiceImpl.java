@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/** 计算结算预览中的在售商品金额、税费、活动价和可用优惠券。 */
 @Service
 @RequiredArgsConstructor
 public class SettlementServiceImpl implements SettlementService {
@@ -40,6 +41,7 @@ public class SettlementServiceImpl implements SettlementService {
     private final SpuMapper spuMapper;
     private final TaxConfigService taxConfigService;
 
+    /** 只结算当前会员勾选的购物车项，并依据会员地址计算适用税费。 */
     @Override
     public Map<String, Object> preview(Long userId, List<Long> cartIds, Long addressId, Long couponId) {
         MemberAddress address = addressMapper.selectById(addressId);

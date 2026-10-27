@@ -11,12 +11,14 @@ import com.mall.member.service.FavoriteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+/** 管理会员对 SPU 的收藏关系，并提供按会员隔离的收藏列表。 */
 @Service
 @RequiredArgsConstructor
 public class FavoriteServiceImpl implements FavoriteService {
 
     private final MemberFavoriteMapper favoriteMapper;
 
+    /** 发现已有收藏时拒绝新增。 */
     @Override
     public void add(Long userId, Long spuId) {
         Long count = favoriteMapper.selectCount(

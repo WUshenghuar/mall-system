@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供当前会员商品浏览历史的写入和分页查询接口。 */
 @RestController
 @RequestMapping("/api/member/browse")
 @RequiredArgsConstructor

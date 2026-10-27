@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+/** 管理订单创建与状态更新，并在消息组件不可用时保留同步创建路径。 */
 @Slf4j
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -63,6 +64,7 @@ public class OrderServiceImpl implements OrderService {
     private static final String STOCK_KEY = "stock:sku:";
     private static final String LOCK_KEY = "lock:order:create:";
 
+    /** 接收订单创建请求；启用 Redis 时先串行化同一用户对同一 SKU 的请求并预扣库存。 */
     @Override
     public String createOrder(Long userId, Long skuId, Integer quantity, Long couponId) {
         // 生成订单号
@@ -90,6 +92,7 @@ public class OrderServiceImpl implements OrderService {
                     throw e;
                 }
             } finally {
+                // 比对锁值可降低误删风险，但读取与删除非原子，过期重建时仍可能误删。
                 String val = (String) redisTemplate.opsForValue().get(lockKey);
                 if (lockValue.equals(val)) {
                     redisTemplate.delete(lockKey);
@@ -118,6 +121,7 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
+    /** 消费订单创建消息并落库；订单号的唯一约束让重复投递最终收敛为同一张订单。 */
     @Override
     @Transactional
     public void processOrderMessage(Map<String, Object> msg) {
@@ -172,6 +176,7 @@ public class OrderServiceImpl implements OrderService {
         try {
             orderMapper.insert(order);
         } catch (DuplicateKeyException e) {
+            // 并发消费者可能同时通过前置查询，由数据库唯一键兜底去重。
             return;
         }
 
@@ -203,6 +208,7 @@ public class OrderServiceImpl implements OrderService {
                 ? config.getTaxRate() : BigDecimal.ZERO;
     }
 
+    /** 将待支付订单置为已支付；重复回调或非待支付订单不重复推进状态。 */
     @Override
     @Transactional
     public void paySuccess(String orderNo) {

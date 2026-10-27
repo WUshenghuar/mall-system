@@ -115,6 +115,7 @@ function onTableChange(pag) {
 }
 
 function onTabChange() {
+  // 切换订单状态筛选后回到第一页，避免请求不存在的页码。
   pagination.current = 1
   fetchData()
 }

@@ -1,3 +1,4 @@
+"""模型不可用时的本地规则回复，以及提示注入的范围限制。"""
 import re
 from typing import TypedDict
 

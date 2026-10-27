@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供后台会员档案查询和积分人工调整接口。 */
 @RestController
 @RequestMapping("/api/member")
 @RequiredArgsConstructor

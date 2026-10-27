@@ -32,8 +32,10 @@ import { useRouter } from 'vue-router'
 const carts = ref([]), settlement = ref(null), addresses = ref([]), addressId = ref(null), couponId = ref(null), remark = ref(''), selected = ref([]), submitting = ref(false), router = useRouter()
 const couponText = coupon => coupon.couponType === 'DISCOUNT' ? `${coupon.discount} 折` : coupon.couponType === 'SHIPPING' ? '包邮' : `减 ¥${coupon.discount}`
 const hasActivityPrice = item => item.originalPrice != null && item.price != null && Number(item.originalPrice) > Number(item.price)
+// 每次地址或优惠券变更都重新预览，服务端据此签发对应的一次性快照。
 async function load() { try { const [cartRes, addressRes] = await Promise.all([tradeApi.cart(), memberApi.addresses()]); carts.value = cartRes.data || []; selected.value = carts.value.filter(x => x.checked === 1); addresses.value = addressRes.data || []; addressId.value = addresses.value.find(x => x.isDefault === 1)?.id || addresses.value[0]?.id || null; await preview() } catch (e) { showToast(e) } }
 async function preview() { if (!addressId.value || !selected.value.length) { settlement.value = null; return false } try { settlement.value = (await tradeApi.settle({ cartIds: selected.value.map(x => x.id), addressId: addressId.value, couponId: couponId.value })).data; return true } catch (e) { settlement.value = null; showToast(e); return false } }
+// 提交前再次预览以刷新价格和库存，并只把服务端签发的快照令牌用于下单。
 async function submit() { if (!(await preview()) || !settlement.value?.snapshotToken) return; submitting.value = true; try { const order = (await tradeApi.createOrder({ snapshotToken: settlement.value.snapshotToken, remark: remark.value })).data; const pay = (await tradeApi.pay({ orderNo: order.orderNo, payType: 1 })).data; await tradeApi.simulate(pay.payNo); showToast('支付成功，等待发货'); router.replace('/orders') } catch (e) { showToast(e) } finally { submitting.value = false } }
 watch([addressId, couponId], preview); onMounted(load)
 </script>

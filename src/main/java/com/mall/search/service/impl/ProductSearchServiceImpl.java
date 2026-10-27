@@ -31,6 +31,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/** 将商品主数据映射为 Elasticsearch 文档，并提供索引同步和商品检索。 */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -129,6 +130,7 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         }
     }
 
+    /** 重建索引后分批写入全量商品，限制单次 bulk 请求大小以控制请求体规模。 */
     @Override
     public void syncAllProducts() {
         recreateIndex();
@@ -146,6 +148,7 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         log.info("Full product sync to ES completed, total={}", documents.size());
     }
 
+    /** 生成 SPU 检索文档，并用带价格 SKU 中的最低价代表商品价格。 */
     Map<String, Object> buildProductDocument(Spu spu, List<Sku> skus,
                                              Map<Long, String> brandNames) {
         Map<String, Object> document = new HashMap<>();
@@ -239,6 +242,7 @@ public class ProductSearchServiceImpl implements ProductSearchService {
         }
     }
 
+    /** 将分页、筛选和排序参数转换为 ES DSL，并限制页码、页大小和排序字段。 */
     Map<String, Object> searchRequest(String keyword, Long categoryId, Double minPrice, Double maxPrice,
                                       String sortField, String sortOrder, int page, int size) {
         page = Math.max(page, 1);

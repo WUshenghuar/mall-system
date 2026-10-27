@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/** 将结算预览固化为短时、单次使用且绑定会员的下单快照。 */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -25,6 +26,7 @@ public class SettlementSnapshotService {
     private final StringRedisTemplate stringRedisTemplate;
     private final ObjectMapper objectMapper;
 
+    /** 保存结算时的商品、地址和优惠券数据，订单创建时不再信任客户端重传内容。 */
     public Map<String, Object> create(Long userId, List<Long> cartIds, Long addressId, Long couponId) {
         Map<String, Object> preview = settlementService.preview(userId, cartIds, addressId, couponId);
         String token = UUID.randomUUID().toString().replace("-", "");
@@ -44,6 +46,7 @@ public class SettlementSnapshotService {
         return result;
     }
 
+    /** 原子取走快照，校验会员归属后返回；同一令牌无法重复创建订单。 */
     public Snapshot consume(String token, Long userId) {
         if (token == null || token.isBlank()) throw new BusinessException("结算快照不能为空");
         String value = stringRedisTemplate.opsForValue().getAndDelete(KEY_PREFIX + token);

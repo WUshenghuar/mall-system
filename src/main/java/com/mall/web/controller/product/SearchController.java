@@ -7,6 +7,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供商品搜索查询和受权限保护的全量索引同步入口。 */
 @RestController
 @RequestMapping("/api/search")
 @RequiredArgsConstructor

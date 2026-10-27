@@ -14,6 +14,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+/** 管理 SPU 基础信息和上下架状态，并在搜索服务可用时同步索引。 */
 @Service
 @RequiredArgsConstructor
 public class SpuServiceImpl implements SpuService {
@@ -54,6 +55,7 @@ public class SpuServiceImpl implements SpuService {
         productSearchServiceProvider.ifAvailable(service -> service.deleteProduct(id));
     }
 
+    /** 更新上架状态后尝试同步商品索引，使 C 端搜索结果反映最新可售状态。 */
     @Override
     public void publish(Long id, Integer status) {
         Spu spu = spuMapper.selectById(id);

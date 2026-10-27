@@ -1,3 +1,4 @@
+"""FastAPI 服务入口，负责挂载客服路由并初始化可选基础设施。"""
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Header, HTTPException
@@ -11,6 +12,7 @@ from app.telemetry import configure_telemetry, langfuse_configured, telemetry_co
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # 搜索引擎启动失败不阻塞应用；检索层会在后续请求中重试并可本地回退。
     try:
         await ensure_seeded()
     except Exception:

@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/** 按自然月汇总订单与已完成退款，生成可查询和导出的财务对账单。 */
 @Service
 @RequiredArgsConstructor
 public class StatementServiceImpl implements StatementService {
@@ -41,6 +42,7 @@ public class StatementServiceImpl implements StatementService {
                 Wrappers.<Statement>lambdaQuery().orderByDesc(Statement::getCreateTime));
     }
 
+    /** 以订单创建时间归属当前自然月；整张对账单及明细在一个事务内生成。 */
     @Override
     @Transactional
     public void generateCurrentMonth() {

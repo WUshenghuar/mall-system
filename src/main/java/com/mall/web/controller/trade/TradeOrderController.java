@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供 C 端交易订单接口；下单内容从会员专属结算快照读取。 */
 @RestController
 @RequestMapping("/api/trade/order")
 @RequiredArgsConstructor
@@ -20,6 +21,7 @@ public class TradeOrderController {
     private final TradeOrderService tradeOrderService;
     private final SettlementSnapshotService settlementSnapshotService;
 
+    /** 消费一次性结算快照后创建订单，不接受客户端直接提交商品数量和价格。 */
     @PostMapping
     public Result<TradeOrder> create(@Valid @RequestBody CreateReq req, Authentication auth) {
         Long userId = CurrentMember.id(auth);

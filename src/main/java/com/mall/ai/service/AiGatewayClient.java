@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 
+/** 作为 Java 业务层与 Python AI 服务之间的 HTTP/SSE 适配层，统一处理鉴权、超时和链路标识。 */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -83,6 +84,7 @@ public class AiGatewayClient {
                 Math.max(100, Math.min(timeoutMillis, 2_500)));
     }
 
+    /** 请求模型生成只读工具计划；调用失败时返回空计划，由上层确定性路由继续处理。 */
     private Map<String, Object> planInternal(Long memberId, String conversationId, String message,
                                              List<AiConversation> history, List<?> toolResults, String requestId,
                                              int timeoutMillis) {
@@ -111,6 +113,7 @@ public class AiGatewayClient {
         streamInternal(memberId, conversationId, message, businessContext, businessTool, history, requestId, eventConsumer);
     }
 
+    /** 转发对话请求并逐条传递 Python 服务发出的 SSE data 事件。 */
     private void streamInternal(Long memberId, String conversationId, String message, String businessContext,
                                 String businessTool, List<AiConversation> history, String requestId,
                                 Consumer<String> eventConsumer) {

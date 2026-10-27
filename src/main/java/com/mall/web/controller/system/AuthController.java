@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.HashMap;
 import java.util.Map;
 
+/** 提供后台用户名密码登录、JWT 签发和当前登录用户信息查询。 */
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor

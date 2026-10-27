@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+/** 管理商品分类树及分类基础信息。 */
 @Service
 @RequiredArgsConstructor
 public class CategoryServiceImpl implements CategoryService {
@@ -35,6 +36,7 @@ public class CategoryServiceImpl implements CategoryService {
         categoryMapper.updateById(category);
     }
 
+    /** 分类仍有子分类时拒绝删除，避免留下无法归属的树节点。 */
     @Override
     public void delete(Long id) {
         Long count = categoryMapper.selectCount(

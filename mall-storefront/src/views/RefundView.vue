@@ -50,6 +50,7 @@ import { showToast } from 'vant'
 import { fileApi, tradeApi } from '../api'
 
 const route = useRoute(), router = useRouter()
+// 订单详情可通过查询参数预填订单号和退款类型，减少会员重复选择。
 const orderNo = ref(String(route.query.orderNo || '')), refundType = ref(Number(route.query.type || 0))
 const reason = ref(''), evidenceUrls = ref([]), refunds = ref([]), loading = ref(false), submitting = ref(false), uploading = ref(false)
 const returnId = ref(null), returnCompany = ref(''), returnTrackingNo = ref(''), returnSubmitting = ref(false)

@@ -1,3 +1,4 @@
+"""组合 BM25、可选向量召回和重排，并在依赖超时或故障时回退到种子知识。"""
 import asyncio
 import json
 import math
@@ -53,6 +54,7 @@ def is_english_query(query: str) -> bool:
 
 
 async def ensure_seeded() -> None:
+    """创建知识索引并幂等写入内置文档，向量配置启用时再后台补齐 embedding。"""
     properties = {"id": {"type": "keyword"}, "title": {"type": "text"}, "content": {"type": "text"}, "category": {"type": "keyword"}, "enabled": {"type": "boolean"}}
     vector_mapping = {"type": "dense_vector", "dims": settings.embedding_dimensions, "index": True, "similarity": "cosine"}
     if settings.has_embedding:
@@ -116,6 +118,7 @@ async def _backfill_embeddings() -> None:
 
 
 async def retrieve(query: str) -> list[dict]:
+    """将检索限制在固定时预算内，超时直接使用本地种子文档。"""
     try:
         async with asyncio.timeout(RAG_BUDGET_SECONDS):
             return await _retrieve(query)

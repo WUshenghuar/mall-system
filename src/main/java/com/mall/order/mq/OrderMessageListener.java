@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
+/** 将建单与支付消息交给订单服务处理，重复投递由服务层的状态/订单号校验吸收。 */
 @Slf4j
 @Component
 @ConditionalOnBean(RabbitTemplate.class)

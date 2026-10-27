@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/** 处理退款申请和审核状态流转，并协调订单状态、库存返还及会员权益更新。 */
 @Service
 @RequiredArgsConstructor
 public class TradeRefundServiceImpl implements TradeRefundService {
@@ -29,6 +30,7 @@ public class TradeRefundServiceImpl implements TradeRefundService {
     private final TradeOrderService tradeOrderService;
     private final TradeEventPublisher tradeEventPublisher;
 
+    /** 校验订单归属和退款类型后冻结订单状态，防止重复申请或与支付、发货并发冲突。 */
     @Override @Transactional(rollbackFor = Exception.class)
     public TradeRefund apply(String orderNo, Long userId, String reason, Integer refundType, List<String> evidenceUrls) {
         TradeOrder order = orderMapper.selectOne(Wrappers.<TradeOrder>lambdaQuery()
@@ -74,6 +76,7 @@ public class TradeRefundServiceImpl implements TradeRefundService {
     public void approve(Long id, Long approverId, String comment) { transition(id, 0, 1, approverId, comment, false); }
     @Override @Transactional(rollbackFor = Exception.class)
     public void reject(Long id, Long approverId, String comment) { transition(id, 0, 2, approverId, comment, true); }
+    /** 完成退款前检查退货流程；仅在状态成功流转后恢复库存和相应会员权益。 */
     @Override @Transactional(rollbackFor = Exception.class)
     public void complete(Long id, Long operatorId, String comment) {
         TradeRefund refund = refundMapper.selectById(id);
@@ -103,6 +106,7 @@ public class TradeRefundServiceImpl implements TradeRefundService {
         TradeRefund refund = refundMapper.selectById(id);
         if (refund == null) throw new BusinessException("退款申请不存在");
         if (refundMapper.transitionStatus(id, expected, target, operatorId, comment) != 1) throw new BusinessException("退款申请状态已变更");
+        // 退款审批与订单状态必须一起成功，避免退款单和订单状态分叉。
         int orderTarget = restoreOrder
                 ? (refund.getOriginalOrderStatus() == null ? 1 : refund.getOriginalOrderStatus())
                 : target == 3 ? 6 : 5;

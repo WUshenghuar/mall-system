@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.math.BigDecimal;
 
+/** 提供 C 端商品分类、筛选列表和商品详情查询接口。 */
 @RestController
 @RequestMapping("/api/store")
 @RequiredArgsConstructor

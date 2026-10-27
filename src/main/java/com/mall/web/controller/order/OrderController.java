@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供传统订单的创建、查询、支付状态更新和取消接口。 */
 @RestController
 @RequestMapping("/api/order")
 @RequiredArgsConstructor

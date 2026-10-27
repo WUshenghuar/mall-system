@@ -1,3 +1,4 @@
+"""提供内部服务令牌保护的知识库查询和文档写入 API。"""
 from fastapi import APIRouter, Header, HTTPException, Path
 from pydantic import BaseModel, Field
 import httpx

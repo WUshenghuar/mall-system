@@ -1,5 +1,6 @@
 package com.mall.common.result;
 
+/** 对外 API 响应使用的标准业务码和默认消息。 */
 public enum ResultCode {
     SUCCESS(200, "操作成功"),
     FAILED(500, "操作失败"),

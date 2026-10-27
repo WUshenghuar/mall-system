@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+/** 管理仪表盘 SSE 客户端，并在多实例时通过 Redis Pub/Sub 扇出刷新事件。 */
 @Component
 public class DashboardRefreshHub {
     static final String CHANNEL = "mall:dashboard:refresh";

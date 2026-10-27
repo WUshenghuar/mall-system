@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
+/** 管理会员资料、积分流水和订单累计消费，并依据消费额重新计算会员等级。 */
 @Service
 @RequiredArgsConstructor
 public class MemberServiceImpl implements MemberService {
@@ -44,6 +45,7 @@ public class MemberServiceImpl implements MemberService {
         return memberMapper.selectById(id);
     }
 
+    /** 锁定会员记录后校验余额并同时写入积分流水，确保余额和账目一起提交。 */
     @Override
     @Transactional
     public void adjustPoints(Long id, int points, String reason) {
@@ -76,6 +78,7 @@ public class MemberServiceImpl implements MemberService {
                 .last("LIMIT 20"));
     }
 
+    /** 订单完成时累计实付金额、按整数金额奖励积分，并基于新的累计消费刷新等级。 */
     @Override
     @Transactional
     public void recordOrderCompletion(Long id, BigDecimal amount, String orderNo) {

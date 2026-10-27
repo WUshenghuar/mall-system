@@ -9,6 +9,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/** 仅在 RabbitMQ 可用时注册建单和支付消息的交换机、队列及路由绑定。 */
 @Configuration
 @ConditionalOnBean(RabbitTemplate.class)
 public class RabbitConfig {

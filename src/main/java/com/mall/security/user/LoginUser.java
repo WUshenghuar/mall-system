@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+/** 后台用户的 Spring Security 主体，分别暴露带 ROLE_ 前缀的角色和原样功能权限。 */
 @Getter
 public class LoginUser implements UserDetails {
     private final Long userId;

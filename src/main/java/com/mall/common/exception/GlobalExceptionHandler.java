@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+/** 将业务、参数校验、权限和未预期异常统一转换为 API 响应。 */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {

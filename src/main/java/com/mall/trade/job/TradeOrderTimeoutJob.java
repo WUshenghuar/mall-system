@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+/** 每五分钟触发一次超时订单回收；服务层只取消超过 30 分钟且仍未支付的订单。 */
 @Slf4j
 @Component
 @RequiredArgsConstructor

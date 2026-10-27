@@ -100,6 +100,7 @@ const taxTypeOptions = [
   { label: '反倾销税', value: 'ANTI_DUMPING' }
 ]
 
+// 空来源国或目的国表示不限定该维度，实际税率由订单地区与有效期共同匹配。
 const form = reactive({
   categoryId: null,
   taxRate: null,

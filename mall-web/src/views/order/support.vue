@@ -124,6 +124,7 @@ function openReply(record) { replyTarget.value = record; replyContent.value = ''
 async function reply() { if (!replyTarget.value || !replyContent.value.trim()) { message.warning('请输入回复内容'); return }; replying.value = true; try { await replySupportTicket(replyTarget.value.id, replyContent.value.trim()); message.success('已发送回复'); replyOpen.value = false; fetchData() } catch { /* interceptor shows error */ } finally { replying.value = false } }
 function openResolve(record) { resolveTarget.value = record; resolveNote.value = ''; resolveOpen.value = true }
 async function resolve() { if (!resolveTarget.value) return; resolving.value = true; try { await resolveSupportTicket(resolveTarget.value.id, resolveNote.value.trim()); message.success('工单已解决'); resolveOpen.value = false; fetchData() } catch { /* interceptor shows error */ } finally { resolving.value = false } }
+// 页面每 15 秒刷新工单、评分和 AI 运行状态，切页时停止轮询。
 onMounted(() => { fetchData(); fetchFeedbackStats(); fetchAiStatus(); fetchAiMetrics(); refreshTimer = window.setInterval(() => { fetchData(); fetchFeedbackStats(); fetchAiStatus(); fetchAiMetrics() }, 15000) })
 onUnmounted(() => window.clearInterval(refreshTimer))
 </script>

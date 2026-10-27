@@ -17,5 +17,7 @@
 </template>
 <script setup>
 import {ref,onMounted} from 'vue';import{showToast}from'vant';import{tradeApi}from'../api';import{useRouter}from'vue-router'
-const carts=ref([]),loading=ref(false),router=useRouter();async function load(){loading.value=true;try{carts.value=(await tradeApi.cart()).data||[]}catch(e){showToast(e)}finally{loading.value=false}}async function save(item){try{await tradeApi.updateCart(item.id,{quantity:item.quantity,checked:item.checked})}catch(e){showToast(e);load()}}async function remove(id){try{await tradeApi.removeCart(id);load()}catch(e){showToast(e)}}function checkout(){router.push('/checkout')}onMounted(load)
+const carts=ref([]),loading=ref(false),router=useRouter();async function load(){loading.value=true;try{carts.value=(await tradeApi.cart()).data||[]}catch(e){showToast(e)}finally{loading.value=false}}
+// 请求失败时用服务端购物车覆盖本地临时值，避免界面与持久化状态不一致。
+async function save(item){try{await tradeApi.updateCart(item.id,{quantity:item.quantity,checked:item.checked})}catch(e){showToast(e);load()}}async function remove(id){try{await tradeApi.removeCart(id);load()}catch(e){showToast(e)}}function checkout(){router.push('/checkout')}onMounted(load)
 </script>

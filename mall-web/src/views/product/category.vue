@@ -74,6 +74,7 @@ async function fetchData() {
   } finally { loading.value = false }
 }
 
+// 父级为空表示根分类，选择父分类时新建的节点挂到该分类下。
 function openAdd(parent) {
   editId.value = null
   form.value = { categoryName: '', parentId: parent?.id || 0, orderNum: 0, status: 1 }

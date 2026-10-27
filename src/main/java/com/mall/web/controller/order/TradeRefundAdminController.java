@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供运营后台退款工单查询、审核和完结入口。 */
 @RestController
 @RequestMapping("/api/order/trade/refund")
 @RequiredArgsConstructor

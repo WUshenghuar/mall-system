@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/** 管理营销活动及其 SKU 规则，并提供活动库存的预留与释放操作。 */
 @Service
 @RequiredArgsConstructor
 public class ActivityServiceImpl implements ActivityService {
@@ -83,6 +84,7 @@ public class ActivityServiceImpl implements ActivityService {
                 .eq(ActivitySku::getActivityId, activityId).orderByAsc(ActivitySku::getId));
     }
 
+    /** 秒杀 SKU 必须配置活动价和独立库存，限购规则默认限制每人一件。 */
     @Override
     public void saveSku(Long activityId, ActivitySku activitySku) {
         Activity activity = activityMapper.selectById(activityId);
@@ -125,6 +127,7 @@ public class ActivityServiceImpl implements ActivityService {
         return activitySkuMapper.findActiveBySkuId(skuId, LocalDateTime.now());
     }
 
+    /** 通过条件更新原子预留活动库存，避免并发下单超过秒杀可售量。 */
     @Override
     public boolean reserveStock(ActivitySku activitySku, int quantity) {
         return activitySku == null || activitySku.getSeckillStock() == null

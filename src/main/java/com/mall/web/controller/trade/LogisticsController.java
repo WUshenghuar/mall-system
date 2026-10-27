@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供订单物流查询，并在返回信息前验证订单属于当前会员。 */
 @RestController
 @RequestMapping("/api/trade/logistics")
 @RequiredArgsConstructor

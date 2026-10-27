@@ -125,6 +125,7 @@ function showAdjust(record) {
 }
 
 async function handleAdjust() {
+  // 积分变更的正负方向和原因由操作员确认，成功后重新读取会员余额。
   try {
     await adjustPoints(currentMember.value.id, pointsChange.value, pointsReason.value)
     message.success('积分已调整')

@@ -269,6 +269,7 @@ async function handleImageSelected(event) {
   uploading.value = true
   try {
     const res = await uploadProductImage(file)
+    // 持久化对象路径，预览 URL 是短期签名地址，不应写入 SKU 图片字段。
     form.images = JSON.stringify([res.data.path])
     imagePreview.value = res.data.url
     uploadedImagePath.value = res.data.path
@@ -330,6 +331,7 @@ function openBatchPrice() {
   batchPriceOpen.value = true
 }
 
+// 批量调整作用于当前 SPU 的 SKU 集合，保存后重新拉取最终价格。
 async function handleBatchPrice() {
   if (priceValue.value == null) {
     message.warning('请输入调整值')

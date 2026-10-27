@@ -8,6 +8,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 
+/** C 端会员的 Spring Security 主体，固定授予 ROLE_MEMBER 并依据账户状态启用。 */
 @Getter
 public class MemberPrincipal implements UserDetails {
     private final Long memberId;

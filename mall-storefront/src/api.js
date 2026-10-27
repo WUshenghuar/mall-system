@@ -1,6 +1,8 @@
 import axios from 'axios'
 
 const request = axios.create({ baseURL: '/api', timeout: 10000 })
+
+// C 端令牌与后台令牌分开存储，避免两类主体互相覆盖认证状态。
 request.interceptors.request.use(config => {
   const token = localStorage.getItem('member-token')
   if (token) config.headers.Authorization = `Bearer ${token}`
@@ -34,6 +36,7 @@ export const marketingApi = {
   activities: () => request.get('/store/activities')
 }
 export const aiApi = {
+  // SSE 按空行切分事件；未完整到达的末尾帧留在 buffer 等下一块数据。
   async streamChat(payload, onEvent, signal) {
     const token = localStorage.getItem('member-token')
     const response = await fetch('/api/ai/chat', {

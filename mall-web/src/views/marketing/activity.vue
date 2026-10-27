@@ -198,6 +198,7 @@ const skuColumns = [
   { title: '操作', key: 'skuAction', width: 70 }
 ]
 function resetSkuForm() { Object.assign(skuForm, { skuId: null, seckillPrice: null, seckillStock: null, limitPerUser: 1 }) }
+// 活动 SKU 属于当前选中的活动，打开弹窗时重新载入其商品配置。
 async function openSku(record) {
   skuActivity.value = record
   resetSkuForm()

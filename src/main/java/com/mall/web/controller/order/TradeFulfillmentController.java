@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供运营后台发货操作入口，将订单发货和物流信息交由交易服务统一处理。 */
 @RestController
 @RequestMapping("/api/order/trade")
 @RequiredArgsConstructor

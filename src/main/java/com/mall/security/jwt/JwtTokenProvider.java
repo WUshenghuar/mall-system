@@ -11,6 +11,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
+/** 负责员工与会员 JWT 的签发和解析，并在启动时校验签名密钥强度。 */
 @Component
 public class JwtTokenProvider {
     private final SecretKey key;
@@ -30,6 +31,7 @@ public class JwtTokenProvider {
         return generateToken(userId, username, "STAFF");
     }
 
+    /** 为 C 端会员签发带 MEMBER 身份标记的令牌，与后台员工令牌区分开。 */
     public String generateMemberToken(Long memberId, String phone) {
         return generateToken(memberId, phone, "MEMBER");
     }

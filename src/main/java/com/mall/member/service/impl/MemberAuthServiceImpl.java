@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/** 管理会员注册、密码认证和账户状态检查，并生成 Spring Security 使用的会员主体。 */
 @Service
 @RequiredArgsConstructor
 public class MemberAuthServiceImpl implements MemberAuthService {
@@ -20,6 +21,7 @@ public class MemberAuthServiceImpl implements MemberAuthService {
     private final MemberAccountMapper accountMapper;
     private final PasswordEncoder passwordEncoder;
 
+    /** 创建会员资料和独立认证账户；密码只以编码后的摘要写入账户表。 */
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Member register(String phone, String password, String nickName) {
@@ -41,6 +43,7 @@ public class MemberAuthServiceImpl implements MemberAuthService {
         return member;
     }
 
+    /** 校验手机号密码，并拒绝已禁用的会员账户或会员资料。 */
     @Override
     public MemberPrincipal authenticate(String phone, String password) {
         MemberAccount account = accountMapper.selectOne(Wrappers.<MemberAccount>lambdaQuery()

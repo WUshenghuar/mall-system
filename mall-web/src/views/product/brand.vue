@@ -104,6 +104,7 @@ function onTableChange(pag) {
   fetchData()
 }
 
+// 新搜索词从第一页开始，防止沿用旧页码后误显示空结果。
 function handleSearch() {
   pagination.current = 1
   fetchData()

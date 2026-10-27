@@ -195,6 +195,7 @@ const columns = [
 ]
 
 function buildTree(list, parentId = 0) {
+  // 接口返回扁平分类列表，递归组装成树供分类筛选器和表单共用。
   return list
     .filter(item => item.parentId === parentId)
     .map(item => ({

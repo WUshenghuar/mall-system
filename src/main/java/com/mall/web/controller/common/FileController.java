@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
+/** 提供商品图片上传和删除接口，并在存储前校验文件大小、类型及图片签名。 */
 @RestController
 @ConditionalOnBean(FileService.class)
 @RequestMapping("/api/file")
@@ -49,6 +50,7 @@ public class FileController {
         return Result.success(null);
     }
 
+    /** 对象存储接收文件前同时检查声明类型和文件头，不能只信任浏览器 MIME 值。 */
     private boolean hasValidImageSignature(MultipartFile file) {
         try (var input = file.getInputStream()) {
             byte[] header = input.readNBytes(12);

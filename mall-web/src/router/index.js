@@ -141,7 +141,7 @@ const router = createRouter({
   routes
 })
 
-// Auth + Permission guard
+// 路由元数据只做前端导航门禁；接口权限仍由后端独立校验。
 router.beforeEach((to, _from, next) => {
   NProgress.start()
   const token = localStorage.getItem('token')
@@ -156,6 +156,7 @@ router.beforeEach((to, _from, next) => {
   if (!token) return next('/login')
 
   // Check permission requirement (prefix-match against backend perms like "product:spu:list")
+  // 权限按模块前缀匹配，例如 product 可覆盖 product:spu:list。
   const requiredPerm = to.meta.perm
   if (requiredPerm) {
     try {

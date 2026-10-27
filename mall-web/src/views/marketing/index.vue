@@ -238,6 +238,7 @@ async function handleSave() {
   } catch { /* ignore */ } finally { saving.value = false }
 }
 
+// 优惠券先由运营提交审核，再由有审核权限的角色作出通过或驳回决定。
 async function handleSubmitAudit(id) { await submitAudit(id); message.success('已提交审核'); fetchData() }
 async function handleAudit(id, status) { await auditCoupon(id, status); message.success(status === 2 ? '已通过' : '已驳回'); fetchData() }
 async function handleDelete(id) { await deleteCoupon(id); message.success('已删除'); fetchData() }

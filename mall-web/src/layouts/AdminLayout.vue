@@ -182,7 +182,7 @@ const userInitial = computed(() => {
   return name.charAt(0)
 })
 
-// Route → menu key mappings
+// 路由前缀映射到侧栏分组，确保深层页面刷新后仍展开所属菜单。
 const PREFIX_MAP = [
   ['/product', 'product-sub'],
   ['/order',   'order-sub'],

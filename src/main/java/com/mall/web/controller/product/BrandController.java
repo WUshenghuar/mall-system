@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供运营后台商品品牌的分页查询和维护入口。 */
 @RestController
 @RequestMapping("/api/product/brand")
 @RequiredArgsConstructor

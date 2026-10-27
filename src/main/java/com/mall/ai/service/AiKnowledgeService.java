@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+/** 校验知识条目标识并规范化内容，再通过 AI 网关保存到 Python 知识库。 */
 @Service
 @RequiredArgsConstructor
 public class AiKnowledgeService {
@@ -20,6 +21,7 @@ public class AiKnowledgeService {
         return gatewayClient.listKnowledge();
     }
 
+    /** 新建条目时生成安全标识；更新时复用标识，并保留显式关闭的启用状态。 */
     public AiKnowledgeDocument save(AiKnowledgeDocument document) {
         String id = StringUtils.hasText(document.getId()) ? document.getId().trim()
                 : "kb-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);

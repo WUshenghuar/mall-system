@@ -294,6 +294,7 @@ async function fetchRoles() {
   finally { rolesLoading.value = false }
 }
 
+// 用户列表先加载；只有首次切换到角色页时才请求角色目录。
 function onTabChange(key) {
   if (key === 'roles' && !rolesLoaded.value) fetchRoles()
 }

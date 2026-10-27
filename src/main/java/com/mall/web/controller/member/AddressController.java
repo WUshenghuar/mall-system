@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/** 提供会员收货地址维护入口，并在控制器层校验每条地址的所有权。 */
 @RestController
 @RequestMapping("/api/member/address")
 @RequiredArgsConstructor

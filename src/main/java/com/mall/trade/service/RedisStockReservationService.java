@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 
+/** 维护 Redis 中的可售库存预留，并与数据库事务提交或回滚保持一致。 */
 @Service
 @RequiredArgsConstructor
 public class RedisStockReservationService {
@@ -21,6 +22,7 @@ public class RedisStockReservationService {
                     + "if n<q then return 0 end; redis.call('DECRBY',KEYS[1],q); return 1", Long.class);
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
 
+    /** 使用 Lua 原子检查并预扣单个 SKU；数据库事务失败时在完成回调中恢复数量。 */
     public boolean reserve(Long skuId, int quantity, int available) {
         StringRedisTemplate redis = redisTemplateProvider.getIfAvailable();
         if (redis == null) return true;
@@ -38,6 +40,7 @@ public class RedisStockReservationService {
         return true;
     }
 
+    /** 在同一段 Lua 脚本中先校验全部 SKU，再统一预扣，避免多商品只扣成功一部分。 */
     public boolean reserveAll(Map<Long, Integer> quantities, Map<Long, Integer> available) {
         StringRedisTemplate redis = redisTemplateProvider.getIfAvailable();
         if (redis == null) return true;
@@ -57,6 +60,7 @@ public class RedisStockReservationService {
         return true;
     }
 
+    /** 回补已预留库存；处于事务中时延后到提交后执行，避免回滚后 Redis 与数据库不一致。 */
     public void release(Long skuId, int quantity) {
         StringRedisTemplate redis = redisTemplateProvider.getIfAvailable();
         if (redis == null) return;

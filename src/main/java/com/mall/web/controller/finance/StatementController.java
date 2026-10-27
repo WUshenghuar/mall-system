@@ -15,6 +15,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+/** 提供财务对账单生成、确认、明细导出及税率配置接口。 */
 @RestController
 @RequestMapping("/api/finance")
 @RequiredArgsConstructor

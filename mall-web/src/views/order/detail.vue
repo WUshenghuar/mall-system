@@ -90,7 +90,7 @@ async function fetchData() {
   try {
     const res = await getOrderDetail(route.params.id)
     order.value = res.data
-    // fetch order items
+    // 订单主体与明细分开加载；明细接口失败时仍保留订单核心信息。
     if (res.data?.id) {
       itemsLoading.value = true
       try {

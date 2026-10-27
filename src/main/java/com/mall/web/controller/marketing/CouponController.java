@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+/** 提供优惠券定义维护、运营提审和管理者审核入口。 */
 @RestController
 @RequestMapping("/api/marketing/coupon")
 @RequiredArgsConstructor

@@ -5,6 +5,7 @@ import lombok.experimental.Accessors;
 
 import java.io.Serializable;
 
+/** API 统一响应封装，固定携带业务码、消息、数据和生成时间。 */
 @Data
 @Accessors(chain = true)
 public class Result<T> implements Serializable {

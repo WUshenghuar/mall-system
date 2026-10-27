@@ -1,3 +1,4 @@
+"""提供内部鉴权的工具规划和 SSE 对话接口。"""
 import json
 import asyncio
 from collections.abc import AsyncIterator
@@ -30,6 +31,7 @@ BUSINESS_SOURCES = {
 
 
 def business_tool_names(value: str) -> list[str]:
+    # 丢弃未知工具并限制数量，避免模型计划扩大到未授权的业务操作。
     return [name for name in (item.strip() for item in value.split(",")) if name in BUSINESS_SOURCES][:3]
 
 
@@ -100,6 +102,7 @@ async def chat(request: ChatRequest, x_ai_service_token: str = Header(default=""
                 return
             history = [item.model_dump() for item in request.history]
             context = []
+            # Java 已按会员权限完成业务查询；有业务上下文时不再叠加通用知识库结果。
             if request.businessContext:
                 tool_names = business_tool_names(request.businessTool)
                 for name in tool_names or ["read_only_business_lookup"]:

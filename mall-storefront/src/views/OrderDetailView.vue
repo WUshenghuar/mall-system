@@ -28,6 +28,7 @@ const route = useRoute(), router = useRouter(), order = ref(null), logistics = r
 let refreshTimer
 const labels = ['待支付', '待发货', '待收货', '已完成', '已取消', '退款中', '已退款']
 const statusLabel = computed(() => labels[order.value?.orderStatus] || '处理中')
+// 状态值达到 2 时查询物流；首次加载为退款处理中（5）时开启定期刷新。
 async function load() { loading.value = true; try { const result = await tradeApi.order(route.params.orderNo); order.value = result.data; if (order.value?.orderStatus >= 2) logistics.value = (await tradeApi.logistics(route.params.orderNo)).data } catch (e) { showToast(e) } finally { loading.value = false } }
 async function cancel() { try { await showConfirmDialog({ title: '取消订单', message: '取消后已锁定库存将被释放。' }); await tradeApi.cancelOrder(order.value.orderNo); showToast('订单已取消'); load() } catch (e) { if (e !== 'cancel') showToast(e) } }
 async function confirm() { try { await tradeApi.confirmOrder(order.value.orderNo); showToast('已确认收货'); load() } catch (e) { showToast(e) } }

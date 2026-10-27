@@ -69,6 +69,7 @@ async function loadTicketConversation(ticket) {
     scrollToBottom()
   } catch { /* 工单会话读取失败不影响当前对话 */ }
 }
+// 打开时恢复对话并轮询工单；关闭或卸载时停止轮询并中断当前 SSE 请求。
 watch(open, value => { if (value) { loadRecent(true).finally(loadHandoff); handoffTimer = window.setInterval(async () => { if (sending.value) return; await loadHandoff(); if (!handoffTicket.value?.conversationId) loadRecent(true) }, 15000) } else { window.clearInterval(handoffTimer); chatController?.abort(); chatController = null } })
 onUnmounted(() => { window.clearInterval(handoffTimer); chatController?.abort() })
 async function scrollToBottom() { await nextTick(); messageList.value?.scrollTo({ top: messageList.value.scrollHeight, behavior: 'smooth' }) }
@@ -81,6 +82,7 @@ async function send(retryItem = null) {
   let assistant
   let requestId
   if (retrying) {
+    // 重试沿用原 requestId，让服务端按幂等键重放同一轮回复。
     if (!retryItem.requestId) return
     assistant = retryItem
     assistant.content = ''

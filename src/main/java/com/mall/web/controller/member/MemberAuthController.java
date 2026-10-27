@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+/** 提供 C 端会员注册、登录、资料和积分流水接口，并拒绝后台主体访问会员资源。 */
 @RestController
 @RequestMapping("/api/member/auth")
 @RequiredArgsConstructor

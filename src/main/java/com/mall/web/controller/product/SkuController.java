@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.util.List;
 
+/** 提供运营后台 SKU 管理、批量改价和库存查询入口。 */
 @RestController
 @RequestMapping("/api/product/sku")
 @RequiredArgsConstructor
